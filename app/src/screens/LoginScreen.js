@@ -1,0 +1,256 @@
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
+import { useAuth } from '../context/AuthContext';
+
+export default function LoginScreen() {
+  const { login, signup } = useAuth();
+  const [isSignup, setIsSignup] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSubmit() {
+    if (!email.trim() || !password.trim()) {
+      Alert.alert('Oops', 'Please fill in your email and password.');
+      return;
+    }
+    if (isSignup && !name.trim()) {
+      Alert.alert('Oops', 'Please enter your name.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      if (isSignup) {
+        await signup(email.trim(), password, name.trim(), inviteCode.trim() || undefined);
+      } else {
+        await login(email.trim(), password);
+      }
+    } catch (err) {
+      Alert.alert('Something went wrong', err.message || 'Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function toggleMode() {
+    setIsSignup(!isSignup);
+    setName('');
+    setInviteCode('');
+  }
+
+  return (
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.header}>
+          <Text style={styles.logo}>cozycast</Text>
+          <Text style={styles.tagline}>
+            share moments with the people who matter
+          </Text>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>
+            {isSignup ? 'Create your account' : 'Welcome back'}
+          </Text>
+
+          {isSignup && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Name</Text>
+              <TextInput
+                style={styles.input}
+                value={name}
+                onChangeText={setName}
+                placeholder="Your name"
+                placeholderTextColor="#C4B5A8"
+                autoCapitalize="words"
+              />
+            </View>
+          )}
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Email</Text>
+            <TextInput
+              style={styles.input}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="you@example.com"
+              placeholderTextColor="#C4B5A8"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Password</Text>
+            <TextInput
+              style={styles.input}
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Your password"
+              placeholderTextColor="#C4B5A8"
+              secureTextEntry
+            />
+          </View>
+
+          {isSignup && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Invite Code (optional)</Text>
+              <TextInput
+                style={styles.input}
+                value={inviteCode}
+                onChangeText={setInviteCode}
+                placeholder="Enter an invite code"
+                placeholderTextColor="#C4B5A8"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={[styles.button, submitting && styles.buttonDisabled]}
+            onPress={handleSubmit}
+            disabled={submitting}
+            activeOpacity={0.8}
+          >
+            {submitting ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <Text style={styles.buttonText}>
+                {isSignup ? 'Sign Up' : 'Log In'}
+              </Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.toggleButton}
+            onPress={toggleMode}
+            activeOpacity={0.6}
+          >
+            <Text style={styles.toggleText}>
+              {isSignup
+                ? 'Already have an account? Log in'
+                : "Don't have an account? Sign up"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#FFF8F0',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 48,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 36,
+  },
+  logo: {
+    fontSize: 42,
+    fontWeight: '700',
+    color: '#E8734A',
+    letterSpacing: -1,
+  },
+  tagline: {
+    fontSize: 15,
+    color: '#8C7B6B',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 28,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  cardTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#2D2D2D',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  inputGroup: {
+    marginBottom: 18,
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6B5E50',
+    marginBottom: 6,
+    marginLeft: 4,
+  },
+  input: {
+    backgroundColor: '#FFF8F0',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: '#2D2D2D',
+    borderWidth: 1,
+    borderColor: '#F0E6DA',
+  },
+  button: {
+    backgroundColor: '#E8734A',
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 8,
+    shadowColor: '#E8734A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  buttonDisabled: {
+    opacity: 0.7,
+  },
+  buttonText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  toggleButton: {
+    marginTop: 20,
+    alignItems: 'center',
+  },
+  toggleText: {
+    color: '#E8734A',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+});

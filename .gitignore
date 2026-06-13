@@ -1,0 +1,11 @@
+node_modules/
+.expo/
+dist/
+*.db
+*.db-wal
+*.db-shm
+server/uploads/*
+!server/uploads/.gitkeep
+.env
+app/ios/
+app/android/

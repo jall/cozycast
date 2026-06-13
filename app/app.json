@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "cozycast",
+    "slug": "cozycast",
+    "scheme": "cozycast",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#FFF8F0"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.cozycast.app",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "cozycast needs microphone access to record audio casts."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#FFF8F0"
+      },
+      "package": "com.cozycast.app",
+      "permissions": [
+        "RECORD_AUDIO"
+      ]
+    }
+  }
+}
