@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import client from '../api/client';
+import { getFeed } from '../api/client';
 import CastCard from '../components/CastCard';
 
 export default function FeedScreen({ navigation }) {
@@ -21,8 +21,8 @@ export default function FeedScreen({ navigation }) {
   const fetchCasts = useCallback(async () => {
     try {
       setError(null);
-      const data = await client.get('/casts/feed');
-      setCasts(data.casts || data || []);
+      const casts = await getFeed();
+      setCasts(casts);
     } catch (err) {
       setError(err.message || 'Could not load your feed.');
     }

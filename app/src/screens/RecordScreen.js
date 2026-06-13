@@ -14,7 +14,7 @@ import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
 import * as DocumentPicker from 'expo-document-picker';
 import { Ionicons } from '@expo/vector-icons';
-import client from '../api/client';
+import { uploadCast } from '../api/client';
 
 function formatElapsed(seconds) {
   const m = Math.floor(seconds / 60);
@@ -110,30 +110,18 @@ export default function RecordScreen() {
 
     setSubmitting(true);
     try {
-      const formData = new FormData();
-      formData.append('title', title.trim());
-      if (description.trim()) {
-        formData.append('description', description.trim());
-      }
-
       const participantList = participants
         .split(',')
         .map((p) => p.trim())
         .filter(Boolean);
-      if (participantList.length > 0) {
-        formData.append('participants', JSON.stringify(participantList));
-      }
 
-      const fileInfo = await FileSystem.getInfoAsync(recordingUri);
-      const fileName = recordingUri.split('/').pop() || 'recording.m4a';
-
-      formData.append('audio', {
-        uri: recordingUri,
-        name: fileName,
-        type: 'audio/m4a',
+      await uploadCast({
+        title: title.trim(),
+        description: description.trim() || null,
+        participants: participantList.length > 0 ? JSON.stringify(participantList) : null,
+        audioUri: recordingUri,
+        duration: elapsed || null,
       });
-
-      await client.postMultipart('/casts', formData);
 
       Alert.alert('Shared!', 'Your cast has been shared with friends.');
       resetState();

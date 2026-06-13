@@ -12,7 +12,7 @@ import {
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
-import client from '../api/client';
+import { getFriends, generateInvite as genInvite, getPendingInvites } from '../api/client';
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
@@ -29,11 +29,11 @@ export default function ProfileScreen() {
     setLoadingFriends(true);
     try {
       const [friendsData, invitesData] = await Promise.all([
-        client.get('/friends').catch(() => ({ friends: [] })),
-        client.get('/friends/invites').catch(() => ({ invites: [] })),
+        getFriends().catch(() => []),
+        getPendingInvites().catch(() => []),
       ]);
-      setFriends(friendsData.friends || friendsData || []);
-      setInvites(invitesData.invites || invitesData || []);
+      setFriends(friendsData);
+      setInvites(invitesData);
     } catch (err) {
       // Silently handle — lists just stay empty
     } finally {
@@ -44,8 +44,7 @@ export default function ProfileScreen() {
   async function handleGenerateInvite() {
     setGeneratingInvite(true);
     try {
-      const data = await client.post('/friends/invite');
-      const code = data.code || data.inviteCode || '';
+      const code = await genInvite();
       if (code) {
         await Clipboard.setStringAsync(code);
         Alert.alert(
@@ -53,8 +52,8 @@ export default function ProfileScreen() {
           `Code: ${code}\n\nCopied to clipboard! Share it with someone special.`
         );
         // Refresh invites list
-        const invitesData = await client.get('/friends/invites').catch(() => ({ invites: [] }));
-        setInvites(invitesData.invites || invitesData || []);
+        const newInvites = await getPendingInvites();
+        setInvites(newInvites);
       }
     } catch (err) {
       Alert.alert('Oops', err.message || 'Could not generate invite code.');

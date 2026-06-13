@@ -1,120 +1,100 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from './supabase';
 
-const DEFAULT_BASE_URL = 'http://localhost:3001/api';
+export async function getFeed() {
+  const { data: { user } } = await supabase.auth.getUser();
 
-let baseURL = DEFAULT_BASE_URL;
+  // Get friend IDs
+  const { data: friendships } = await supabase
+    .from('friendships')
+    .select('friend_id')
+    .eq('user_id', user.id);
 
-export function setBaseURL(url) {
-  baseURL = url;
+  const friendIds = (friendships || []).map(f => f.friend_id);
+  const visibleIds = [user.id, ...friendIds];
+
+  const { data, error } = await supabase
+    .from('casts')
+    .select('*, profiles!casts_creator_id_fkey(name, email)')
+    .in('creator_id', visibleIds)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+
+  // Flatten the joined profile data
+  return (data || []).map(cast => ({
+    ...cast,
+    creator_name: cast.profiles?.name || 'Someone',
+    creator_email: cast.profiles?.email || '',
+  }));
 }
 
-export function getBaseURL() {
-  return baseURL;
-}
+export async function uploadCast({ title, description, participants, audioUri, duration }) {
+  const { data: { user } } = await supabase.auth.getUser();
 
-async function getAuthHeaders() {
-  const token = await AsyncStorage.getItem('token');
-  const headers = {};
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-  return headers;
-}
+  // Upload audio to storage
+  const fileName = `${user.id}/${Date.now()}.m4a`;
+  const response = await fetch(audioUri);
+  const blob = await response.blob();
 
-async function handleResponse(response) {
-  const contentType = response.headers.get('content-type') || '';
-  let data;
-  if (contentType.includes('application/json')) {
-    data = await response.json();
-  } else {
-    data = await response.text();
-  }
+  const { error: uploadError } = await supabase.storage
+    .from('casts')
+    .upload(fileName, blob, { contentType: 'audio/m4a' });
 
-  if (!response.ok) {
-    const message =
-      (data && typeof data === 'object' && data.message) ||
-      (data && typeof data === 'object' && data.error) ||
-      `Request failed with status ${response.status}`;
-    const err = new Error(message);
-    err.status = response.status;
-    err.data = data;
-    throw err;
-  }
+  if (uploadError) throw uploadError;
 
+  // Insert cast record
+  const { data, error } = await supabase
+    .from('casts')
+    .insert({
+      creator_id: user.id,
+      title,
+      description: description || null,
+      participants: participants || null,
+      audio_path: fileName,
+      duration: duration || null,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
   return data;
 }
 
-const client = {
-  async get(path, params) {
-    const authHeaders = await getAuthHeaders();
-    let url = `${baseURL}${path}`;
-    if (params) {
-      const qs = new URLSearchParams(params).toString();
-      url += `?${qs}`;
-    }
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        ...authHeaders,
-      },
-    });
-    return handleResponse(response);
-  },
+export async function getAudioUrl(audioPath) {
+  const { data } = await supabase.storage
+    .from('casts')
+    .createSignedUrl(audioPath, 3600); // 1 hour expiry
+  return data?.signedUrl;
+}
 
-  async post(path, body) {
-    const authHeaders = await getAuthHeaders();
-    const response = await fetch(`${baseURL}${path}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        ...authHeaders,
-      },
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    return handleResponse(response);
-  },
+export async function getFriends() {
+  const { data, error } = await supabase
+    .from('friendships')
+    .select('profiles!friendships_friend_id_fkey(id, name, email)')
+    .eq('user_id', (await supabase.auth.getUser()).data.user.id);
 
-  async postMultipart(path, formData) {
-    const authHeaders = await getAuthHeaders();
-    const response = await fetch(`${baseURL}${path}`, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        ...authHeaders,
-        // Do not set Content-Type — fetch will set it with the boundary
-      },
-      body: formData,
-    });
-    return handleResponse(response);
-  },
+  if (error) throw error;
+  return (data || []).map(f => f.profiles);
+}
 
-  async put(path, body) {
-    const authHeaders = await getAuthHeaders();
-    const response = await fetch(`${baseURL}${path}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        ...authHeaders,
-      },
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    return handleResponse(response);
-  },
+export async function generateInvite() {
+  const { data, error } = await supabase.rpc('generate_invite_code');
+  if (error) throw error;
+  return data; // returns the code string
+}
 
-  async delete(path) {
-    const authHeaders = await getAuthHeaders();
-    const response = await fetch(`${baseURL}${path}`, {
-      method: 'DELETE',
-      headers: {
-        'Accept': 'application/json',
-        ...authHeaders,
-      },
-    });
-    return handleResponse(response);
-  },
-};
+export async function getPendingInvites() {
+  const { data, error } = await supabase
+    .from('invites')
+    .select('code, created_at')
+    .is('used_by', null)
+    .order('created_at', { ascending: false });
 
-export default client;
+  if (error) throw error;
+  return data || [];
+}
+
+export async function redeemInvite(code) {
+  const { error } = await supabase.rpc('redeem_invite', { invite_code: code });
+  if (error) throw error;
+}

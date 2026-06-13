@@ -1,7 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
@@ -9,8 +7,6 @@ import LoginScreen from './src/screens/LoginScreen';
 import FeedScreen from './src/screens/FeedScreen';
 import RecordScreen from './src/screens/RecordScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
-
-const Tab = createBottomTabNavigator();
 
 function LoadingScreen() {
   return (
@@ -21,50 +17,40 @@ function LoadingScreen() {
   );
 }
 
-function MainTabs() {
+function TabBar({ active, onNavigate }) {
+  const tabs = [
+    { key: 'feed', label: 'Feed', icon: 'home' },
+    { key: 'record', label: 'Record', icon: 'mic' },
+    { key: 'profile', label: 'Profile', icon: 'person' },
+  ];
   return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarStyle: styles.tabBar,
-        tabBarActiveTintColor: '#E8734A',
-        tabBarInactiveTintColor: '#B0A090',
-        tabBarLabelStyle: styles.tabLabel,
-        tabBarIcon: ({ color, size }) => {
-          let iconName;
-          if (route.name === 'Feed') {
-            iconName = 'home';
-          } else if (route.name === 'Record') {
-            iconName = 'mic';
-          } else if (route.name === 'Profile') {
-            iconName = 'person';
-          }
-          return <Ionicons name={iconName} size={size} color={color} />;
-        },
-      })}
-    >
-      <Tab.Screen name="Feed" component={FeedScreen} />
-      <Tab.Screen name="Record" component={RecordScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
-    </Tab.Navigator>
+    <View style={styles.tabBar}>
+      {tabs.map(tab => (
+        <TouchableOpacity key={tab.key} style={styles.tab} onPress={() => onNavigate(tab.key)}>
+          <Ionicons name={tab.icon} size={24} color={active === tab.key ? '#E8734A' : '#B0A090'} />
+          <Text style={[styles.tabLabel, active === tab.key && styles.tabLabelActive]}>{tab.label}</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
   );
 }
 
 function AppRoot() {
   const { user, loading } = useAuth();
+  const [activeTab, setActiveTab] = useState('feed');
 
-  if (loading) {
-    return <LoadingScreen />;
-  }
-
-  if (!user) {
-    return <LoginScreen />;
-  }
+  if (loading) return <LoadingScreen />;
+  if (!user) return <LoginScreen />;
 
   return (
-    <NavigationContainer>
-      <MainTabs />
-    </NavigationContainer>
+    <View style={{ flex: 1, backgroundColor: '#FFF8F0' }}>
+      <View style={{ flex: 1 }}>
+        {activeTab === 'feed' && <FeedScreen />}
+        {activeTab === 'record' && <RecordScreen />}
+        {activeTab === 'profile' && <ProfileScreen />}
+      </View>
+      <TabBar active={activeTab} onNavigate={setActiveTab} />
+    </View>
   );
 }
 
@@ -92,6 +78,7 @@ const styles = StyleSheet.create({
     letterSpacing: -1,
   },
   tabBar: {
+    flexDirection: 'row',
     backgroundColor: '#FFFFFF',
     borderTopWidth: 0,
     elevation: 8,
@@ -103,8 +90,18 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 28,
   },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   tabLabel: {
     fontSize: 11,
     fontWeight: '600',
+    color: '#B0A090',
+    marginTop: 4,
+  },
+  tabLabelActive: {
+    color: '#E8734A',
   },
 });

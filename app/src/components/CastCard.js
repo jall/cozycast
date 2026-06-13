@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import AudioPlayer from './AudioPlayer';
-import { getBaseURL } from '../api/client';
+import { getAudioUrl } from '../api/client';
 
 function timeAgo(dateString) {
   const now = Date.now();
@@ -35,7 +35,11 @@ export default function CastCard({ cast }) {
     id,
   } = cast;
 
-  const audioUrl = `${getBaseURL()}/casts/${id}/audio`;
+  const [audioUrl, setAudioUrl] = useState(null);
+
+  useEffect(() => {
+    if (cast.audio_path) getAudioUrl(cast.audio_path).then(setAudioUrl);
+  }, [cast.audio_path]);
 
   let participantList = [];
   if (Array.isArray(participants)) {
