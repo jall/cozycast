@@ -207,31 +207,44 @@ end;
 $$;
 
 -- ============================================================
--- STORAGE SETUP (manual step)
+-- STORAGE POLICIES
 -- ============================================================
---
--- Create a "casts" storage bucket in the Supabase dashboard with:
---
---   - Public:            false
---   - File size limit:   200 MB
---   - Allowed MIME types: audio/*
---
--- Then add these storage policies:
---
---   1. Upload (INSERT): authenticated users can upload to their own folder.
---      Policy: bucket_id = 'casts' AND auth.uid()::text = (storage.foldername(name))[1]
---
---   2. Read (SELECT): users can read a file if they created the cast or
---      are a friend of the creator.
---      Policy: bucket_id = 'casts' AND (
---        auth.uid()::text = (storage.foldername(name))[1]
---        OR exists (
---          select 1 from public.friendships
---          where friendships.user_id = auth.uid()
---            and friendships.friend_id::text = (storage.foldername(name))[1]
---        )
---      )
---
---   3. Delete (DELETE): users can delete files in their own folder.
---      Policy: bucket_id = 'casts' AND auth.uid()::text = (storage.foldername(name))[1]
---
+-- The "casts" bucket itself is declared in supabase/config.toml
+-- (private, 200 MiB limit, audio/* only). These policies control who
+-- can upload, read, and delete objects within it. Audio paths are of
+-- the form "<uid>/<timestamp>.m4a", so the first folder segment is the
+-- creator's user id.
+
+-- Upload: authenticated users may upload only into their own folder.
+create policy "casts_objects_insert_own"
+  on storage.objects for insert
+  to authenticated
+  with check (
+    bucket_id = 'casts'
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+-- Read: the creator, or any friend of the creator, may read an object.
+create policy "casts_objects_select_own_or_friends"
+  on storage.objects for select
+  to authenticated
+  using (
+    bucket_id = 'casts'
+    and (
+      auth.uid()::text = (storage.foldername(name))[1]
+      or exists (
+        select 1 from public.friendships
+        where friendships.user_id = auth.uid()
+          and friendships.friend_id::text = (storage.foldername(name))[1]
+      )
+    )
+  );
+
+-- Delete: users may delete objects only in their own folder.
+create policy "casts_objects_delete_own"
+  on storage.objects for delete
+  to authenticated
+  using (
+    bucket_id = 'casts'
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
