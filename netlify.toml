@@ -3,6 +3,12 @@
   command = "npx expo export --platform web"
   publish = "dist"
 
+[build.environment]
+  NODE_VERSION = "20"
+
+# SPA fallback: serve index.html for client-side routes. Netlify serves any
+# existing static file (the JS bundle, assets) first, so this only catches
+# unknown paths — it does not shadow /_expo/* or /assets/*.
 [[redirects]]
   from = "/*"
   to = "/index.html"
