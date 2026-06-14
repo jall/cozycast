@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert,
   ActivityIndicator,
   Platform,
 } from 'react-native';
@@ -15,6 +14,7 @@ import * as FileSystem from 'expo-file-system';
 import * as DocumentPicker from 'expo-document-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { uploadCast } from '../api/client';
+import { showAlert } from '../utils/alert';
 
 function formatElapsed(seconds) {
   const m = Math.floor(seconds / 60);
@@ -38,7 +38,7 @@ export default function RecordScreen() {
     try {
       const permission = await Audio.requestPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert('Permission needed', 'Please allow microphone access to record audio.');
+        showAlert('Permission needed', 'Please allow microphone access to record audio.');
         return;
       }
 
@@ -59,7 +59,7 @@ export default function RecordScreen() {
         setElapsed((prev) => prev + 1);
       }, 1000);
     } catch (err) {
-      Alert.alert('Recording failed', err.message || 'Could not start recording.');
+      showAlert('Recording failed', err.message || 'Could not start recording.');
     }
   }
 
@@ -77,7 +77,7 @@ export default function RecordScreen() {
       setRecording(null);
       setMode('form');
     } catch (err) {
-      Alert.alert('Error', err.message || 'Could not stop recording.');
+      showAlert('Error', err.message || 'Could not stop recording.');
       setMode(null);
     }
   }
@@ -94,17 +94,17 @@ export default function RecordScreen() {
         setMode('form');
       }
     } catch (err) {
-      Alert.alert('Error', 'Could not pick file.');
+      showAlert('Error', 'Could not pick file.');
     }
   }
 
   async function handleSubmit() {
     if (!title.trim()) {
-      Alert.alert('Missing title', 'Give your cast a title.');
+      showAlert('Missing title', 'Give your cast a title.');
       return;
     }
     if (!recordingUri) {
-      Alert.alert('No audio', 'Please record audio first.');
+      showAlert('No audio', 'Please record audio first.');
       return;
     }
 
@@ -123,10 +123,10 @@ export default function RecordScreen() {
         duration: elapsed || null,
       });
 
-      Alert.alert('Shared!', 'Your cast has been shared with friends.');
+      showAlert('Shared!', 'Your cast has been shared with friends.');
       resetState();
     } catch (err) {
-      Alert.alert('Upload failed', err.message || 'Could not upload your cast.');
+      showAlert('Upload failed', err.message || 'Could not upload your cast.');
     } finally {
       setSubmitting(false);
     }

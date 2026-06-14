@@ -4,6 +4,11 @@ import { redeemInvite } from '../api/client';
 
 const AuthContext = createContext(null);
 
+// Where Supabase should send users after they click the email confirmation
+// link. Must also be allow-listed in the Supabase dashboard (Authentication →
+// URL Configuration). Overridable per-environment via EXPO_PUBLIC_SITE_URL.
+const SITE_URL = process.env.EXPO_PUBLIC_SITE_URL || 'https://cozycast.jall.me';
+
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth must be used within an AuthProvider');
@@ -52,7 +57,10 @@ export function AuthProvider({ children }) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { name } },
+      options: {
+        data: { name },
+        emailRedirectTo: SITE_URL,
+      },
     });
     if (error) throw error;
 
@@ -65,6 +73,10 @@ export function AuthProvider({ children }) {
         console.warn('Invite redemption failed:', e.message);
       }
     }
+
+    // When email confirmation is enabled, signUp succeeds but no session is
+    // created until the user clicks the link. Let the caller tell them so.
+    return { needsConfirmation: !data.session };
   }
 
   async function logout() {

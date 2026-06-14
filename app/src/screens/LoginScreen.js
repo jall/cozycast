@@ -9,7 +9,6 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 
@@ -21,26 +20,42 @@ export default function LoginScreen() {
   const [name, setName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // { type: 'error' | 'success', text } — shown inline since RN's Alert is a
+  // no-op on web, where this app primarily runs.
+  const [feedback, setFeedback] = useState(null);
 
   async function handleSubmit() {
+    setFeedback(null);
+
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Oops', 'Please fill in your email and password.');
+      setFeedback({ type: 'error', text: 'Please fill in your email and password.' });
       return;
     }
     if (isSignup && !name.trim()) {
-      Alert.alert('Oops', 'Please enter your name.');
+      setFeedback({ type: 'error', text: 'Please enter your name.' });
       return;
     }
 
     setSubmitting(true);
     try {
       if (isSignup) {
-        await signup(email.trim(), password, name.trim(), inviteCode.trim() || undefined);
+        const result = await signup(
+          email.trim(),
+          password,
+          name.trim(),
+          inviteCode.trim() || undefined
+        );
+        if (result?.needsConfirmation) {
+          setFeedback({
+            type: 'success',
+            text: `We've sent a confirmation link to ${email.trim()}. Check your inbox to finish signing up.`,
+          });
+        }
       } else {
         await login(email.trim(), password);
       }
     } catch (err) {
-      Alert.alert('Something went wrong', err.message || 'Please try again.');
+      setFeedback({ type: 'error', text: err.message || 'Something went wrong. Please try again.' });
     } finally {
       setSubmitting(false);
     }
@@ -50,6 +65,7 @@ export default function LoginScreen() {
     setIsSignup(!isSignup);
     setName('');
     setInviteCode('');
+    setFeedback(null);
   }
 
   return (
@@ -72,6 +88,26 @@ export default function LoginScreen() {
           <Text style={styles.cardTitle}>
             {isSignup ? 'Create your account' : 'Welcome back'}
           </Text>
+
+          {feedback && (
+            <View
+              style={[
+                styles.feedback,
+                feedback.type === 'success' ? styles.feedbackSuccess : styles.feedbackError,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.feedbackText,
+                  feedback.type === 'success'
+                    ? styles.feedbackTextSuccess
+                    : styles.feedbackTextError,
+                ]}
+              >
+                {feedback.text}
+              </Text>
+            </View>
+          )}
 
           {isSignup && (
             <View style={styles.inputGroup}>
@@ -203,6 +239,33 @@ const styles = StyleSheet.create({
     color: '#2D2D2D',
     marginBottom: 24,
     textAlign: 'center',
+  },
+  feedback: {
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 20,
+  },
+  feedbackError: {
+    backgroundColor: '#FCEDE9',
+    borderWidth: 1,
+    borderColor: '#F3C9BD',
+  },
+  feedbackSuccess: {
+    backgroundColor: '#EDF7EE',
+    borderWidth: 1,
+    borderColor: '#C3E2C6',
+  },
+  feedbackText: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '500',
+  },
+  feedbackTextError: {
+    color: '#B5482E',
+  },
+  feedbackTextSuccess: {
+    color: '#3B7A3F',
   },
   inputGroup: {
     marginBottom: 18,

@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert,
   ActivityIndicator,
   Platform,
 } from 'react-native';
@@ -13,6 +12,7 @@ import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { getFriends, generateInvite as genInvite, getPendingInvites } from '../api/client';
+import { showAlert } from '../utils/alert';
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
@@ -47,7 +47,7 @@ export default function ProfileScreen() {
       const code = await genInvite();
       if (code) {
         await Clipboard.setStringAsync(code);
-        Alert.alert(
+        showAlert(
           'Invite Created',
           `Code: ${code}\n\nCopied to clipboard! Share it with someone special.`
         );
@@ -56,7 +56,7 @@ export default function ProfileScreen() {
         setInvites(newInvites);
       }
     } catch (err) {
-      Alert.alert('Oops', err.message || 'Could not generate invite code.');
+      showAlert('Oops', err.message || 'Could not generate invite code.');
     } finally {
       setGeneratingInvite(false);
     }
@@ -64,11 +64,11 @@ export default function ProfileScreen() {
 
   async function handleCopyCode(code) {
     await Clipboard.setStringAsync(code);
-    Alert.alert('Copied', 'Invite code copied to clipboard.');
+    showAlert('Copied', 'Invite code copied to clipboard.');
   }
 
   function handleLogout() {
-    Alert.alert('Log Out', 'Are you sure you want to log out?', [
+    showAlert('Log Out', 'Are you sure you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Log Out', style: 'destructive', onPress: logout },
     ]);
