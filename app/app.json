@@ -28,6 +28,10 @@
       "permissions": [
         "RECORD_AUDIO"
       ]
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png"
     }
   }
 }

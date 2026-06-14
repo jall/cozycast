@@ -1,6 +1,7 @@
 node_modules/
 .expo/
 dist/
+app/dist/
 *.db
 *.db-wal
 *.db-shm
