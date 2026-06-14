@@ -39,6 +39,16 @@ to feature branches + PRs + CI.
   `npx expo install --check`). Mismatched native modules crash the web build at
   runtime with "Module implementation must be a class".
 
+## Error tracking
+
+- Sentry (`@sentry/react-native`) is initialised in `app/App.js`, gated on
+  `__DEV__` so it only reports from real builds, not local dev.
+- The DSN is a public client key with a baked-in default; override with
+  `EXPO_PUBLIC_SENTRY_DSN`. Source-map upload (needs a secret
+  `SENTRY_AUTH_TOKEN`) is not set up yet — stack traces will be minified until
+  then.
+- Don't run `@sentry/wizard`; the runtime wiring is already in place by hand.
+
 ## Supabase
 
 - Project ref: `yhaswqvewhigrpoduhyr`

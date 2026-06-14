@@ -2,11 +2,29 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import * as Sentry from '@sentry/react-native';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import LoginScreen from './src/screens/LoginScreen';
 import FeedScreen from './src/screens/FeedScreen';
 import RecordScreen from './src/screens/RecordScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
+
+// Error tracking. The DSN is a public client key (safe to ship, like the
+// Supabase anon key); override it per-environment with EXPO_PUBLIC_SENTRY_DSN.
+const sentryDsn =
+  process.env.EXPO_PUBLIC_SENTRY_DSN ||
+  'https://9dd3deae705a5a9b6cf134ed2d9752e8@o4511565778059264.ingest.de.sentry.io/4511565779042384';
+if (sentryDsn) {
+  Sentry.init({
+    dsn: sentryDsn,
+    // Only report from real builds — keep local dev noise out of Sentry.
+    enabled: !__DEV__,
+    // Low pre-v1 volume — full traces are fine; dial down before scaling up.
+    tracesSampleRate: 1.0,
+    // Keep PII off until we've reviewed exactly what we'd be collecting.
+    sendDefaultPii: false,
+  });
+}
 
 function LoadingScreen() {
   return (
@@ -56,7 +74,7 @@ function AppRoot() {
   );
 }
 
-export default function App() {
+function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
@@ -65,6 +83,9 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
+
+// Wrap with Sentry only when it's enabled, so the app is untouched otherwise.
+export default sentryDsn ? Sentry.wrap(App) : App;
 
 const styles = StyleSheet.create({
   loading: {
