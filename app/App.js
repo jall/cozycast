@@ -25,10 +25,12 @@ function TabBar({ active, onNavigate }) {
   ];
   return (
     <View style={styles.tabBar}>
-      {tabs.map(tab => (
+      {tabs.map((tab) => (
         <TouchableOpacity key={tab.key} style={styles.tab} onPress={() => onNavigate(tab.key)}>
           <Ionicons name={tab.icon} size={24} color={active === tab.key ? '#E8734A' : '#B0A090'} />
-          <Text style={[styles.tabLabel, active === tab.key && styles.tabLabelActive]}>{tab.label}</Text>
+          <Text style={[styles.tabLabel, active === tab.key && styles.tabLabelActive]}>
+            {tab.label}
+          </Text>
         </TouchableOpacity>
       ))}
     </View>

@@ -26,14 +26,7 @@ function getInitial(name) {
 }
 
 export default function CastCard({ cast }) {
-  const {
-    title,
-    description,
-    creator_name,
-    participants,
-    created_at,
-    id,
-  } = cast;
+  const { title, description, creator_name, participants, created_at } = cast;
 
   const [audioUrl, setAudioUrl] = useState(null);
 
@@ -45,7 +38,11 @@ export default function CastCard({ cast }) {
   if (Array.isArray(participants)) {
     participantList = participants;
   } else if (typeof participants === 'string' && participants) {
-    try { participantList = JSON.parse(participants); } catch { participantList = [participants]; }
+    try {
+      participantList = JSON.parse(participants);
+    } catch {
+      participantList = [participants];
+    }
   }
 
   return (

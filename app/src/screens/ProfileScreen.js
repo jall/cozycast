@@ -34,7 +34,7 @@ export default function ProfileScreen() {
       ]);
       setFriends(friendsData);
       setInvites(invitesData);
-    } catch (err) {
+    } catch {
       // Silently handle — lists just stay empty
     } finally {
       setLoadingFriends(false);
@@ -49,7 +49,7 @@ export default function ProfileScreen() {
         await Clipboard.setStringAsync(code);
         showAlert(
           'Invite Created',
-          `Code: ${code}\n\nCopied to clipboard! Share it with someone special.`
+          `Code: ${code}\n\nCopied to clipboard! Share it with someone special.`,
         );
         // Refresh invites list
         const newInvites = await getPendingInvites();
@@ -84,9 +84,7 @@ export default function ProfileScreen() {
       {/* Profile header */}
       <View style={styles.profileHeader}>
         <View style={styles.avatarLarge}>
-          <Text style={styles.avatarLargeText}>
-            {getInitial(user?.name)}
-          </Text>
+          <Text style={styles.avatarLargeText}>{getInitial(user?.name)}</Text>
         </View>
         <Text style={styles.userName}>{user?.name || 'You'}</Text>
         <Text style={styles.userEmail}>{user?.email || ''}</Text>
@@ -100,24 +98,18 @@ export default function ProfileScreen() {
         ) : friends.length === 0 ? (
           <View style={styles.emptySection}>
             <Ionicons name="people-outline" size={32} color="#D4C5B5" />
-            <Text style={styles.emptyText}>
-              No friends yet. Share an invite code to connect!
-            </Text>
+            <Text style={styles.emptyText}>No friends yet. Share an invite code to connect!</Text>
           </View>
         ) : (
           <View style={styles.friendsList}>
             {friends.map((friend, index) => (
               <View key={friend._id || friend.id || index} style={styles.friendRow}>
                 <View style={styles.friendAvatar}>
-                  <Text style={styles.friendAvatarText}>
-                    {getInitial(friend.name)}
-                  </Text>
+                  <Text style={styles.friendAvatarText}>{getInitial(friend.name)}</Text>
                 </View>
                 <View style={styles.friendInfo}>
                   <Text style={styles.friendName}>{friend.name}</Text>
-                  {friend.email && (
-                    <Text style={styles.friendEmail}>{friend.email}</Text>
-                  )}
+                  {friend.email && <Text style={styles.friendEmail}>{friend.email}</Text>}
                 </View>
               </View>
             ))}
@@ -148,7 +140,8 @@ export default function ProfileScreen() {
         {invites.length > 0 && (
           <View style={styles.invitesList}>
             {invites.map((invite, index) => {
-              const code = typeof invite === 'string' ? invite : invite.code || invite.inviteCode || '';
+              const code =
+                typeof invite === 'string' ? invite : invite.code || invite.inviteCode || '';
               const used = typeof invite === 'object' ? invite.used || invite.redeemed : false;
               return (
                 <TouchableOpacity
@@ -158,12 +151,8 @@ export default function ProfileScreen() {
                   activeOpacity={0.7}
                 >
                   <View style={styles.inviteInfo}>
-                    <Text style={[styles.inviteCode, used && styles.inviteUsed]}>
-                      {code}
-                    </Text>
-                    <Text style={styles.inviteStatus}>
-                      {used ? 'Used' : 'Pending'}
-                    </Text>
+                    <Text style={[styles.inviteCode, used && styles.inviteUsed]}>{code}</Text>
+                    <Text style={styles.inviteStatus}>{used ? 'Used' : 'Pending'}</Text>
                   </View>
                   <Ionicons name="copy-outline" size={18} color="#A89888" />
                 </TouchableOpacity>
@@ -174,11 +163,7 @@ export default function ProfileScreen() {
       </View>
 
       {/* Logout */}
-      <TouchableOpacity
-        style={styles.logoutButton}
-        onPress={handleLogout}
-        activeOpacity={0.7}
-      >
+      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.7}>
         <Ionicons name="log-out-outline" size={20} color="#C0392B" />
         <Text style={styles.logoutText}>Log Out</Text>
       </TouchableOpacity>

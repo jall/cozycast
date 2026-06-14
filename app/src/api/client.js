@@ -1,7 +1,9 @@
 import { supabase } from './supabase';
 
 export async function getFeed() {
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   // Get friend IDs
   const { data: friendships } = await supabase
@@ -9,7 +11,7 @@ export async function getFeed() {
     .select('friend_id')
     .eq('user_id', user.id);
 
-  const friendIds = (friendships || []).map(f => f.friend_id);
+  const friendIds = (friendships || []).map((f) => f.friend_id);
   const visibleIds = [user.id, ...friendIds];
 
   const { data, error } = await supabase
@@ -21,7 +23,7 @@ export async function getFeed() {
   if (error) throw error;
 
   // Flatten the joined profile data
-  return (data || []).map(cast => ({
+  return (data || []).map((cast) => ({
     ...cast,
     creator_name: cast.profiles?.name || 'Someone',
     creator_email: cast.profiles?.email || '',
@@ -29,7 +31,9 @@ export async function getFeed() {
 }
 
 export async function uploadCast({ title, description, participants, audioUri, duration }) {
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   // Upload audio to storage
   const fileName = `${user.id}/${Date.now()}.m4a`;
@@ -61,9 +65,7 @@ export async function uploadCast({ title, description, participants, audioUri, d
 }
 
 export async function getAudioUrl(audioPath) {
-  const { data } = await supabase.storage
-    .from('casts')
-    .createSignedUrl(audioPath, 3600); // 1 hour expiry
+  const { data } = await supabase.storage.from('casts').createSignedUrl(audioPath, 3600); // 1 hour expiry
   return data?.signedUrl;
 }
 
@@ -74,7 +76,7 @@ export async function getFriends() {
     .eq('user_id', (await supabase.auth.getUser()).data.user.id);
 
   if (error) throw error;
-  return (data || []).map(f => f.profiles);
+  return (data || []).map((f) => f.profiles);
 }
 
 export async function generateInvite() {

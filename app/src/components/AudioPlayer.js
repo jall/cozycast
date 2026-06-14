@@ -12,7 +12,6 @@ function formatTime(millis) {
 }
 
 export default function AudioPlayer({ uri, style }) {
-  const [sound, setSound] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [position, setPosition] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -34,10 +33,9 @@ export default function AudioPlayer({ uri, style }) {
     const { sound: newSound } = await Audio.Sound.createAsync(
       { uri },
       { shouldPlay: true },
-      onPlaybackStatusUpdate
+      onPlaybackStatusUpdate,
     );
     soundRef.current = newSound;
-    setSound(newSound);
     setIsLoaded(true);
     setIsPlaying(true);
   }
@@ -71,35 +69,17 @@ export default function AudioPlayer({ uri, style }) {
     }
   }
 
-  async function handleSeek(evt) {
-    if (!soundRef.current || !isLoaded || duration === 0) return;
-    const { locationX } = evt.nativeEvent;
-    const { width } = evt.nativeEvent;
-    // We approximate using the parent width passed via layout
-    // For simplicity, use the locationX relative to the bar
-  }
-
   const progress = duration > 0 ? position / duration : 0;
 
   return (
     <View style={[styles.container, style]}>
-      <TouchableOpacity
-        onPress={handlePlayPause}
-        style={styles.playButton}
-        activeOpacity={0.7}
-      >
-        <Ionicons
-          name={isPlaying ? 'pause' : 'play'}
-          size={20}
-          color="#FFFFFF"
-        />
+      <TouchableOpacity onPress={handlePlayPause} style={styles.playButton} activeOpacity={0.7}>
+        <Ionicons name={isPlaying ? 'pause' : 'play'} size={20} color="#FFFFFF" />
       </TouchableOpacity>
 
       <View style={styles.trackArea}>
         <View style={styles.progressBackground}>
-          <View
-            style={[styles.progressFill, { width: `${progress * 100}%` }]}
-          />
+          <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
         </View>
         <View style={styles.timeRow}>
           <Text style={styles.timeText}>{formatTime(position)}</Text>

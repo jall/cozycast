@@ -43,7 +43,7 @@ export default function LoginScreen() {
           email.trim(),
           password,
           name.trim(),
-          inviteCode.trim() || undefined
+          inviteCode.trim() || undefined,
         );
         if (result?.needsConfirmation) {
           setFeedback({
@@ -55,7 +55,10 @@ export default function LoginScreen() {
         await login(email.trim(), password);
       }
     } catch (err) {
-      setFeedback({ type: 'error', text: err.message || 'Something went wrong. Please try again.' });
+      setFeedback({
+        type: 'error',
+        text: err.message || 'Something went wrong. Please try again.',
+      });
     } finally {
       setSubmitting(false);
     }
@@ -73,21 +76,14 @@ export default function LoginScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <Text style={styles.logo}>cozycast</Text>
-          <Text style={styles.tagline}>
-            share moments with the people who matter
-          </Text>
+          <Text style={styles.tagline}>share moments with the people who matter</Text>
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>
-            {isSignup ? 'Create your account' : 'Welcome back'}
-          </Text>
+          <Text style={styles.cardTitle}>{isSignup ? 'Create your account' : 'Welcome back'}</Text>
 
           {feedback && (
             <View
@@ -173,21 +169,13 @@ export default function LoginScreen() {
             {submitting ? (
               <ActivityIndicator color="#FFF" />
             ) : (
-              <Text style={styles.buttonText}>
-                {isSignup ? 'Sign Up' : 'Log In'}
-              </Text>
+              <Text style={styles.buttonText}>{isSignup ? 'Sign Up' : 'Log In'}</Text>
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.toggleButton}
-            onPress={toggleMode}
-            activeOpacity={0.6}
-          >
+          <TouchableOpacity style={styles.toggleButton} onPress={toggleMode} activeOpacity={0.6}>
             <Text style={styles.toggleText}>
-              {isSignup
-                ? 'Already have an account? Log in'
-                : "Don't have an account? Sign up"}
+              {isSignup ? 'Already have an account? Log in' : "Don't have an account? Sign up"}
             </Text>
           </TouchableOpacity>
         </View>

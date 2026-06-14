@@ -7,10 +7,8 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
-  Platform,
 } from 'react-native';
 import { Audio } from 'expo-av';
-import * as FileSystem from 'expo-file-system';
 import * as DocumentPicker from 'expo-document-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { uploadCast } from '../api/client';
@@ -48,7 +46,7 @@ export default function RecordScreen() {
       });
 
       const { recording: rec } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
+        Audio.RecordingOptionsPresets.HIGH_QUALITY,
       );
 
       setRecording(rec);
@@ -93,7 +91,7 @@ export default function RecordScreen() {
         setRecordingUri(asset.uri);
         setMode('form');
       }
-    } catch (err) {
+    } catch {
       showAlert('Error', 'Could not pick file.');
     }
   }
@@ -146,39 +144,25 @@ export default function RecordScreen() {
     return (
       <View style={styles.choiceContainer}>
         <Text style={styles.screenTitle}>New Cast</Text>
-        <Text style={styles.screenSubtitle}>
-          Share a little audio moment with your people
-        </Text>
+        <Text style={styles.screenSubtitle}>Share a little audio moment with your people</Text>
 
-        <TouchableOpacity
-          style={styles.choiceCard}
-          onPress={startRecording}
-          activeOpacity={0.8}
-        >
+        <TouchableOpacity style={styles.choiceCard} onPress={startRecording} activeOpacity={0.8}>
           <View style={styles.choiceIconWrap}>
             <Ionicons name="mic" size={32} color="#E8734A" />
           </View>
           <View style={styles.choiceTextWrap}>
             <Text style={styles.choiceTitle}>Record</Text>
-            <Text style={styles.choiceDesc}>
-              Record something right now
-            </Text>
+            <Text style={styles.choiceDesc}>Record something right now</Text>
           </View>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.choiceCard}
-          onPress={handlePickFile}
-          activeOpacity={0.8}
-        >
+        <TouchableOpacity style={styles.choiceCard} onPress={handlePickFile} activeOpacity={0.8}>
           <View style={styles.choiceIconWrap}>
             <Ionicons name="document-outline" size={32} color="#F4A261" />
           </View>
           <View style={styles.choiceTextWrap}>
             <Text style={styles.choiceTitle}>Pick a File</Text>
-            <Text style={styles.choiceDesc}>
-              Upload an existing audio file
-            </Text>
+            <Text style={styles.choiceDesc}>Upload an existing audio file</Text>
           </View>
         </TouchableOpacity>
       </View>
@@ -192,11 +176,7 @@ export default function RecordScreen() {
         <Text style={styles.elapsed}>{formatElapsed(elapsed)}</Text>
 
         <View style={styles.pulseWrap}>
-          <TouchableOpacity
-            style={styles.stopButton}
-            onPress={stopRecording}
-            activeOpacity={0.8}
-          >
+          <TouchableOpacity style={styles.stopButton} onPress={stopRecording} activeOpacity={0.8}>
             <View style={styles.stopSquare} />
           </TouchableOpacity>
         </View>
@@ -214,15 +194,11 @@ export default function RecordScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <Text style={styles.screenTitle}>Almost there</Text>
-        <Text style={styles.screenSubtitle}>
-          Add some details to your cast
-        </Text>
+        <Text style={styles.screenSubtitle}>Add some details to your cast</Text>
 
         <View style={styles.audioPreviewRow}>
           <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
-          <Text style={styles.audioPreviewText}>
-            Audio recorded ({formatElapsed(elapsed)})
-          </Text>
+          <Text style={styles.audioPreviewText}>Audio recorded ({formatElapsed(elapsed)})</Text>
         </View>
 
         <View style={styles.inputGroup}>
@@ -274,11 +250,7 @@ export default function RecordScreen() {
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.cancelButton}
-          onPress={resetState}
-          activeOpacity={0.6}
-        >
+        <TouchableOpacity style={styles.cancelButton} onPress={resetState} activeOpacity={0.6}>
           <Text style={styles.cancelText}>Cancel</Text>
         </TouchableOpacity>
       </ScrollView>

@@ -10,9 +10,7 @@
     "splash": {
       "backgroundColor": "#FFF8F0"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.cozycast.app",
@@ -25,16 +23,12 @@
         "backgroundColor": "#FFF8F0"
       },
       "package": "com.cozycast.app",
-      "permissions": [
-        "RECORD_AUDIO"
-      ]
+      "permissions": ["RECORD_AUDIO"]
     },
     "web": {
       "bundler": "metro",
       "favicon": "./assets/favicon.png"
     },
-    "plugins": [
-      "expo-font"
-    ]
+    "plugins": ["expo-font"]
   }
 }

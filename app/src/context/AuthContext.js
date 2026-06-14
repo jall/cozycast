@@ -29,7 +29,9 @@ export function AuthProvider({ children }) {
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       const u = session?.user || null;
       setUser(u);
       if (u) loadProfile(u.id);
@@ -40,11 +42,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   async function loadProfile(userId) {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
+    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
     setProfile(data);
   }
 
@@ -84,13 +82,17 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{
-      user: profile || (user ? { id: user.id, email: user.email, name: user.user_metadata?.name } : null),
-      loading,
-      login,
-      signup,
-      logout,
-    }}>
+    <AuthContext.Provider
+      value={{
+        user:
+          profile ||
+          (user ? { id: user.id, email: user.email, name: user.user_metadata?.name } : null),
+        loading,
+        login,
+        signup,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

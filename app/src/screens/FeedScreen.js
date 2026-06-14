@@ -42,10 +42,7 @@ export default function FeedScreen({ navigation }) {
     return (
       <View style={styles.header}>
         <Text style={styles.headerTitle}>cozycast</Text>
-        <TouchableOpacity
-          onPress={() => navigation?.navigate?.('Profile')}
-          activeOpacity={0.7}
-        >
+        <TouchableOpacity onPress={() => navigation?.navigate?.('Profile')} activeOpacity={0.7}>
           <Ionicons name="person-circle-outline" size={32} color="#2D2D2D" />
         </TouchableOpacity>
       </View>
@@ -59,8 +56,8 @@ export default function FeedScreen({ navigation }) {
         <Ionicons name="people-outline" size={64} color="#E8C9B0" />
         <Text style={styles.emptyTitle}>It's quiet here...</Text>
         <Text style={styles.emptyBody}>
-          Invite some friends and start sharing little audio moments together.
-          Your cozy corner of the internet awaits.
+          Invite some friends and start sharing little audio moments together. Your cozy corner of
+          the internet awaits.
         </Text>
       </View>
     );

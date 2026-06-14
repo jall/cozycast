@@ -2,6 +2,8 @@ node_modules/
 .expo/
 dist/
 app/dist/
+coverage/
+app/coverage/
 *.db
 *.db-wal
 *.db-shm
