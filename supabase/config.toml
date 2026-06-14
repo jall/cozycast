@@ -5,5 +5,5 @@ project_id = "yhaswqvewhigrpoduhyr"
 # on storage.objects in the migration.
 [storage.buckets.casts]
 public = false
-file_size_limit = "200MiB"
+file_size_limit = "200MB"
 allowed_mime_types = ["audio/*"]
