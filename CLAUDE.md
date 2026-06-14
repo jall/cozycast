@@ -18,6 +18,11 @@ and share them with people you've connected with via invite codes.
 - `npx expo start --web` — local web dev server
 - `npx expo export --platform web` — production web build (what Netlify runs) → `dist/`
 - `npx expo install --check` — verify dependency versions match the installed SDK
+- `npm run lint` — ESLint (`eslint-config-expo` + Prettier compatibility). `npm run lint:fix` to autofix.
+- `npm run format` — Prettier write. `npm run format:check` to verify only.
+- `npm test` — Jest (`jest-expo` preset) + React Native Testing Library. `npm run test:watch` for watch mode.
+
+Run lint, format:check, and test before pushing — they're the bar for "green".
 
 ## Dev workflow
 
