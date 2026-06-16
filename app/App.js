@@ -8,6 +8,7 @@ import LoginScreen from './src/screens/LoginScreen';
 import FeedScreen from './src/screens/FeedScreen';
 import RecordScreen from './src/screens/RecordScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
+import SentryTestScreen from './src/screens/SentryTestScreen';
 
 // Error tracking. The DSN is a public client key (safe to ship, like the
 // Supabase anon key); override it per-environment with EXPO_PUBLIC_SENTRY_DSN.
@@ -74,7 +75,19 @@ function AppRoot() {
   );
 }
 
+// TEMPORARY: visit /?sentrytest to reach the Sentry verification panel.
+const showSentryTest =
+  typeof window !== 'undefined' && /[?&]sentrytest/.test(window.location?.search || '');
+
 function App() {
+  if (showSentryTest) {
+    return (
+      <SafeAreaProvider>
+        <SentryTestScreen />
+      </SafeAreaProvider>
+    );
+  }
+
   return (
     <SafeAreaProvider>
       <AuthProvider>
