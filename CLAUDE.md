@@ -30,6 +30,18 @@ Run lint, format:check, and test before pushing — they're the bar for "green".
 ships and we have real users — we're iterating fast. Once v1 lands, switch back
 to feature branches + PRs + CI.
 
+## Configuration (12-factor)
+
+- Config lives in the **environment, not the repo**. Read it from
+  `EXPO_PUBLIC_*` vars (`EXPO_PUBLIC_SUPABASE_URL`,
+  `EXPO_PUBLIC_SUPABASE_ANON_KEY`, `EXPO_PUBLIC_SITE_URL`,
+  `EXPO_PUBLIC_SENTRY_DSN`). `EXPO_PUBLIC_*` vars are inlined at build time, so
+  they must be set in the Netlify **build** environment (and a local `.env` for
+  dev).
+- Don't add new hardcoded credentials/URLs. The Supabase URL/anon-key still have
+  baked-in fallbacks from early scaffolding — that's a known deviation tracked in
+  the pre-v1 cleanup issue, not a pattern to copy.
+
 ## Web gotchas
 
 - React Native's `Alert` is a **no-op on web**. Use `showAlert` from
@@ -43,8 +55,8 @@ to feature branches + PRs + CI.
 
 - Sentry (`@sentry/react-native`) is initialised in `app/App.js`, gated on
   `__DEV__` so it only reports from real builds, not local dev.
-- The DSN is a public client key with a baked-in default; override with
-  `EXPO_PUBLIC_SENTRY_DSN`. Source-map upload (needs a secret
+- The DSN comes from `EXPO_PUBLIC_SENTRY_DSN` (set in Netlify build env) — never
+  hardcoded. Without it, Sentry stays off. Source-map upload (needs a secret
   `SENTRY_AUTH_TOKEN`) is not set up yet — stack traces will be minified until
   then.
 - Don't run `@sentry/wizard`; the runtime wiring is already in place by hand.

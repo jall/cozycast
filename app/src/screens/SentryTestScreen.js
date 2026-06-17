@@ -23,7 +23,7 @@ export default function SentryTestScreen() {
     <View style={styles.container}>
       <Text style={styles.title}>Sentry test</Text>
       <Text style={styles.subtitle}>
-        Trigger an error to confirm reporting works. Then look in the Sentry react-native project
+        Trigger an error to confirm reporting works. Then look in the Sentry cozycast project
         (environment: production).
       </Text>
 

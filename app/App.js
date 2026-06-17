@@ -10,11 +10,10 @@ import RecordScreen from './src/screens/RecordScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import SentryTestScreen from './src/screens/SentryTestScreen';
 
-// Error tracking. The DSN is a public client key (safe to ship, like the
-// Supabase anon key); override it per-environment with EXPO_PUBLIC_SENTRY_DSN.
-const sentryDsn =
-  process.env.EXPO_PUBLIC_SENTRY_DSN ||
-  'https://9dd3deae705a5a9b6cf134ed2d9752e8@o4511565778059264.ingest.de.sentry.io/4511565779042384';
+// Error tracking. 12-factor: the DSN comes from the environment, never the
+// repo. Set EXPO_PUBLIC_SENTRY_DSN (Netlify build env / local .env); without
+// it, Sentry stays off.
+const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
 if (sentryDsn) {
   Sentry.init({
     dsn: sentryDsn,

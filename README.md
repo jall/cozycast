@@ -81,7 +81,7 @@ The app reads its Supabase connection from `EXPO_PUBLIC_*` environment variables
 | `EXPO_PUBLIC_SUPABASE_URL` | Your Supabase project URL |
 | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Supabase publishable / anon key |
 | `EXPO_PUBLIC_SITE_URL` | Base URL used for email confirmation redirects (defaults to `https://cozycast.jall.me`) |
-| `EXPO_PUBLIC_SENTRY_DSN` | Sentry DSN for error tracking (a default is baked in; override per environment) |
+| `EXPO_PUBLIC_SENTRY_DSN` | Sentry DSN for error tracking (set in the build env; reporting is off when unset) |
 
 These have development fallbacks baked in (see
 [`app/src/api/supabase.js`](app/src/api/supabase.js) and
@@ -130,10 +130,10 @@ picks it up. The private `casts` audio bucket is declared in
 
 Runtime errors are reported to [Sentry](https://sentry.io/) via
 `@sentry/react-native` (initialised in `app/App.js`). Reporting is **disabled in
-local development** (`__DEV__`) and only active in real builds. The DSN is a
-public client key with a baked-in default; override it with
-`EXPO_PUBLIC_SENTRY_DSN`. Readable stack traces via source-map upload (which
-needs a secret `SENTRY_AUTH_TOKEN`) are a later enhancement.
+local development** (`__DEV__`) and only active in real builds. The DSN is read
+from `EXPO_PUBLIC_SENTRY_DSN` (12-factor — set it in the build environment);
+when it's unset, Sentry stays off. Readable stack traces via source-map upload
+(which needs a secret `SENTRY_AUTH_TOKEN`) are a later enhancement.
 
 ## Project status
 
