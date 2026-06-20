@@ -38,9 +38,10 @@ to feature branches + PRs + CI.
   `EXPO_PUBLIC_SENTRY_DSN`). `EXPO_PUBLIC_*` vars are inlined at build time, so
   they must be set in the Netlify **build** environment (and a local `.env` for
   dev).
-- Don't add new hardcoded credentials/URLs. The Supabase URL/anon-key still have
-  baked-in fallbacks from early scaffolding — that's a known deviation tracked in
-  the pre-v1 cleanup issue, not a pattern to copy.
+- Don't add hardcoded credentials/URLs. All config is env-driven: copy
+  `app/.env.example` to `app/.env` for local dev; the same vars live in the
+  Netlify build env. Missing Supabase vars throw a clear error at startup.
+  (`EXPO_PUBLIC_SITE_URL` keeps a safe public default of `https://cozycast.jall.me`.)
 
 ## Web gotchas
 

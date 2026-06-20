@@ -83,11 +83,12 @@ The app reads its Supabase connection from `EXPO_PUBLIC_*` environment variables
 | `EXPO_PUBLIC_SITE_URL` | Base URL used for email confirmation redirects (defaults to `https://cozycast.jall.me`) |
 | `EXPO_PUBLIC_SENTRY_DSN` | Sentry DSN for error tracking (set in the build env; reporting is off when unset) |
 
-These have development fallbacks baked in (see
-[`app/src/api/supabase.js`](app/src/api/supabase.js) and
-[`app/src/context/AuthContext.js`](app/src/context/AuthContext.js)), so the app
-will run out of the box against the shared dev project. Set them explicitly to
-point at your own Supabase project.
+Config is read from the environment (12-factor) — nothing is hardcoded in the
+repo. Copy [`app/.env.example`](app/.env.example) to `app/.env` and fill it in
+for local dev; the same vars are set in the Netlify build env for deploys. The
+Supabase vars are **required** (the app throws on startup if they're missing);
+`EXPO_PUBLIC_SITE_URL` defaults to `https://cozycast.jall.me`, and
+`EXPO_PUBLIC_SENTRY_DSN` is optional (reporting is off when unset).
 
 > **Note:** Because email confirmation is enabled, new signups must confirm via
 > the email link before they can log in. Make sure your Supabase **Auth → URL
