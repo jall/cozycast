@@ -16,7 +16,10 @@ and share them with people you've connected with via invite codes.
 ## Commands (run from `app/`)
 
 - `npx expo start --web` — local web dev server
-- `npx expo export --platform web` — production web build (what Netlify runs) → `dist/`
+- `npx expo export --platform web` — production web build → `dist/`
+- `npm run build:web` — what Netlify runs: web build with source maps, then
+  uploads them to Sentry and strips `.map` files from `dist/` (no-ops without
+  `SENTRY_AUTH_TOKEN`)
 - `npx expo install --check` — verify dependency versions match the installed SDK
 - `npm run lint` — ESLint (`eslint-config-expo` + Prettier compatibility). `npm run lint:fix` to autofix.
 - `npm run format` — Prettier write. `npm run format:check` to verify only.
@@ -57,9 +60,11 @@ to feature branches + PRs + CI.
 - Sentry (`@sentry/react-native`) is initialised in `app/App.js`, gated on
   `__DEV__` so it only reports from real builds, not local dev.
 - The DSN comes from `EXPO_PUBLIC_SENTRY_DSN` (set in Netlify build env) — never
-  hardcoded. Without it, Sentry stays off. Source-map upload (needs a secret
-  `SENTRY_AUTH_TOKEN`) is not set up yet — stack traces will be minified until
-  then.
+  hardcoded. Without it, Sentry stays off.
+- Source maps upload during the Netlify build (`app/scripts/upload-sourcemaps.sh`,
+  via Debug IDs) when the secret `SENTRY_AUTH_TOKEN` is set; otherwise the step
+  is skipped and traces stay minified. Org/project default to `jall`/`cozycast`
+  (EU region).
 - Don't run `@sentry/wizard`; the runtime wiring is already in place by hand.
 
 ## Supabase

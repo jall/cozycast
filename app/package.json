@@ -7,6 +7,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "build:web": "expo export --platform web --source-maps && bash scripts/upload-sourcemaps.sh dist",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -46,6 +47,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.24.0",
+    "@sentry/cli": "^2.58.6",
     "@testing-library/react-native": "^12.9.0",
     "eslint": "^8.57.0",
     "eslint-config-expo": "~8.0.1",

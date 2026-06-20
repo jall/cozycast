@@ -133,8 +133,12 @@ Runtime errors are reported to [Sentry](https://sentry.io/) via
 `@sentry/react-native` (initialised in `app/App.js`). Reporting is **disabled in
 local development** (`__DEV__`) and only active in real builds. The DSN is read
 from `EXPO_PUBLIC_SENTRY_DSN` (12-factor — set it in the build environment);
-when it's unset, Sentry stays off. Readable stack traces via source-map upload
-(which needs a secret `SENTRY_AUTH_TOKEN`) are a later enhancement.
+when it's unset, Sentry stays off.
+
+Source maps are uploaded automatically during the Netlify build (`npm run
+build:web` → `app/scripts/upload-sourcemaps.sh`) so stack traces are readable.
+That step needs a secret `SENTRY_AUTH_TOKEN` in the build environment; without
+it the upload is skipped.
 
 ## Project status
 

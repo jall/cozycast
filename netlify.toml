@@ -1,6 +1,9 @@
 [build]
   base = "app"
-  command = "npx expo export --platform web"
+  # Exports the web build with source maps, uploads them to Sentry, then strips
+  # the .map files from the publish dir (see app/scripts/upload-sourcemaps.sh).
+  # Upload is skipped automatically when SENTRY_AUTH_TOKEN isn't set.
+  command = "npm run build:web"
   publish = "dist"
 
 [build.environment]
