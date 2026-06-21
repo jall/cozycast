@@ -1,7 +1,24 @@
 # cozycast
 
 Private audio sharing for close friends — record or upload short audio "casts"
-and share them with people you've connected with via invite codes.
+and share each one with the **specific people you choose**. No public feed, no
+auto-broadcast: the interviewee controls who receives a recording.
+
+## Sharing model (the core idea)
+
+A cast is visible only to its **creator**, its **sharer** (the one person made
+responsible for distributing it), the **participants** tagged on it, and the
+explicit **recipients** it's been shared with. Friends/invites are just your
+*address book* of who you *can* share with — connecting via an invite does **not**
+grant access to anyone's casts.
+
+This is enforced in Postgres (see `supabase/migrations/`): `cast_participants`
+and `cast_recipients` tables, with RLS driven by the `can_access_cast` /
+`can_manage_cast` `SECURITY DEFINER` helpers (security-definer so cross-table
+policies don't recurse). Storage reads follow the same rule via
+`can_access_audio`. Manual summaries ship now; AI summaries/cover art are a
+planned fast-follow behind a Supabase Edge Function (cover art is currently
+derived deterministically from the cast id in `components/CastCover.js`).
 
 ## Stack & layout
 

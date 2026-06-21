@@ -56,8 +56,8 @@ export default function FeedScreen({ navigation }) {
         <Ionicons name="people-outline" size={64} color="#E8C9B0" />
         <Text style={styles.emptyTitle}>It's quiet here...</Text>
         <Text style={styles.emptyBody}>
-          Invite some friends and start sharing little audio moments together. Your cozy corner of
-          the internet awaits.
+          Record a cast and share it with someone, or wait for a friend to send one your way. Your
+          cozy corner of the internet awaits.
         </Text>
       </View>
     );

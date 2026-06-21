@@ -10,9 +10,10 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 
-export default function LoginScreen() {
+export default function LoginScreen({ onBack }) {
   const { login, signup } = useAuth();
   const [isSignup, setIsSignup] = useState(false);
   const [email, setEmail] = useState('');
@@ -77,6 +78,12 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        {onBack && (
+          <TouchableOpacity style={styles.backButton} onPress={onBack} activeOpacity={0.6}>
+            <Ionicons name="chevron-back" size={20} color="#8C7B6B" />
+            <Text style={styles.backText}>Back</Text>
+          </TouchableOpacity>
+        )}
         <View style={styles.header}>
           <Text style={styles.logo}>cozycast</Text>
           <Text style={styles.tagline}>share moments with the people who matter</Text>
@@ -194,6 +201,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 24,
     paddingVertical: 48,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+    paddingVertical: 4,
+  },
+  backText: {
+    fontSize: 15,
+    color: '#8C7B6B',
+    fontWeight: '500',
   },
   header: {
     alignItems: 'center',

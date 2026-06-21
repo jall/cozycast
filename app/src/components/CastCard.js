@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import AudioPlayer from './AudioPlayer';
+import CastCover from './CastCover';
 import { getAudioUrl } from '../api/client';
 
 function timeAgo(dateString) {
@@ -20,13 +22,19 @@ function timeAgo(dateString) {
   return `${diffWeek}w ago`;
 }
 
-function getInitial(name) {
-  if (!name) return '?';
-  return name.charAt(0).toUpperCase();
-}
-
 export default function CastCard({ cast }) {
-  const { title, description, creator_name, participants, created_at } = cast;
+  const {
+    id,
+    title,
+    summary,
+    description,
+    creator_name,
+    sharer_name,
+    participants,
+    recipient_count,
+    shared_with_me,
+    created_at,
+  } = cast;
 
   const [audioUrl, setAudioUrl] = useState(null);
 
@@ -34,50 +42,53 @@ export default function CastCard({ cast }) {
     if (cast.audio_path) getAudioUrl(cast.audio_path).then(setAudioUrl);
   }, [cast.audio_path]);
 
-  let participantList = [];
-  if (Array.isArray(participants)) {
-    participantList = participants;
-  } else if (typeof participants === 'string' && participants) {
-    try {
-      participantList = JSON.parse(participants);
-    } catch {
-      participantList = [participants];
-    }
-  }
+  const body = summary || description;
+  const participantList = Array.isArray(participants) ? participants : [];
 
   return (
     <View style={styles.card}>
       <View style={styles.topRow}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{getInitial(creator_name)}</Text>
-        </View>
-        <View style={styles.meta}>
-          <Text style={styles.creatorName}>{creator_name || 'Someone'}</Text>
-          <Text style={styles.timeAgo}>{timeAgo(created_at)}</Text>
+        <CastCover seed={id} title={title} size={56} />
+        <View style={styles.headerText}>
+          <Text style={styles.title} numberOfLines={2}>
+            {title}
+          </Text>
+          <Text style={styles.byline}>
+            {shared_with_me ? `Shared by ${sharer_name || creator_name}` : creator_name} ·{' '}
+            {timeAgo(created_at)}
+          </Text>
         </View>
       </View>
 
-      <Text style={styles.title}>{title}</Text>
-
-      {description ? (
-        <Text style={styles.description} numberOfLines={3}>
-          {description}
+      {body ? (
+        <Text style={styles.summary} numberOfLines={4}>
+          {body}
         </Text>
       ) : null}
 
       {participantList.length > 0 && (
         <View style={styles.participantsRow}>
-          {participantList.map((p, i) => (
+          <Ionicons
+            name="people-outline"
+            size={14}
+            color="#A89888"
+            style={styles.participantsIcon}
+          />
+          {participantList.map((name, i) => (
             <View key={i} style={styles.participantTag}>
-              <Text style={styles.participantText}>
-                {typeof p === 'string' ? p : p.name || 'Guest'}
-              </Text>
+              <Text style={styles.participantText}>{name}</Text>
             </View>
           ))}
         </View>
       )}
 
       {audioUrl && <AudioPlayer uri={audioUrl} style={styles.player} />}
+
+      {!shared_with_me && recipient_count > 0 ? (
+        <Text style={styles.sharedNote}>
+          Shared with {recipient_count} {recipient_count === 1 ? 'person' : 'people'}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -100,51 +111,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F4A261',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  avatarText: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  meta: {
+  headerText: {
     flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  creatorName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#2D2D2D',
-  },
-  timeAgo: {
-    fontSize: 13,
-    color: '#A89888',
+    marginLeft: 14,
   },
   title: {
     fontSize: 17,
     fontWeight: '700',
     color: '#2D2D2D',
-    marginBottom: 6,
+    marginBottom: 4,
   },
-  description: {
+  byline: {
+    fontSize: 13,
+    color: '#A89888',
+  },
+  summary: {
     fontSize: 14,
     color: '#6B5E50',
     lineHeight: 20,
-    marginBottom: 10,
+    marginBottom: 12,
   },
   participantsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    alignItems: 'center',
     marginBottom: 8,
+  },
+  participantsIcon: {
+    marginRight: 6,
   },
   participantTag: {
     backgroundColor: '#FFF0E6',
@@ -161,5 +155,10 @@ const styles = StyleSheet.create({
   },
   player: {
     marginTop: 4,
+  },
+  sharedNote: {
+    fontSize: 12,
+    color: '#A89888',
+    marginTop: 8,
   },
 });

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,8 @@ import {
 import { Audio } from 'expo-av';
 import * as DocumentPicker from 'expo-document-picker';
 import { Ionicons } from '@expo/vector-icons';
-import { uploadCast } from '../api/client';
+import { createCast, shareCast, getFriends } from '../api/client';
+import { useAuth } from '../context/AuthContext';
 import { showAlert } from '../utils/alert';
 
 function formatElapsed(seconds) {
@@ -20,17 +21,55 @@ function formatElapsed(seconds) {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+function initial(name) {
+  return name ? name.charAt(0).toUpperCase() : '?';
+}
+
+// A tappable person row used for tagging participants and picking recipients.
+function PersonRow({ person, selected, onToggle }) {
+  return (
+    <TouchableOpacity style={styles.personRow} onPress={onToggle} activeOpacity={0.7}>
+      <View style={styles.personAvatar}>
+        <Text style={styles.personAvatarText}>{initial(person.name)}</Text>
+      </View>
+      <View style={styles.personInfo}>
+        <Text style={styles.personName}>{person.name}</Text>
+        {person.email ? <Text style={styles.personEmail}>{person.email}</Text> : null}
+      </View>
+      <Ionicons
+        name={selected ? 'checkmark-circle' : 'ellipse-outline'}
+        size={24}
+        color={selected ? '#E8734A' : '#D4C5B5'}
+      />
+    </TouchableOpacity>
+  );
+}
+
 export default function RecordScreen() {
-  const [mode, setMode] = useState(null); // null | 'recording' | 'recorded' | 'form'
+  const { user } = useAuth();
+  // null | 'recording' | 'form' | 'recipients' | 'done'
+  const [mode, setMode] = useState(null);
   const [recording, setRecording] = useState(null);
   const [recordingUri, setRecordingUri] = useState(null);
   const [elapsed, setElapsed] = useState(0);
+
   const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [participants, setParticipants] = useState('');
+  const [summary, setSummary] = useState('');
+  const [friends, setFriends] = useState([]);
+  const [participantIds, setParticipantIds] = useState([]);
+  const [sharerId, setSharerId] = useState('me');
+  const [recipientIds, setRecipientIds] = useState([]);
+
   const [submitting, setSubmitting] = useState(false);
+  const [createdCast, setCreatedCast] = useState(null);
 
   const timerRef = useRef(null);
+
+  useEffect(() => {
+    getFriends()
+      .then(setFriends)
+      .catch(() => setFriends([]));
+  }, []);
 
   async function startRecording() {
     try {
@@ -67,9 +106,7 @@ export default function RecordScreen() {
 
     try {
       await recording.stopAndUnloadAsync();
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-      });
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
       const uri = recording.getURI();
       setRecordingUri(uri);
       setRecording(null);
@@ -87,8 +124,7 @@ export default function RecordScreen() {
         copyToCacheDirectory: true,
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const asset = result.assets[0];
-        setRecordingUri(asset.uri);
+        setRecordingUri(result.assets[0].uri);
         setMode('form');
       }
     } catch {
@@ -96,35 +132,60 @@ export default function RecordScreen() {
     }
   }
 
-  async function handleSubmit() {
+  function toggle(list, setList, id) {
+    setList(list.includes(id) ? list.filter((x) => x !== id) : [...list, id]);
+  }
+
+  function toggleParticipant(id) {
+    const next = participantIds.includes(id)
+      ? participantIds.filter((x) => x !== id)
+      : [...participantIds, id];
+    setParticipantIds(next);
+    // If the assigned sharer is no longer a participant, fall back to you.
+    if (sharerId !== 'me' && !next.includes(sharerId)) setSharerId('me');
+  }
+
+  async function handleCreate() {
     if (!title.trim()) {
       showAlert('Missing title', 'Give your cast a title.');
       return;
     }
     if (!recordingUri) {
-      showAlert('No audio', 'Please record audio first.');
+      showAlert('No audio', 'Please record or pick audio first.');
       return;
     }
 
     setSubmitting(true);
     try {
-      const participantList = participants
-        .split(',')
-        .map((p) => p.trim())
-        .filter(Boolean);
+      const participants = friends
+        .filter((f) => participantIds.includes(f.id))
+        .map((f) => ({ id: f.id, name: f.name }));
 
-      await uploadCast({
+      const cast = await createCast({
         title: title.trim(),
-        description: description.trim() || null,
-        participants: participantList.length > 0 ? JSON.stringify(participantList) : null,
+        summary: summary.trim() || null,
         audioUri: recordingUri,
         duration: elapsed || null,
+        participants,
+        sharerId: sharerId === 'me' ? user?.id : sharerId,
       });
 
-      showAlert('Shared!', 'Your cast has been shared with friends.');
-      resetState();
+      setCreatedCast(cast);
+      setMode('recipients');
     } catch (err) {
-      showAlert('Upload failed', err.message || 'Could not upload your cast.');
+      showAlert('Upload failed', err.message || 'Could not create your cast.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleShare() {
+    setSubmitting(true);
+    try {
+      await shareCast(createdCast.id, recipientIds);
+      setMode('done');
+    } catch (err) {
+      showAlert('Could not share', err.message || 'Your cast was saved but sharing failed.');
     } finally {
       setSubmitting(false);
     }
@@ -135,16 +196,19 @@ export default function RecordScreen() {
     setRecordingUri(null);
     setElapsed(0);
     setTitle('');
-    setDescription('');
-    setParticipants('');
+    setSummary('');
+    setParticipantIds([]);
+    setSharerId('me');
+    setRecipientIds([]);
     setRecording(null);
+    setCreatedCast(null);
   }
 
   function renderChoiceScreen() {
     return (
       <View style={styles.choiceContainer}>
         <Text style={styles.screenTitle}>New Cast</Text>
-        <Text style={styles.screenSubtitle}>Share a little audio moment with your people</Text>
+        <Text style={styles.screenSubtitle}>Record a conversation, then choose who hears it</Text>
 
         <TouchableOpacity style={styles.choiceCard} onPress={startRecording} activeOpacity={0.8}>
           <View style={styles.choiceIconWrap}>
@@ -186,6 +250,36 @@ export default function RecordScreen() {
     );
   }
 
+  function renderSharerPicker() {
+    const options = [
+      { id: 'me', name: `${user?.name || 'You'} (you)` },
+      ...friends.filter((f) => participantIds.includes(f.id)),
+    ];
+    return (
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Who shares this?</Text>
+        <Text style={styles.helpText}>
+          One person is responsible for deciding who receives this cast.
+        </Text>
+        <View style={styles.chipRow}>
+          {options.map((o) => {
+            const active = sharerId === o.id;
+            return (
+              <TouchableOpacity
+                key={o.id}
+                style={[styles.chip, active && styles.chipActive]}
+                onPress={() => setSharerId(o.id)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.chipText, active && styles.chipTextActive]}>{o.name}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+    );
+  }
+
   function renderForm() {
     return (
       <ScrollView
@@ -193,12 +287,14 @@ export default function RecordScreen() {
         contentContainerStyle={styles.formContent}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.screenTitle}>Almost there</Text>
-        <Text style={styles.screenSubtitle}>Add some details to your cast</Text>
+        <Text style={styles.screenTitle}>Add some details</Text>
+        <Text style={styles.screenSubtitle}>Tell people what this conversation was</Text>
 
         <View style={styles.audioPreviewRow}>
           <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
-          <Text style={styles.audioPreviewText}>Audio recorded ({formatElapsed(elapsed)})</Text>
+          <Text style={styles.audioPreviewText}>
+            Audio ready{elapsed ? ` (${formatElapsed(elapsed)})` : ''}
+          </Text>
         </View>
 
         <View style={styles.inputGroup}>
@@ -213,12 +309,12 @@ export default function RecordScreen() {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Description (optional)</Text>
+          <Text style={styles.label}>Summary (optional)</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
-            value={description}
-            onChangeText={setDescription}
-            placeholder="A little context..."
+            value={summary}
+            onChangeText={setSummary}
+            placeholder="A little about the conversation..."
             placeholderTextColor="#C4B5A8"
             multiline
             numberOfLines={3}
@@ -227,26 +323,37 @@ export default function RecordScreen() {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Participants (optional)</Text>
-          <TextInput
-            style={styles.input}
-            value={participants}
-            onChangeText={setParticipants}
-            placeholder="Names, separated by commas"
-            placeholderTextColor="#C4B5A8"
-          />
+          <Text style={styles.label}>Who was in the conversation?</Text>
+          {friends.length === 0 ? (
+            <Text style={styles.helpText}>
+              Add friends from your Profile to tag them as participants.
+            </Text>
+          ) : (
+            <View style={styles.personList}>
+              {friends.map((f) => (
+                <PersonRow
+                  key={f.id}
+                  person={f}
+                  selected={participantIds.includes(f.id)}
+                  onToggle={() => toggleParticipant(f.id)}
+                />
+              ))}
+            </View>
+          )}
         </View>
+
+        {renderSharerPicker()}
 
         <TouchableOpacity
           style={[styles.submitButton, submitting && styles.submitDisabled]}
-          onPress={handleSubmit}
+          onPress={handleCreate}
           disabled={submitting}
           activeOpacity={0.8}
         >
           {submitting ? (
             <ActivityIndicator color="#FFF" />
           ) : (
-            <Text style={styles.submitText}>Share Cast</Text>
+            <Text style={styles.submitText}>Continue to sharing</Text>
           )}
         </TouchableOpacity>
 
@@ -257,11 +364,87 @@ export default function RecordScreen() {
     );
   }
 
+  function renderRecipients() {
+    const sharerIsMe = sharerId === 'me' || sharerId === user?.id;
+    return (
+      <ScrollView
+        style={styles.formScroll}
+        contentContainerStyle={styles.formContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={styles.screenTitle}>Share with…</Text>
+        <Text style={styles.screenSubtitle}>
+          {sharerIsMe
+            ? 'Pick exactly who receives this. No one else will ever see it.'
+            : "You assigned someone else to share this — they'll choose the recipients."}
+        </Text>
+
+        {sharerIsMe ? (
+          friends.length === 0 ? (
+            <Text style={styles.helpText}>
+              You have no friends to share with yet. Add some from your Profile, then share this
+              cast later.
+            </Text>
+          ) : (
+            <View style={styles.personList}>
+              {friends.map((f) => (
+                <PersonRow
+                  key={f.id}
+                  person={f}
+                  selected={recipientIds.includes(f.id)}
+                  onToggle={() => toggle(recipientIds, setRecipientIds, f.id)}
+                />
+              ))}
+            </View>
+          )
+        ) : null}
+
+        <TouchableOpacity
+          style={[styles.submitButton, submitting && styles.submitDisabled]}
+          onPress={sharerIsMe ? handleShare : () => setMode('done')}
+          disabled={submitting}
+          activeOpacity={0.8}
+        >
+          {submitting ? (
+            <ActivityIndicator color="#FFF" />
+          ) : (
+            <Text style={styles.submitText}>
+              {sharerIsMe
+                ? recipientIds.length > 0
+                  ? `Share with ${recipientIds.length} ${
+                      recipientIds.length === 1 ? 'person' : 'people'
+                    }`
+                  : 'Skip for now'
+                : 'Done'}
+            </Text>
+          )}
+        </TouchableOpacity>
+      </ScrollView>
+    );
+  }
+
+  function renderDone() {
+    return (
+      <View style={styles.doneContainer}>
+        <Ionicons name="checkmark-circle" size={72} color="#4CAF50" />
+        <Text style={styles.doneTitle}>All set!</Text>
+        <Text style={styles.doneBody}>
+          Your cast is saved{recipientIds.length > 0 ? ' and on its way to your people' : ''}.
+        </Text>
+        <TouchableOpacity style={styles.submitButton} onPress={resetState} activeOpacity={0.8}>
+          <Text style={styles.submitText}>Record another</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       {mode === null && renderChoiceScreen()}
       {mode === 'recording' && renderRecordingScreen()}
       {mode === 'form' && renderForm()}
+      {mode === 'recipients' && renderRecipients()}
+      {mode === 'done' && renderDone()}
     </View>
   );
 }
@@ -411,6 +594,13 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     marginLeft: 4,
   },
+  helpText: {
+    fontSize: 13,
+    color: '#A89888',
+    marginBottom: 8,
+    marginLeft: 4,
+    lineHeight: 19,
+  },
   input: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
@@ -425,6 +615,76 @@ const styles = StyleSheet.create({
     minHeight: 80,
     paddingTop: 14,
   },
+
+  // Person list (participants / recipients)
+  personList: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  personRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F5EFE8',
+  },
+  personAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#F4A261',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  personAvatarText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  personInfo: {
+    flex: 1,
+  },
+  personName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#2D2D2D',
+  },
+  personEmail: {
+    fontSize: 13,
+    color: '#A89888',
+    marginTop: 2,
+  },
+
+  // Chips (sharer picker)
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  chip: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginRight: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#F0E6DA',
+  },
+  chipActive: {
+    backgroundColor: '#E8734A',
+    borderColor: '#E8734A',
+  },
+  chipText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B5E50',
+  },
+  chipTextActive: {
+    color: '#FFFFFF',
+  },
+
   submitButton: {
     backgroundColor: '#E8734A',
     borderRadius: 14,
@@ -454,5 +714,27 @@ const styles = StyleSheet.create({
     color: '#A89888',
     fontSize: 15,
     fontWeight: '500',
+  },
+
+  // Done
+  doneContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 40,
+  },
+  doneTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#2D2D2D',
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  doneBody: {
+    fontSize: 15,
+    color: '#8C7B6B',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 32,
   },
 });

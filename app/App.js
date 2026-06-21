@@ -4,6 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Sentry from '@sentry/react-native';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
+import LandingScreen from './src/screens/LandingScreen';
+import ManifestoScreen from './src/screens/ManifestoScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import FeedScreen from './src/screens/FeedScreen';
 import RecordScreen from './src/screens/RecordScreen';
@@ -57,12 +59,26 @@ function TabBar({ active, onNavigate }) {
   );
 }
 
+// The public, unauthenticated surface: landing → sign in, plus the manifesto.
+function PublicRoot() {
+  const [view, setView] = useState('landing'); // 'landing' | 'login' | 'manifesto'
+
+  if (view === 'login') return <LoginScreen onBack={() => setView('landing')} />;
+  if (view === 'manifesto') return <ManifestoScreen onBack={() => setView('landing')} />;
+  return (
+    <LandingScreen
+      onGetStarted={() => setView('login')}
+      onOpenManifesto={() => setView('manifesto')}
+    />
+  );
+}
+
 function AppRoot() {
   const { user, loading } = useAuth();
   const [activeTab, setActiveTab] = useState('feed');
 
   if (loading) return <LoadingScreen />;
-  if (!user) return <LoginScreen />;
+  if (!user) return <PublicRoot />;
 
   return (
     <View style={{ flex: 1, backgroundColor: '#FFF8F0' }}>

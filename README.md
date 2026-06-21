@@ -1,9 +1,9 @@
 # cozycast
 
 A cozy, private audio-sharing app for close friends. Record or upload short audio
-"casts" and share them only with the people you've connected to via invite codes —
-no public feeds, no algorithms, no strangers. Just a quiet little corner for the
-people you actually care about.
+"casts" and share each one only with the specific people you choose — no public
+feeds, no algorithms, no strangers. The person interviewed controls who hears it.
+Just a quiet little corner for the people you actually care about.
 
 cozycast is built with [Expo](https://expo.dev/) (React Native) so it runs on
 iOS, Android, and the web from a single codebase, and it's backed entirely by
@@ -13,14 +13,24 @@ deployed on [Netlify](https://www.netlify.com/).
 
 ## Features
 
+- **A landing page & manifesto** — a public, unauthenticated front door that
+  explains what a Cozy Cast is and the philosophy behind it.
 - **Email & password auth** — sign up and sign in with Supabase Auth (email
   confirmation is enabled).
 - **Record or upload audio** — capture a cast right in the app, or pick an
   existing audio file from your device.
-- **Private, friend-only feed** — you only ever see casts from yourself and the
-  friends you've connected with, enforced by Postgres row-level security.
+- **Tag participants & assign a sharer** — note who was in the conversation, and
+  give one person responsibility for deciding who receives it.
+- **Explicit, person-to-person sharing** — there is **no public feed and no
+  auto-broadcast**. A cast is visible only to its creator, its sharer, tagged
+  participants, and the specific people it's shared with — enforced by Postgres
+  row-level security.
+- **Manual summaries & auto cover art** — write a summary for each cast; every
+  cast gets a deterministic cozy cover derived from its id. (AI-generated
+  summaries and covers are a planned fast-follow behind a Supabase Edge Function.)
 - **Invite codes** — generate a short code and share it with someone special;
-  redeeming a code creates a two-way friendship.
+  redeeming a code connects you as friends — your address book of who you *can*
+  share with.
 - **Cross-platform** — one codebase for web, iOS, and Android (web is the primary
   target right now).
 
@@ -36,12 +46,12 @@ deployed on [Netlify](https://www.netlify.com/).
 ```
 cozycast/
 ├── app/                  # Expo (React Native) app — iOS, Android, web
-│   ├── App.js            # App entry / tab navigation (Feed, Record, Profile)
+│   ├── App.js            # App entry: public (landing/manifesto/login) + tabs
 │   └── src/
 │       ├── api/          # Supabase client + data access helpers
 │       ├── context/      # Auth context
-│       ├── screens/      # Login, Feed, Record, Profile
-│       ├── components/   # Cast card, audio player
+│       ├── screens/      # Landing, Manifesto, Login, Feed, Record, Profile
+│       ├── components/   # Cast card, cover art, audio player
 │       └── utils/        # Cross-platform helpers (e.g. web-safe alerts)
 ├── supabase/
 │   ├── config.toml       # Project + storage bucket config
