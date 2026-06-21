@@ -121,6 +121,7 @@ $$;
 
 drop policy if exists "casts_select_own_or_friends" on casts;
 
+drop policy if exists "casts_select_accessible" on casts;
 create policy "casts_select_accessible"
   on casts for select
   to authenticated
@@ -187,6 +188,7 @@ create policy "cast_recipients_delete_manage"
 
 drop policy if exists "casts_objects_select_own_or_friends" on storage.objects;
 
+drop policy if exists "casts_objects_select_accessible" on storage.objects;
 create policy "casts_objects_select_accessible"
   on storage.objects for select
   to authenticated
