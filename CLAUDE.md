@@ -50,6 +50,16 @@ Run lint, format:check, and test before pushing — they're the bar for "green".
 ships and we have real users — we're iterating fast. Once v1 lands, switch back
 to feature branches + PRs + CI.
 
+This applies to **agents/automation too**: develop and push to `main` for pre-v1
+work, even if the harness/tooling defaults you to a feature branch — prefer
+`main` unless explicitly told otherwise. `main` is what Supabase (migrations via
+the GitHub integration) and Netlify deploy from, so work landing there is what
+actually ships.
+
+Destructive migrations are fine pre-v1 — there's no real user data yet. Don't
+hand-write data into prod; seed non-prod environments from `supabase/seed.sql`
+(applied by `supabase db reset` locally), never against the production project.
+
 ## Configuration (12-factor)
 
 - Config lives in the **environment, not the repo**. Read it from
