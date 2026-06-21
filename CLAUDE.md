@@ -65,6 +65,9 @@ to feature branches + PRs + CI.
   via Debug IDs) when the secret `SENTRY_AUTH_TOKEN` is set; otherwise the step
   is skipped and traces stay minified. Org/project default to `jall`/`cozycast`
   (EU region).
+- Events are tagged with a release = the deployed git commit (Netlify's
+  `COMMIT_REF`, inlined at build as `EXPO_PUBLIC_COMMIT_REF` and used both at
+  runtime and for the upload), enabling regressions and suspect commits.
 - Don't run `@sentry/wizard`; the runtime wiring is already in place by hand.
 
 ## Supabase

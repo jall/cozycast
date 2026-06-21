@@ -17,6 +17,9 @@ const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
 if (sentryDsn) {
   Sentry.init({
     dsn: sentryDsn,
+    // Tie events to the deployed git commit (set in the Netlify build) so
+    // Sentry can do release health, regressions, and suspect commits.
+    release: process.env.EXPO_PUBLIC_COMMIT_REF || undefined,
     // Only report from real builds — keep local dev noise out of Sentry.
     enabled: !__DEV__,
     // Low pre-v1 volume — full traces are fine; dial down before scaling up.
