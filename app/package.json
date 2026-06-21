@@ -14,10 +14,15 @@
     "format:check": "prettier --check .",
     "test": "jest",
     "test:watch": "jest --watch",
+    "test:e2e": "playwright test",
     "check": "npm run lint && npm run format:check && npm test"
   },
   "jest": {
     "preset": "jest-expo",
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/e2e/"
+    ],
     "transformIgnorePatterns": [
       "node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|@supabase/.*))"
     ]
@@ -47,6 +52,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.24.0",
+    "@playwright/test": "^1.61.0",
     "@sentry/cli": "^2.58.6",
     "@testing-library/react-native": "^12.9.0",
     "eslint": "^8.57.0",

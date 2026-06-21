@@ -4,6 +4,11 @@ dist/
 app/dist/
 coverage/
 app/coverage/
+playwright-report/
+app/playwright-report/
+test-results/
+app/test-results/
+.last-run.json
 *.db
 *.db-wal
 *.db-shm

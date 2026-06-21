@@ -41,8 +41,32 @@ derived deterministically from the cast id in `components/CastCover.js`).
 - `npm run lint` — ESLint (`eslint-config-expo` + Prettier compatibility). `npm run lint:fix` to autofix.
 - `npm run format` — Prettier write. `npm run format:check` to verify only.
 - `npm test` — Jest (`jest-expo` preset) + React Native Testing Library. `npm run test:watch` for watch mode.
+- `npm run test:e2e` — Playwright browser smoke tests against a deployed build (see "End-to-end tests" below). Separate from `check`.
 
 Run lint, format:check, and test before pushing — they're the bar for "green".
+
+## End-to-end tests (Playwright)
+
+`npm run test:e2e` runs the smoke tests in `app/e2e/` against a **deployed** web
+build — web is the primary target, so we exercise the real thing (landing →
+manifesto → sign-in, plus a signed-in feed check). They're deliberately separate
+from the Jest unit suite (Jest ignores `e2e/`), so `npm run check` stays fast and
+offline; run `test:e2e` on its own.
+
+- **Target:** defaults to `https://cozycast.jall.me`; override with `E2E_BASE_URL`
+  (a Netlify deploy preview, or a local `npx expo start --web`).
+- **Browser:** run `npx playwright install chromium` once locally. In
+  CI/sandboxes where Chromium is pre-provisioned, set `PLAYWRIGHT_CHROMIUM_PATH`
+  to the binary so nothing downloads. `playwright.config.js` disables QUIC/ECH for
+  reliability behind proxies (harmless elsewhere).
+- **Public vs. signed-in:** the public checks need no credentials and always run.
+  The signed-in test runs only when `E2E_EMAIL` / `E2E_PASSWORD` are set (use the
+  pre-v1 test account) — keeps secrets out of the repo and lets CI opt in.
+- **Selectors:** react-native-web renders `Text` as `<div>` and `TouchableOpacity`
+  as a clickable `<div>`, so tests locate elements by visible text
+  (case-insensitive — some headings use CSS `text-transform`).
+
+Wire `test:e2e` into CI alongside `check` once we move off direct-to-`main`.
 
 ## Dev workflow
 

@@ -105,6 +105,22 @@ Supabase vars are **required** (the app throws on startup if they're missing);
 > Configuration** lists your site URL as both the Site URL and an allowed
 > redirect, or confirmation links will break.
 
+## Testing
+
+```bash
+cd app
+npm run check       # lint + format check + unit tests (fast, offline)
+npm run test:e2e    # Playwright smoke tests against a deployed build
+```
+
+`check` (ESLint + Prettier + Jest) is the bar for "green" before pushing.
+
+End-to-end smoke tests live in `app/e2e/` and run with Playwright against a
+deployed web build (defaults to `https://cozycast.jall.me`; override with
+`E2E_BASE_URL`). Run `npx playwright install chromium` once first. The public
+landing/manifesto/sign-in checks need no credentials; the signed-in flow runs
+only when `E2E_EMAIL` / `E2E_PASSWORD` are set.
+
 ## Building for web
 
 ```bash
