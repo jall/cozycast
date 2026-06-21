@@ -42,22 +42,50 @@ test.describe('public landing', () => {
 const email = process.env.E2E_EMAIL;
 const password = process.env.E2E_PASSWORD;
 
+async function signIn(page) {
+  await page.goto('/');
+  await page
+    .getByText(/^get started$/i)
+    .first()
+    .click();
+  await page.getByPlaceholder(/you@example\.com/i).fill(email);
+  await page.getByPlaceholder(/your password/i).fill(password);
+  await page.getByText(/^log in$/i).click();
+  // The authenticated shell shows the bottom tab bar (Feed / Record / Profile).
+  await expect(page.getByText(/^record$/i).first()).toBeVisible({ timeout: 20000 });
+}
+
 test.describe('signed in', () => {
   test.skip(!email || !password, 'set E2E_EMAIL and E2E_PASSWORD to run the signed-in smoke test');
 
   test('signs in and lands on the feed', async ({ page }) => {
-    await page.goto('/');
+    await signIn(page);
+    await expect(page.getByText(/^profile$/i).first()).toBeVisible();
+  });
+
+  // Exercises the in-browser recording path end to end (getUserMedia +
+  // MediaRecorder via expo-av) using a fake audio device. We stop and cancel
+  // rather than submit, so nothing is uploaded to the backend.
+  test('can record a cast and reach the details step', async ({ page }) => {
+    await signIn(page);
+
     await page
-      .getByText(/^get started$/i)
+      .getByText(/^record$/i)
       .first()
       .click();
+    await expect(page.getByText(/new cast/i)).toBeVisible();
 
-    await page.getByPlaceholder(/you@example\.com/i).fill(email);
-    await page.getByPlaceholder(/your password/i).fill(password);
-    await page.getByText(/^log in$/i).click();
+    // Start capturing.
+    await page.getByTestId('record-start').click();
+    await expect(page.getByText(/recording/i)).toBeVisible();
 
-    // The authenticated shell shows the bottom tab bar (Feed / Record / Profile).
-    await expect(page.getByText(/^record$/i).first()).toBeVisible({ timeout: 20000 });
-    await expect(page.getByText(/^profile$/i).first()).toBeVisible();
+    // Stop, and confirm we advance to the details (summary/participants) form.
+    await page.getByTestId('record-stop').click();
+    await expect(page.getByText(/add some details/i)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/audio ready/i)).toBeVisible();
+
+    // Back out without creating anything.
+    await page.getByText(/^cancel$/i).click();
+    await expect(page.getByText(/new cast/i)).toBeVisible();
   });
 });

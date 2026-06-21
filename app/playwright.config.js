@@ -32,6 +32,10 @@ module.exports = defineConfig({
       args: [
         '--disable-quic',
         '--disable-features=EncryptedClientHello,UseDnsHttpsSvcb,UseDnsHttpsSvcbAlpn',
+        // Let the in-browser recorder capture a fake audio stream headlessly
+        // (no real mic, and the permission prompt is auto-accepted).
+        '--use-fake-device-for-media-stream',
+        '--use-fake-ui-for-media-stream',
       ],
       ...(executablePath ? { executablePath } : {}),
     },

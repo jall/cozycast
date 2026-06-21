@@ -210,7 +210,12 @@ export default function RecordScreen() {
         <Text style={styles.screenTitle}>New Cast</Text>
         <Text style={styles.screenSubtitle}>Record a conversation, then choose who hears it</Text>
 
-        <TouchableOpacity style={styles.choiceCard} onPress={startRecording} activeOpacity={0.8}>
+        <TouchableOpacity
+          testID="record-start"
+          style={styles.choiceCard}
+          onPress={startRecording}
+          activeOpacity={0.8}
+        >
           <View style={styles.choiceIconWrap}>
             <Ionicons name="mic" size={32} color="#E8734A" />
           </View>
@@ -220,7 +225,12 @@ export default function RecordScreen() {
           </View>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.choiceCard} onPress={handlePickFile} activeOpacity={0.8}>
+        <TouchableOpacity
+          testID="record-pick"
+          style={styles.choiceCard}
+          onPress={handlePickFile}
+          activeOpacity={0.8}
+        >
           <View style={styles.choiceIconWrap}>
             <Ionicons name="document-outline" size={32} color="#F4A261" />
           </View>
@@ -240,7 +250,12 @@ export default function RecordScreen() {
         <Text style={styles.elapsed}>{formatElapsed(elapsed)}</Text>
 
         <View style={styles.pulseWrap}>
-          <TouchableOpacity style={styles.stopButton} onPress={stopRecording} activeOpacity={0.8}>
+          <TouchableOpacity
+            testID="record-stop"
+            style={styles.stopButton}
+            onPress={stopRecording}
+            activeOpacity={0.8}
+          >
             <View style={styles.stopSquare} />
           </TouchableOpacity>
         </View>

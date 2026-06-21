@@ -64,9 +64,26 @@ offline; run `test:e2e` on its own.
   pre-v1 test account) — keeps secrets out of the repo and lets CI opt in.
 - **Selectors:** react-native-web renders `Text` as `<div>` and `TouchableOpacity`
   as a clickable `<div>`, so tests locate elements by visible text
-  (case-insensitive — some headings use CSS `text-transform`).
+  (case-insensitive — some headings use CSS `text-transform`). Where text isn't
+  unique or stable, add a `testID` and select with `getByTestId` (e.g.
+  `record-start` / `record-stop` drive the recording flow). The recording test
+  uses a fake audio device (Chromium media flags in `playwright.config.js`) and
+  stops/cancels without uploading, so it never writes to the backend.
 
-Wire `test:e2e` into CI alongside `check` once we move off direct-to-`main`.
+## CI
+
+GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main`, on
+pull requests, and on manual dispatch:
+
+- **check** — `npm run check` (lint + format + Jest). Fast, offline; the bar for
+  every change.
+- **e2e** — Playwright smoke tests (`needs: check`). Targets `E2E_BASE_URL` (repo
+  variable; defaults to the prod site). The signed-in + recording tests run only
+  when the `E2E_EMAIL` / `E2E_PASSWORD` repo **secrets** are set; otherwise they
+  skip. Heads-up: on push to `main` the e2e job races Netlify's deploy, so it
+  smoke-tests whatever is currently live — re-run it after the deploy settles if
+  a UI assertion lags a fresh change. (CI is advisory pre-v1; it's not a merge
+  gate while we commit directly to `main`.)
 
 ## Dev workflow
 
