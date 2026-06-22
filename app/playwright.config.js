@@ -17,7 +17,7 @@ module.exports = defineConfig({
   // One retry by default absorbs transient network blips (e.g. HTTP/3 resets
   // through a proxy); CI gets two.
   retries: process.env.CI ? 2 : 1,
-  reporter: process.env.CI ? 'github' : 'list',
+  reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL,
     ignoreHTTPSErrors: true,

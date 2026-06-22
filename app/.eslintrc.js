@@ -7,7 +7,7 @@ module.exports = {
     browser: true,
     node: true,
   },
-  ignorePatterns: ['/dist/*'],
+  ignorePatterns: ['/dist/*', '/coverage/*', '/playwright-report/*', '/test-results/*'],
   overrides: [
     {
       // Test files run under Jest, which injects describe/it/expect/jest.
