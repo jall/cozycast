@@ -87,11 +87,19 @@ jobs:
 
           echo "Waiting for $BASE to serve commit $SHA"
           for i in $(seq 1 90); do
-            HTML=$(curl -fsSL "$BASE/?cb=$(date +%s%N)" || true)
+            HTML=$(curl -fsSL --max-time 30 "$BASE/?cb=$(date +%s%N)" || true)
             BUNDLE=$(printf '%s' "$HTML" | grep -oE '/_expo/static/js/web/[A-Za-z0-9._-]+\.js' | head -1 || true)
-            if [ -n "$BUNDLE" ] && curl -fsSL "$BASE$BUNDLE" | grep -q "$SHA"; then
-              echo "Deploy is live: $BASE ($SHA)"
-              exit 0
+            if [ -n "$BUNDLE" ]; then
+              # Download then grep a file — piping curl into `grep -q` trips
+              # `set -o pipefail`: grep -q exits on first match, curl then dies
+              # with SIGPIPE mid-stream and pipefail reports the pipeline as
+              # failed, so a real match would look like "not found" on a large
+              # bundle. Grepping a file avoids the pipe entirely.
+              curl -fsSL --max-time 60 "$BASE$BUNDLE" -o /tmp/bundle.js || true
+              if grep -q "$SHA" /tmp/bundle.js 2>/dev/null; then
+                echo "Deploy is live: $BASE ($SHA)"
+                exit 0
+              fi
             fi
             echo "  not live yet (attempt $i/90)"
             sleep 10
