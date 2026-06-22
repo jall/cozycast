@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AudioPlayer from './AudioPlayer';
 import CastCover from './CastCover';
@@ -23,7 +23,7 @@ function timeAgo(dateString) {
   return `${diffWeek}w ago`;
 }
 
-export default function CastCard({ cast }) {
+export default function CastCard({ cast, index = 0 }) {
   const {
     id,
     title,
@@ -39,6 +39,17 @@ export default function CastCard({ cast }) {
 
   const [audioUrl, setAudioUrl] = useState(null);
 
+  // Gentle staggered fade-in-up as cards arrive in the feed.
+  const enter = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(enter, {
+      toValue: 1,
+      duration: 360,
+      delay: Math.min(index, 8) * 55,
+      useNativeDriver: true,
+    }).start();
+  }, [enter, index]);
+
   useEffect(() => {
     if (cast.audio_path) getAudioUrl(cast.audio_path).then(setAudioUrl);
   }, [cast.audio_path]);
@@ -47,7 +58,17 @@ export default function CastCard({ cast }) {
   const participantList = Array.isArray(participants) ? participants : [];
 
   return (
-    <View style={styles.card}>
+    <Animated.View
+      style={[
+        styles.card,
+        {
+          opacity: enter,
+          transform: [
+            { translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) },
+          ],
+        },
+      ]}
+    >
       <View style={styles.topRow}>
         <CastCover seed={id} title={title} size={56} />
         <View style={styles.headerText}>
@@ -90,7 +111,7 @@ export default function CastCard({ cast }) {
           Shared with {recipient_count} {recipient_count === 1 ? 'person' : 'people'}
         </Text>
       ) : null}
-    </View>
+    </Animated.View>
   );
 }
 

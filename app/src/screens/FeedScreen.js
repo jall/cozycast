@@ -86,7 +86,7 @@ export default function FeedScreen({ navigation }) {
         <FlatList
           data={casts}
           keyExtractor={(item) => item._id || item.id || String(Math.random())}
-          renderItem={({ item }) => <CastCard cast={item} />}
+          renderItem={({ item, index }) => <CastCard cast={item} index={index} />}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={renderEmpty}
           refreshControl={

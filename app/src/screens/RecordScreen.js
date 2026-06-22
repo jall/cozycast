@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { Audio } from 'expo-av';
 import * as DocumentPicker from 'expo-document-picker';
@@ -66,12 +67,26 @@ export default function RecordScreen() {
   const [createdCast, setCreatedCast] = useState(null);
 
   const timerRef = useRef(null);
+  const pulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     getFriends()
       .then(setFriends)
       .catch(() => setFriends([]));
   }, []);
+
+  // Gentle "breathing" halo behind the stop button while recording.
+  useEffect(() => {
+    if (mode !== 'recording') return undefined;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 1100, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0, duration: 1100, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [mode, pulse]);
 
   async function startRecording() {
     try {
@@ -256,6 +271,20 @@ export default function RecordScreen() {
         <Text style={styles.elapsed}>{formatElapsed(elapsed)}</Text>
 
         <View style={styles.pulseWrap}>
+          {/* The breathing halo sits *behind* the button and never intercepts
+              touches, so the button itself stays static and tappable. */}
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.halo,
+              {
+                opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.45, 1] }),
+                transform: [
+                  { scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.25] }) },
+                ],
+              },
+            ]}
+          />
           <TouchableOpacity
             testID="record-stop"
             style={styles.stopButton}
@@ -554,11 +583,16 @@ const styles = StyleSheet.create({
   pulseWrap: {
     width: 96,
     height: 96,
-    borderRadius: 48,
-    backgroundColor: 'rgba(232, 115, 74, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,
+  },
+  halo: {
+    position: 'absolute',
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: 'rgba(232, 115, 74, 0.12)',
   },
   stopButton: {
     width: 72,
