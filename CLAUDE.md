@@ -77,13 +77,16 @@ pull requests, and on manual dispatch:
 
 - **check** — `npm run check` (lint + format + Jest). Fast, offline; the bar for
   every change.
-- **e2e** — Playwright smoke tests (`needs: check`). Targets `E2E_BASE_URL` (repo
-  variable; defaults to the prod site). The signed-in + recording tests run only
-  when the `E2E_EMAIL` / `E2E_PASSWORD` repo **secrets** are set; otherwise they
-  skip. Heads-up: on push to `main` the e2e job races Netlify's deploy, so it
-  smoke-tests whatever is currently live — re-run it after the deploy settles if
-  a UI assertion lags a fresh change. (CI is advisory pre-v1; it's not a merge
-  gate while we commit directly to `main`.)
+- **e2e** — Playwright smoke tests (`needs: check`). Before running, it **waits
+  for the Netlify deploy of the exact commit**: the web build inlines the commit
+  SHA (`EXPO_PUBLIC_COMMIT_REF`), so the job polls the deploy URL until the served
+  bundle reports that SHA, then tests *that* deploy — no racing whatever's live.
+  On a PR it targets the deterministic `deploy-preview-<n>--cozycast.netlify.app`
+  URL; otherwise prod (overridable via the `E2E_BASE_URL` repo variable). If the
+  deploy never appears it times out and fails. The signed-in + recording tests
+  run only when the `E2E_EMAIL` / `E2E_PASSWORD` repo **secrets** are set;
+  otherwise they skip. (CI is advisory pre-v1; not a merge gate while we commit
+  directly to `main`.)
 
 ## Dev workflow
 

@@ -27,8 +27,6 @@ jobs:
   e2e:
     name: Playwright smoke tests
     runs-on: ubuntu-latest
-    # Run after unit checks pass. This also gives Netlify a head start on
-    # deploying the just-pushed commit before we smoke-test the live site.
     needs: check
     steps:
       - uses: actions/checkout@v4
@@ -39,12 +37,42 @@ jobs:
           cache-dependency-path: app/package-lock.json
       - run: npm ci
       - run: npx playwright install --with-deps chromium
+
+      # Test the Netlify deploy of *this* commit, not whatever happens to be
+      # live. The web build inlines the commit SHA (EXPO_PUBLIC_COMMIT_REF), so
+      # we poll the deploy URL until the served bundle reports our SHA. For PRs
+      # that's the deterministic deploy-preview URL; otherwise it's prod.
+      - name: Await the Netlify deploy for this commit
+        id: deploy
+        env:
+          PROD_URL: ${{ vars.E2E_BASE_URL || 'https://cozycast.jall.me' }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            SHA="${{ github.event.pull_request.head.sha }}"
+            BASE="https://deploy-preview-${{ github.event.pull_request.number }}--cozycast.netlify.app"
+          else
+            SHA="${{ github.sha }}"
+            BASE="$PROD_URL"
+          fi
+          echo "Waiting for $BASE to serve commit $SHA"
+          for i in $(seq 1 60); do
+            HTML=$(curl -fsSL "$BASE/?cb=$(date +%s%N)" || true)
+            BUNDLE=$(printf '%s' "$HTML" | grep -oE '/_expo/static/js/web/[A-Za-z0-9._-]+\.js' | head -1 || true)
+            if [ -n "$BUNDLE" ] && curl -fsSL "$BASE$BUNDLE" | grep -q "$SHA"; then
+              echo "Deploy is live: $BASE ($SHA)"
+              echo "base=$BASE" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "  not live yet (attempt $i/60)"
+            sleep 10
+          done
+          echo "::error::Timed out waiting for $BASE to serve $SHA"
+          exit 1
+
       - run: npm run test:e2e
         env:
-          # Defaults to the production site; override with a repo variable to
-          # point at a deploy preview. Heads-up: on push to main there's a race
-          # with Netlify's deploy, so this smoke-tests whatever is currently live.
-          E2E_BASE_URL: ${{ vars.E2E_BASE_URL || 'https://cozycast.jall.me' }}
+          E2E_BASE_URL: ${{ steps.deploy.outputs.base }}
           # Optional: set these repo secrets to run the signed-in + recording
           # tests. Without them, those tests skip.
           E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
