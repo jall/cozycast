@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Sentry from '@sentry/react-native';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { ToastProvider } from './src/context/ToastContext';
 import LandingScreen from './src/screens/LandingScreen';
 import ManifestoScreen from './src/screens/ManifestoScreen';
 import LoginScreen from './src/screens/LoginScreen';
@@ -95,9 +96,11 @@ function AppRoot() {
 function App() {
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <AppRoot />
-      </AuthProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <AppRoot />
+        </AuthProvider>
+      </ToastProvider>
     </SafeAreaProvider>
   );
 }

@@ -116,9 +116,11 @@ hand-write data into prod; seed non-prod environments from `supabase/seed.sql`
 
 ## Web gotchas
 
-- React Native's `Alert` is a **no-op on web**. Use `showAlert` from
-  `app/src/utils/alert.js` (it falls back to the browser's native dialogs), or an
-  inline message — never `Alert.alert` for anything a web user needs to see.
+- React Native's `Alert` is a **no-op on web**. For non-blocking feedback
+  (success/error/info) prefer `useToast()` from `app/src/context/ToastContext.js`
+  — soft, on-brand toasts. Reserve `showAlert` from `app/src/utils/alert.js` (it
+  falls back to the browser's native `confirm`) for true confirmations like
+  logout. Never use `Alert.alert` for anything a web user needs to see.
 - Keep every `expo-*` package on the version for the installed SDK (run
   `npx expo install --check`). Mismatched native modules crash the web build at
   runtime with "Module implementation must be a class".

@@ -11,11 +11,13 @@ import {
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { getFriends, generateInvite as genInvite, getPendingInvites } from '../api/client';
 import { showAlert } from '../utils/alert';
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
+  const toast = useToast();
   const [friends, setFriends] = useState([]);
   const [invites, setInvites] = useState([]);
   const [loadingFriends, setLoadingFriends] = useState(true);
@@ -47,16 +49,13 @@ export default function ProfileScreen() {
       const code = await genInvite();
       if (code) {
         await Clipboard.setStringAsync(code);
-        showAlert(
-          'Invite Created',
-          `Code: ${code}\n\nCopied to clipboard! Share it with someone special.`,
-        );
+        toast.success(`Invite ${code} copied — share it with someone special 🌱`);
         // Refresh invites list
         const newInvites = await getPendingInvites();
         setInvites(newInvites);
       }
     } catch (err) {
-      showAlert('Oops', err.message || 'Could not generate invite code.');
+      toast.error(err.message || 'Could not generate an invite code.');
     } finally {
       setGeneratingInvite(false);
     }
@@ -64,7 +63,7 @@ export default function ProfileScreen() {
 
   async function handleCopyCode(code) {
     await Clipboard.setStringAsync(code);
-    showAlert('Copied', 'Invite code copied to clipboard.');
+    toast.success('Copied to clipboard');
   }
 
   function handleLogout() {

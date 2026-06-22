@@ -13,7 +13,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { createCast, shareCast, getFriends } from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import { showAlert } from '../utils/alert';
+import { useToast } from '../context/ToastContext';
 
 function formatElapsed(seconds) {
   const m = Math.floor(seconds / 60);
@@ -47,6 +47,7 @@ function PersonRow({ person, selected, onToggle }) {
 
 export default function RecordScreen() {
   const { user } = useAuth();
+  const toast = useToast();
   // null | 'recording' | 'form' | 'recipients' | 'done'
   const [mode, setMode] = useState(null);
   const [recording, setRecording] = useState(null);
@@ -75,7 +76,7 @@ export default function RecordScreen() {
     try {
       const permission = await Audio.requestPermissionsAsync();
       if (!permission.granted) {
-        showAlert('Permission needed', 'Please allow microphone access to record audio.');
+        toast.error('Please allow microphone access to record audio.');
         return;
       }
 
@@ -96,7 +97,7 @@ export default function RecordScreen() {
         setElapsed((prev) => prev + 1);
       }, 1000);
     } catch (err) {
-      showAlert('Recording failed', err.message || 'Could not start recording.');
+      toast.error(err.message || 'Could not start recording.');
     }
   }
 
@@ -112,7 +113,7 @@ export default function RecordScreen() {
       setRecording(null);
       setMode('form');
     } catch (err) {
-      showAlert('Error', err.message || 'Could not stop recording.');
+      toast.error(err.message || 'Could not stop recording.');
       setMode(null);
     }
   }
@@ -128,7 +129,7 @@ export default function RecordScreen() {
         setMode('form');
       }
     } catch {
-      showAlert('Error', 'Could not pick file.');
+      toast.error('Could not pick that file.');
     }
   }
 
@@ -147,11 +148,11 @@ export default function RecordScreen() {
 
   async function handleCreate() {
     if (!title.trim()) {
-      showAlert('Missing title', 'Give your cast a title.');
+      toast.error('Give your cast a title first.');
       return;
     }
     if (!recordingUri) {
-      showAlert('No audio', 'Please record or pick audio first.');
+      toast.error('Please record or pick some audio first.');
       return;
     }
 
@@ -173,7 +174,7 @@ export default function RecordScreen() {
       setCreatedCast(cast);
       setMode('recipients');
     } catch (err) {
-      showAlert('Upload failed', err.message || 'Could not create your cast.');
+      toast.error(err.message || 'Could not create your cast.');
     } finally {
       setSubmitting(false);
     }
@@ -183,9 +184,13 @@ export default function RecordScreen() {
     setSubmitting(true);
     try {
       await shareCast(createdCast.id, recipientIds);
+      if (recipientIds.length > 0) {
+        const who = recipientIds.length === 1 ? 'one person' : `${recipientIds.length} people`;
+        toast.success(`Sent to ${who} 🌿`);
+      }
       setMode('done');
     } catch (err) {
-      showAlert('Could not share', err.message || 'Your cast was saved but sharing failed.');
+      toast.error(err.message || 'Your cast was saved, but sharing failed.');
     } finally {
       setSubmitting(false);
     }

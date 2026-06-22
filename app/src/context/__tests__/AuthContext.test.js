@@ -44,7 +44,7 @@ describe('AuthContext signup', () => {
 
     const res = await result.current.signup('a@b.com', 'pw', 'Ada');
 
-    expect(res).toEqual({ needsConfirmation: true });
+    expect(res).toEqual({ needsConfirmation: true, inviteError: null });
   });
 
   it('reports no confirmation needed when a session is returned', async () => {
@@ -56,7 +56,7 @@ describe('AuthContext signup', () => {
 
     const res = await result.current.signup('a@b.com', 'pw', 'Ada');
 
-    expect(res).toEqual({ needsConfirmation: false });
+    expect(res).toEqual({ needsConfirmation: false, inviteError: null });
   });
 
   it('passes the configured site URL as the email redirect', async () => {
@@ -91,7 +91,7 @@ describe('AuthContext signup', () => {
     expect(redeemInvite).toHaveBeenCalledWith('CODE12');
   });
 
-  it('still succeeds if invite redemption fails', async () => {
+  it('still succeeds but reports the invite error if redemption fails', async () => {
     supabase.auth.signUp.mockResolvedValue({
       data: { user: { id: 'u1' }, session: null },
       error: null,
@@ -103,6 +103,7 @@ describe('AuthContext signup', () => {
 
     await expect(result.current.signup('a@b.com', 'pw', 'Ada', 'NOPE')).resolves.toEqual({
       needsConfirmation: true,
+      inviteError: 'bad code',
     });
   });
 

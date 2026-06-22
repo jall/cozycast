@@ -12,9 +12,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 
 export default function LoginScreen({ onBack }) {
   const { login, signup } = useAuth();
+  const toast = useToast();
   const [isSignup, setIsSignup] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -51,6 +53,11 @@ export default function LoginScreen({ onBack }) {
             type: 'success',
             text: `We've sent a confirmation link to ${email.trim()}. Check your inbox to finish signing up.`,
           });
+        }
+        // Signup succeeded, but the invite code didn't take — say so rather
+        // than leaving them quietly unconnected.
+        if (result?.inviteError) {
+          toast.error("You're signed up, but that invite code didn't work — ask for a new one.");
         }
       } else {
         await login(email.trim(), password);

@@ -84,6 +84,11 @@ test.describe('signed in', () => {
     await expect(page.getByText(/add some details/i)).toBeVisible({ timeout: 15000 });
     await expect(page.getByText(/audio ready/i)).toBeVisible();
 
+    // Submitting with no title surfaces a (non-blocking) toast — and writes
+    // nothing to the backend.
+    await page.getByText(/continue to sharing/i).click();
+    await expect(page.getByText(/give your cast a title/i)).toBeVisible();
+
     // Back out without creating anything.
     await page.getByText(/^cancel$/i).click();
     await expect(page.getByText(/new cast/i)).toBeVisible();

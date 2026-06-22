@@ -62,19 +62,22 @@ export function AuthProvider({ children }) {
     });
     if (error) throw error;
 
-    // If invite code provided, redeem it after signup
+    // If invite code provided, redeem it after signup. Don't fail signup if it
+    // doesn't take — but do report it back so the caller can tell the user
+    // (otherwise they'd silently land in an empty app, unconnected).
+    let inviteError = null;
     if (inviteCode && data.user) {
       try {
         await redeemInvite(inviteCode);
       } catch (e) {
-        // Don't fail signup if invite redemption fails
+        inviteError = e.message || 'That invite code could not be applied.';
         console.warn('Invite redemption failed:', e.message);
       }
     }
 
     // When email confirmation is enabled, signUp succeeds but no session is
     // created until the user clicks the link. Let the caller tell them so.
-    return { needsConfirmation: !data.session };
+    return { needsConfirmation: !data.session, inviteError };
   }
 
   async function logout() {
