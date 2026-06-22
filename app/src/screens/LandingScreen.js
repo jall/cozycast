@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { fonts } from '../theme/typography';
 
 const STEPS = [
   {
@@ -116,12 +117,13 @@ const styles = StyleSheet.create({
   },
   wordmark: {
     fontSize: 48,
-    fontWeight: '700',
+    fontFamily: fonts.display,
     color: '#E8734A',
     letterSpacing: -1,
   },
   tagline: {
     fontSize: 17,
+    fontFamily: fonts.regular,
     color: '#8C7B6B',
     marginTop: 12,
     textAlign: 'center',
@@ -141,13 +143,14 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontSize: 12,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: '#B0A090',
     letterSpacing: 1,
     marginBottom: 14,
   },
   bodyText: {
     fontSize: 16,
+    fontFamily: fonts.regular,
     color: '#4A4036',
     lineHeight: 25,
     marginBottom: 12,
@@ -157,7 +160,7 @@ const styles = StyleSheet.create({
   },
   sectionHeading: {
     fontSize: 24,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: '#2D2D2D',
     letterSpacing: -0.5,
     marginBottom: 20,
@@ -182,12 +185,13 @@ const styles = StyleSheet.create({
   },
   stepTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: fonts.bold,
     color: '#2D2D2D',
     marginBottom: 3,
   },
   stepText: {
     fontSize: 15,
+    fontFamily: fonts.regular,
     color: '#8C7B6B',
     lineHeight: 22,
   },
@@ -209,7 +213,7 @@ const styles = StyleSheet.create({
   },
   manifestoLinkText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: fonts.bold,
     color: '#E8734A',
     marginRight: 6,
   },
@@ -232,7 +236,7 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: '#FFFFFF',
     fontSize: 17,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
   signInLink: {
     marginTop: 18,
@@ -241,6 +245,6 @@ const styles = StyleSheet.create({
   signInText: {
     color: '#E8734A',
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
   },
 });

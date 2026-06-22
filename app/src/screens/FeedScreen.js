@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { getFeed } from '../api/client';
 import CastCard from '../components/CastCard';
+import { fonts } from '../theme/typography';
 
 export default function FeedScreen({ navigation }) {
   const [casts, setCasts] = useState([]);
@@ -125,7 +126,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 28,
-    fontWeight: '700',
+    fontFamily: fonts.display,
     color: '#E8734A',
     letterSpacing: -0.5,
   },
@@ -140,13 +141,14 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 20,
-    fontWeight: '600',
+    fontFamily: fonts.bold,
     color: '#2D2D2D',
     marginTop: 20,
     marginBottom: 10,
   },
   emptyBody: {
     fontSize: 15,
+    fontFamily: fonts.regular,
     color: '#8C7B6B',
     textAlign: 'center',
     lineHeight: 22,

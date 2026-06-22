@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AudioPlayer from './AudioPlayer';
 import CastCover from './CastCover';
 import { getAudioUrl } from '../api/client';
+import { fonts } from '../theme/typography';
 
 function timeAgo(dateString) {
   const now = Date.now();
@@ -117,16 +118,18 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 17,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: '#2D2D2D',
     marginBottom: 4,
   },
   byline: {
     fontSize: 13,
+    fontFamily: fonts.regular,
     color: '#A89888',
   },
   summary: {
     fontSize: 14,
+    fontFamily: fonts.regular,
     color: '#6B5E50',
     lineHeight: 20,
     marginBottom: 12,
@@ -151,7 +154,7 @@ const styles = StyleSheet.create({
   participantText: {
     fontSize: 12,
     color: '#E8734A',
-    fontWeight: '500',
+    fontFamily: fonts.medium,
   },
   player: {
     marginTop: 4,

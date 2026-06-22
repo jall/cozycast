@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { fonts } from '../theme/typography';
 
 // A small, cozy toast system: soft, non-blocking feedback that replaces the
 // browser's native alert() on web (which is a no-op on native and jarring
@@ -128,7 +129,7 @@ const styles = StyleSheet.create({
   text: {
     flex: 1,
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: fonts.medium,
     lineHeight: 19,
     marginRight: 8,
   },

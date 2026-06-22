@@ -14,6 +14,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { getFriends, generateInvite as genInvite, getPendingInvites } from '../api/client';
 import { showAlert } from '../utils/alert';
+import { fonts } from '../theme/typography';
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
@@ -209,12 +210,13 @@ const styles = StyleSheet.create({
   },
   userName: {
     fontSize: 24,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: '#2D2D2D',
     marginBottom: 4,
   },
   userEmail: {
     fontSize: 14,
+    fontFamily: fonts.regular,
     color: '#8C7B6B',
   },
 
@@ -225,7 +227,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: '#2D2D2D',
     marginBottom: 14,
   },
@@ -276,7 +278,7 @@ const styles = StyleSheet.create({
   },
   friendName: {
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: fonts.medium,
     color: '#2D2D2D',
   },
   friendEmail: {
@@ -305,7 +307,7 @@ const styles = StyleSheet.create({
   generateText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     marginLeft: 8,
   },
   invitesList: {
@@ -357,7 +359,7 @@ const styles = StyleSheet.create({
   logoutText: {
     color: '#C0392B',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: fonts.medium,
     marginLeft: 8,
   },
 

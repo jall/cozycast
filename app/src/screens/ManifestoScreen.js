@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { fonts } from '../theme/typography';
 
 const SOFT_TIPS = [
   'Ask one more question than feels natural.',
@@ -113,25 +114,26 @@ const styles = StyleSheet.create({
   },
   backText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: fonts.medium,
     color: '#E8734A',
     marginLeft: 6,
   },
   wordmark: {
     fontSize: 28,
-    fontWeight: '700',
+    fontFamily: fonts.display,
     color: '#E8734A',
     letterSpacing: -1,
     marginBottom: 8,
   },
   title: {
     fontSize: 34,
-    fontWeight: '700',
+    fontFamily: fonts.display,
     color: '#2D2D2D',
     letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 17,
+    fontFamily: fonts.regular,
     color: '#8C7B6B',
     marginTop: 8,
     marginBottom: 36,
@@ -142,13 +144,14 @@ const styles = StyleSheet.create({
   },
   sectionHeading: {
     fontSize: 21,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: '#2D2D2D',
     letterSpacing: -0.3,
     marginBottom: 12,
   },
   bodyText: {
     fontSize: 16,
+    fontFamily: fonts.regular,
     color: '#4A4036',
     lineHeight: 26,
     marginBottom: 12,
@@ -176,6 +179,7 @@ const styles = StyleSheet.create({
   tipText: {
     flex: 1,
     fontSize: 16,
+    fontFamily: fonts.regular,
     color: '#4A4036',
     lineHeight: 24,
   },
@@ -186,7 +190,7 @@ const styles = StyleSheet.create({
   },
   closingText: {
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: fonts.display,
     color: '#E8734A',
     letterSpacing: -0.3,
   },

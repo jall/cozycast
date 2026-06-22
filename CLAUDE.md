@@ -129,6 +129,12 @@ hand-write data into prod; seed non-prod environments from `supabase/seed.sql`
 - Keep every `expo-*` package on the version for the installed SDK (run
   `npx expo install --check`). Mismatched native modules crash the web build at
   runtime with "Module implementation must be a class".
+- **Typography:** the brand font is Nunito (`src/theme/typography.js` exposes
+  `fonts.regular/medium/bold/display`). Loaded once in `App.js` via `useFonts`
+  (render is gated until it resolves). Set `fontFamily: fonts.*` on headings,
+  wordmarks, buttons, and titles — the weight is baked into the family, so don't
+  rely on `fontWeight`. Import weights by subpath (e.g.
+  `@expo-google-fonts/nunito/700Bold`) so only used faces are bundled.
 
 ## Error tracking
 

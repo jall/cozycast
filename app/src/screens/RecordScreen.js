@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { createCast, shareCast, getFriends } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { fonts } from '../theme/typography';
 
 function formatElapsed(seconds) {
   const m = Math.floor(seconds / 60);
@@ -483,12 +484,13 @@ const styles = StyleSheet.create({
   },
   screenTitle: {
     fontSize: 28,
-    fontWeight: '700',
+    fontFamily: fonts.display,
     color: '#2D2D2D',
     marginBottom: 8,
   },
   screenSubtitle: {
     fontSize: 15,
+    fontFamily: fonts.regular,
     color: '#8C7B6B',
     marginBottom: 36,
   },
@@ -519,12 +521,13 @@ const styles = StyleSheet.create({
   },
   choiceTitle: {
     fontSize: 17,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: '#2D2D2D',
     marginBottom: 4,
   },
   choiceDesc: {
     fontSize: 14,
+    fontFamily: fonts.regular,
     color: '#8C7B6B',
   },
 
@@ -609,7 +612,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: fonts.medium,
     color: '#6B5E50',
     marginBottom: 6,
     marginLeft: 4,
@@ -698,7 +701,7 @@ const styles = StyleSheet.create({
   },
   chipText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: fonts.medium,
     color: '#6B5E50',
   },
   chipTextActive: {
@@ -723,7 +726,7 @@ const styles = StyleSheet.create({
   submitText: {
     color: '#FFFFFF',
     fontSize: 17,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
   cancelButton: {
     marginTop: 18,
@@ -745,13 +748,14 @@ const styles = StyleSheet.create({
   },
   doneTitle: {
     fontSize: 24,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: '#2D2D2D',
     marginTop: 20,
     marginBottom: 10,
   },
   doneBody: {
     fontSize: 15,
+    fontFamily: fonts.regular,
     color: '#8C7B6B',
     textAlign: 'center',
     lineHeight: 22,

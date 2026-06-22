@@ -3,6 +3,14 @@ import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'rea
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Sentry from '@sentry/react-native';
+import { useFonts } from 'expo-font';
+// Import each weight by subpath so only these four faces are bundled (importing
+// from the package root pulls in every Nunito weight as a build asset).
+import { Nunito_400Regular } from '@expo-google-fonts/nunito/400Regular';
+import { Nunito_600SemiBold } from '@expo-google-fonts/nunito/600SemiBold';
+import { Nunito_700Bold } from '@expo-google-fonts/nunito/700Bold';
+import { Nunito_800ExtraBold } from '@expo-google-fonts/nunito/800ExtraBold';
+import { fonts } from './src/theme/typography';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { ToastProvider } from './src/context/ToastContext';
 import LandingScreen from './src/screens/LandingScreen';
@@ -94,6 +102,17 @@ function AppRoot() {
 }
 
 function App() {
+  const [fontsLoaded, fontError] = useFonts({
+    Nunito_400Regular,
+    Nunito_600SemiBold,
+    Nunito_700Bold,
+    Nunito_800ExtraBold,
+  });
+
+  // Hold the splash until fonts are ready (or fail) so we never flash a
+  // system-font frame before the cozy one loads.
+  if (!fontsLoaded && !fontError) return <LoadingScreen />;
+
   return (
     <SafeAreaProvider>
       <ToastProvider>
@@ -117,7 +136,7 @@ const styles = StyleSheet.create({
   },
   loadingLogo: {
     fontSize: 36,
-    fontWeight: '700',
+    fontFamily: fonts.display,
     color: '#E8734A',
     letterSpacing: -1,
   },
@@ -141,7 +160,7 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     fontSize: 11,
-    fontWeight: '600',
+    fontFamily: fonts.medium,
     color: '#B0A090',
     marginTop: 4,
   },

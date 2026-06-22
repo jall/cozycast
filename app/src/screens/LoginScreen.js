@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { fonts } from '../theme/typography';
 
 export default function LoginScreen({ onBack }) {
   const { login, signup } = useAuth();
@@ -227,7 +228,7 @@ const styles = StyleSheet.create({
   },
   logo: {
     fontSize: 42,
-    fontWeight: '700',
+    fontFamily: fonts.display,
     color: '#E8734A',
     letterSpacing: -1,
   },
@@ -249,7 +250,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 20,
-    fontWeight: '600',
+    fontFamily: fonts.bold,
     color: '#2D2D2D',
     marginBottom: 24,
     textAlign: 'center',
@@ -319,7 +320,7 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#FFFFFF',
     fontSize: 17,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
   toggleButton: {
     marginTop: 20,
