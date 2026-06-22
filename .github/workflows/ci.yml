@@ -40,31 +40,60 @@ jobs:
 
       # Test the Netlify deploy of *this* commit, not whatever happens to be
       # live. The web build inlines the commit SHA (EXPO_PUBLIC_COMMIT_REF), so
-      # we poll the deploy URL until the served bundle reports our SHA. For PRs
-      # that's the deterministic deploy-preview URL; otherwise it's prod.
-      - name: Await the Netlify deploy for this commit
+      # when a fresh deploy is expected we poll the deploy URL until the served
+      # bundle reports our SHA.
+      #
+      # Netlify's base directory is app/, so it only builds when app/ changes —
+      # for root-only commits (docs, this workflow) there's no new deploy, so we
+      # just test whatever's currently live. PRs always get a deploy preview.
+      - name: Resolve & await the Netlify deploy
         id: deploy
         env:
+          GH_TOKEN: ${{ github.token }}
           PROD_URL: ${{ vars.E2E_BASE_URL || 'https://cozycast.jall.me' }}
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
+          EVENT="${{ github.event_name }}"
+          if [ "$EVENT" = "pull_request" ]; then
             SHA="${{ github.event.pull_request.head.sha }}"
             BASE="https://deploy-preview-${{ github.event.pull_request.number }}--cozycast.netlify.app"
-          else
+            NEED_DEPLOY=1
+          elif [ "$EVENT" = "push" ]; then
             SHA="${{ github.sha }}"
             BASE="$PROD_URL"
+            BEFORE="${{ github.event.before }}"
+            if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+              NEED_DEPLOY=1
+            elif curl -fsSL -H "Authorization: Bearer $GH_TOKEN" \
+                   "https://api.github.com/repos/${{ github.repository }}/compare/$BEFORE...$SHA" \
+                 | jq -r '.files[].filename' | grep -q '^app/'; then
+              NEED_DEPLOY=1
+            else
+              NEED_DEPLOY=0
+            fi
+          else
+            # Manual dispatch: smoke-test whatever is currently live.
+            SHA="${{ github.sha }}"
+            BASE="$PROD_URL"
+            NEED_DEPLOY=0
           fi
+
+          echo "base=$BASE" >> "$GITHUB_OUTPUT"
+
+          if [ "$NEED_DEPLOY" = "0" ]; then
+            echo "No app/ change — testing the current live deploy: $BASE"
+            exit 0
+          fi
+
           echo "Waiting for $BASE to serve commit $SHA"
-          for i in $(seq 1 60); do
+          for i in $(seq 1 90); do
             HTML=$(curl -fsSL "$BASE/?cb=$(date +%s%N)" || true)
             BUNDLE=$(printf '%s' "$HTML" | grep -oE '/_expo/static/js/web/[A-Za-z0-9._-]+\.js' | head -1 || true)
             if [ -n "$BUNDLE" ] && curl -fsSL "$BASE$BUNDLE" | grep -q "$SHA"; then
               echo "Deploy is live: $BASE ($SHA)"
-              echo "base=$BASE" >> "$GITHUB_OUTPUT"
               exit 0
             fi
-            echo "  not live yet (attempt $i/60)"
+            echo "  not live yet (attempt $i/90)"
             sleep 10
           done
           echo "::error::Timed out waiting for $BASE to serve $SHA"

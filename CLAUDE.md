@@ -77,16 +77,18 @@ pull requests, and on manual dispatch:
 
 - **check** — `npm run check` (lint + format + Jest). Fast, offline; the bar for
   every change.
-- **e2e** — Playwright smoke tests (`needs: check`). Before running, it **waits
-  for the Netlify deploy of the exact commit**: the web build inlines the commit
-  SHA (`EXPO_PUBLIC_COMMIT_REF`), so the job polls the deploy URL until the served
-  bundle reports that SHA, then tests *that* deploy — no racing whatever's live.
-  On a PR it targets the deterministic `deploy-preview-<n>--cozycast.netlify.app`
-  URL; otherwise prod (overridable via the `E2E_BASE_URL` repo variable). If the
-  deploy never appears it times out and fails. The signed-in + recording tests
-  run only when the `E2E_EMAIL` / `E2E_PASSWORD` repo **secrets** are set;
-  otherwise they skip. (CI is advisory pre-v1; not a merge gate while we commit
-  directly to `main`.)
+- **e2e** — Playwright smoke tests (`needs: check`). To avoid racing the deploy,
+  it tests the Netlify deploy of *this* commit: the web build inlines the commit
+  SHA (`EXPO_PUBLIC_COMMIT_REF`), so when a fresh deploy is expected the job polls
+  the deploy URL until the served bundle reports that SHA. Netlify's base dir is
+  `app/`, so it only builds when `app/` changes — the job mirrors that: it waits
+  only when the push touched `app/` (or it's a PR preview), and otherwise just
+  tests whatever's currently live (root-only commits like docs/CI don't trigger a
+  deploy). PRs target the deterministic `deploy-preview-<n>--cozycast.netlify.app`
+  URL; pushes/dispatch use prod (`E2E_BASE_URL` repo variable). The signed-in +
+  recording tests run only when the `E2E_EMAIL` / `E2E_PASSWORD` repo **secrets**
+  are set; otherwise they skip. (CI is advisory pre-v1; not a merge gate while we
+  commit directly to `main`.)
 
 ## Dev workflow
 
