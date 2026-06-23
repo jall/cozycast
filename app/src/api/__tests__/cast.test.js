@@ -1,5 +1,5 @@
 import { supabase } from '../supabase';
-import { createCast, shareCast, getAudioUrl } from '../client';
+import { createCast, shareCast, getAudioUrl, deleteCast } from '../client';
 
 // Mock the supabase client so we exercise the create / share / stream logic in
 // client.js without any network or storage.
@@ -128,6 +128,43 @@ describe('shareCast', () => {
     await shareCast('c1', []);
 
     expect(upsert).not.toHaveBeenCalled();
+  });
+});
+
+describe('deleteCast', () => {
+  it('deletes the cast row, then removes its audio object', async () => {
+    const eq = jest.fn().mockResolvedValue({ error: null });
+    const del = jest.fn(() => ({ eq }));
+    const remove = jest.fn().mockResolvedValue({ error: null });
+    supabase.from.mockReturnValue({ delete: del });
+    supabase.storage.from.mockReturnValue({ remove });
+
+    await deleteCast('c1', 'u1/123.m4a');
+
+    expect(supabase.from).toHaveBeenCalledWith('casts');
+    expect(eq).toHaveBeenCalledWith('id', 'c1');
+    expect(supabase.storage.from).toHaveBeenCalledWith('casts');
+    expect(remove).toHaveBeenCalledWith(['u1/123.m4a']);
+  });
+
+  it('throws if the row delete fails, and skips storage cleanup', async () => {
+    const eq = jest.fn().mockResolvedValue({ error: new Error('not allowed') });
+    supabase.from.mockReturnValue({ delete: jest.fn(() => ({ eq })) });
+    const remove = jest.fn();
+    supabase.storage.from.mockReturnValue({ remove });
+
+    await expect(deleteCast('c1', 'u1/123.m4a')).rejects.toThrow('not allowed');
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it('still resolves when the audio cleanup fails (orphan is harmless)', async () => {
+    const eq = jest.fn().mockResolvedValue({ error: null });
+    supabase.from.mockReturnValue({ delete: jest.fn(() => ({ eq })) });
+    supabase.storage.from.mockReturnValue({
+      remove: jest.fn().mockRejectedValue(new Error('storage down')),
+    });
+
+    await expect(deleteCast('c1', 'u1/123.m4a')).resolves.toBeUndefined();
   });
 });
 

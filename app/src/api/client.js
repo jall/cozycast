@@ -219,6 +219,21 @@ export async function updateCastSummary(castId, summary) {
   if (error) throw error;
 }
 
+// Delete a cast you created. RLS allows the creator only; the child rows
+// (participants/recipients) cascade. The audio object is cleaned up best-effort
+// afterwards — an orphaned file is harmless, and a failed cleanup shouldn't make
+// a successful delete look like it failed.
+export async function deleteCast(castId, audioPath) {
+  const { error } = await supabase.from('casts').delete().eq('id', castId);
+  if (error) throw error;
+  if (audioPath) {
+    await supabase.storage
+      .from('casts')
+      .remove([audioPath])
+      .catch(() => {});
+  }
+}
+
 export async function getAudioUrl(audioPath) {
   const { data } = await supabase.storage.from('casts').createSignedUrl(audioPath, 3600); // 1 hour
   return data?.signedUrl;

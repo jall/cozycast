@@ -1,9 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Animated,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AudioPlayer from './AudioPlayer';
 import CastCover from './CastCover';
-import { getAudioUrl } from '../api/client';
+import { getAudioUrl, deleteCast } from '../api/client';
+import { usePlayer } from '../context/PlayerContext';
+import { useToast } from '../context/ToastContext';
+import { showAlert } from '../utils/alert';
 import { fonts } from '../theme/typography';
 
 function timeAgo(dateString) {
@@ -23,7 +33,7 @@ function timeAgo(dateString) {
   return `${diffWeek}w ago`;
 }
 
-export default function CastCard({ cast, index = 0 }) {
+export default function CastCard({ cast, index = 0, onDeleted }) {
   const {
     id,
     title,
@@ -38,6 +48,34 @@ export default function CastCard({ cast, index = 0 }) {
   } = cast;
 
   const [audioUrl, setAudioUrl] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const toast = useToast();
+  const { track, stop } = usePlayer();
+
+  function confirmDelete() {
+    showAlert(
+      'Delete this cast?',
+      'It’ll be removed for everyone it was shared with. This can’t be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: doDelete },
+      ],
+    );
+  }
+
+  async function doDelete() {
+    setDeleting(true);
+    try {
+      await deleteCast(id, cast.audio_path);
+      // If this is what the mini player is playing, dismiss it too.
+      if (track?.id === id) await stop();
+      toast.success('Cast deleted.');
+      onDeleted?.(id);
+    } catch (err) {
+      toast.error(err.message || 'Could not delete that cast.');
+      setDeleting(false);
+    }
+  }
 
   // Gentle staggered fade-in-up as cards arrive in the feed.
   const enter = useRef(new Animated.Value(0)).current;
@@ -80,6 +118,21 @@ export default function CastCard({ cast, index = 0 }) {
             {timeAgo(created_at)}
           </Text>
         </View>
+        {!shared_with_me ? (
+          <TouchableOpacity
+            onPress={confirmDelete}
+            disabled={deleting}
+            style={styles.deleteButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityLabel="Delete cast"
+          >
+            {deleting ? (
+              <ActivityIndicator size="small" color="#C0392B" />
+            ) : (
+              <Ionicons name="trash-outline" size={18} color="#C9B8A8" />
+            )}
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       {body ? (
@@ -146,6 +199,13 @@ const styles = StyleSheet.create({
   headerText: {
     flex: 1,
     marginLeft: 14,
+  },
+  deleteButton: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 4,
   },
   title: {
     fontSize: 17,

@@ -32,6 +32,10 @@ export default function FeedScreen() {
     setRefreshing(false);
   }
 
+  const handleDeleted = useCallback((castId) => {
+    setCasts((prev) => prev.filter((c) => c.id !== castId));
+  }, []);
+
   function renderHeader() {
     // Profile lives in the bottom tab bar; the feed header is just the wordmark.
     return (
@@ -90,7 +94,9 @@ export default function FeedScreen() {
         <FlatList
           data={casts}
           keyExtractor={(item) => item._id || item.id || String(Math.random())}
-          renderItem={({ item, index }) => <CastCard cast={item} index={index} />}
+          renderItem={({ item, index }) => (
+            <CastCard cast={item} index={index} onDeleted={handleDeleted} />
+          )}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={renderEmpty}
           refreshControl={
