@@ -108,6 +108,7 @@ export default function CastCard({ cast, index = 0 }) {
         <AudioPlayer
           uri={audioUrl}
           style={styles.player}
+          castId={id}
           title={title}
           seed={id}
           artist={shared_with_me ? sharer_name || creator_name : creator_name}

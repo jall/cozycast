@@ -13,6 +13,8 @@ import { Nunito_800ExtraBold } from '@expo-google-fonts/nunito/800ExtraBold';
 import { fonts } from './src/theme/typography';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { ToastProvider } from './src/context/ToastContext';
+import { PlayerProvider } from './src/context/PlayerContext';
+import MiniPlayer from './src/components/MiniPlayer';
 import LandingScreen from './src/screens/LandingScreen';
 import ManifestoScreen from './src/screens/ManifestoScreen';
 import LoginScreen from './src/screens/LoginScreen';
@@ -100,6 +102,7 @@ function AppRoot() {
         {activeTab === 'record' && <RecordScreen />}
         {activeTab === 'profile' && <ProfileScreen />}
       </View>
+      <MiniPlayer />
       <TabBar active={activeTab} onNavigate={setActiveTab} />
     </View>
   );
@@ -121,7 +124,9 @@ function App() {
     <SafeAreaProvider>
       <ToastProvider>
         <AuthProvider>
-          <AppRoot />
+          <PlayerProvider>
+            <AppRoot />
+          </PlayerProvider>
         </AuthProvider>
       </ToastProvider>
     </SafeAreaProvider>

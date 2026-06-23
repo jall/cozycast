@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
-import { Audio } from 'expo-av';
+import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { castArtworkDataUrl } from '../utils/castArtwork';
+import { usePlayer } from '../context/PlayerContext';
 
 function formatTime(millis) {
   if (!millis || millis < 0) return '0:00';
@@ -12,107 +11,31 @@ function formatTime(millis) {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
-export default function AudioPlayer({ uri, style, title, seed, artist, durationSeconds }) {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [position, setPosition] = useState(0);
-  // Seed the total time from the stored duration so it shows before playback
-  // (otherwise the player reads 0:00 until you press play). Real metadata, once
-  // the sound loads, overwrites this.
-  const [duration, setDuration] = useState(durationSeconds ? durationSeconds * 1000 : 0);
-  const [isLoaded, setIsLoaded] = useState(false);
-  const soundRef = useRef(null);
+// The play control on a CastCard. It no longer owns any audio — it reflects and
+// drives the app-wide player (see PlayerContext), so only one cast plays at a
+// time and playback survives scrolling/tab switches via the MiniPlayer.
+export default function AudioPlayer({ uri, style, castId, title, seed, artist, durationSeconds }) {
+  const { track, isPlaying, position, duration, toggle } = usePlayer();
 
-  useEffect(() => {
-    return () => {
-      if (soundRef.current) {
-        soundRef.current.unloadAsync();
-      }
-    };
-  }, []);
+  const id = castId ?? uri;
+  const isCurrent = track?.id === id;
+  const playing = isCurrent && isPlaying;
 
-  // Tell the OS media session (lock screen / control center) what's playing and
-  // give it a high-res cover, instead of the default favicon. Web only.
-  function setupMediaSession() {
-    if (Platform.OS !== 'web' || typeof navigator === 'undefined' || !('mediaSession' in navigator))
-      return;
-    const artwork = castArtworkDataUrl(seed, title);
-    navigator.mediaSession.metadata = new window.MediaMetadata({
-      title: title || 'cozycast',
-      artist: artist || 'cozycast',
-      album: 'cozycast',
-      artwork: artwork ? [{ src: artwork, sizes: '512x512', type: 'image/png' }] : [],
-    });
-    navigator.mediaSession.setActionHandler('play', () => soundRef.current?.playAsync());
-    navigator.mediaSession.setActionHandler('pause', () => soundRef.current?.pauseAsync());
+  // Show this cast's live position when it's the one playing; otherwise fall
+  // back to the stored duration so the time still reads before you hit play.
+  const displayPosition = isCurrent ? position : 0;
+  const displayDuration =
+    isCurrent && duration ? duration : durationSeconds ? durationSeconds * 1000 : 0;
+  const progress = displayDuration > 0 ? displayPosition / displayDuration : 0;
+
+  function handlePlayPause() {
+    toggle({ id, uri, title, seed, artist, durationSeconds });
   }
-
-  function setMediaPlaybackState(state) {
-    if (Platform.OS === 'web' && typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
-      navigator.mediaSession.playbackState = state;
-    }
-  }
-
-  async function loadSound() {
-    if (soundRef.current) {
-      await soundRef.current.unloadAsync();
-    }
-    // Native: keep audio going when the screen locks / app backgrounds (web gets
-    // the same via the browser). Guarded so a missing background-mode config
-    // can't crash playback.
-    if (Platform.OS !== 'web') {
-      await Audio.setAudioModeAsync({
-        staysActiveInBackground: true,
-        playsInSilentModeIOS: true,
-      }).catch(() => {});
-    }
-    const { sound: newSound } = await Audio.Sound.createAsync(
-      { uri },
-      { shouldPlay: true },
-      onPlaybackStatusUpdate,
-    );
-    soundRef.current = newSound;
-    setIsLoaded(true);
-    setIsPlaying(true);
-    setupMediaSession();
-  }
-
-  function onPlaybackStatusUpdate(status) {
-    if (status.isLoaded) {
-      setPosition(status.positionMillis || 0);
-      if (status.durationMillis) setDuration(status.durationMillis);
-      setIsPlaying(status.isPlaying);
-      setMediaPlaybackState(status.isPlaying ? 'playing' : 'paused');
-      if (status.didJustFinish) {
-        setIsPlaying(false);
-        setPosition(0);
-        setMediaPlaybackState('paused');
-      }
-    }
-  }
-
-  async function handlePlayPause() {
-    if (!isLoaded) {
-      await loadSound();
-      return;
-    }
-
-    if (isPlaying) {
-      await soundRef.current?.pauseAsync();
-    } else {
-      // If finished, replay from start
-      if (position >= duration && duration > 0) {
-        await soundRef.current?.setPositionAsync(0);
-      }
-      await soundRef.current?.playAsync();
-    }
-  }
-
-  const progress = duration > 0 ? position / duration : 0;
 
   return (
     <View style={[styles.container, style]}>
       <TouchableOpacity onPress={handlePlayPause} style={styles.playButton} activeOpacity={0.7}>
-        <Ionicons name={isPlaying ? 'pause' : 'play'} size={20} color="#FFFFFF" />
+        <Ionicons name={playing ? 'pause' : 'play'} size={20} color="#FFFFFF" />
       </TouchableOpacity>
 
       <View style={styles.trackArea}>
@@ -120,8 +43,8 @@ export default function AudioPlayer({ uri, style, title, seed, artist, durationS
           <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
         </View>
         <View style={styles.timeRow}>
-          <Text style={styles.timeText}>{formatTime(position)}</Text>
-          <Text style={styles.timeText}>{formatTime(duration)}</Text>
+          <Text style={styles.timeText}>{formatTime(displayPosition)}</Text>
+          <Text style={styles.timeText}>{formatTime(displayDuration)}</Text>
         </View>
       </View>
     </View>
