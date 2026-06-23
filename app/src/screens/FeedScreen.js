@@ -1,16 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  StyleSheet,
-  RefreshControl,
-  TouchableOpacity,
-  ActivityIndicator,
-} from 'react-native';
+import { View, Text, FlatList, StyleSheet, RefreshControl, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getFeed } from '../api/client';
 import CastCard from '../components/CastCard';
+import CastCardSkeleton from '../components/CastCardSkeleton';
 import { fonts } from '../theme/typography';
 
 export default function FeedScreen({ navigation }) {
@@ -54,20 +47,33 @@ export default function FeedScreen({ navigation }) {
     if (loading) return null;
     return (
       <View style={styles.emptyContainer}>
-        <Ionicons name="people-outline" size={64} color="#E8C9B0" />
-        <Text style={styles.emptyTitle}>It's quiet here...</Text>
-        <Text style={styles.emptyBody}>
-          Record a cast and share it with someone, or wait for a friend to send one your way. Your
-          cozy corner of the internet awaits.
-        </Text>
+        <View style={styles.emptyCard}>
+          <View style={styles.emptyIconWrap}>
+            <Ionicons name="cafe-outline" size={40} color="#E8734A" />
+          </View>
+          <Text style={styles.emptyTitle}>It's quiet here…</Text>
+          <Text style={styles.emptyBody}>
+            No casts yet. Record a little conversation and share it with someone, or wait for a
+            friend to send one your way.
+          </Text>
+          <View style={styles.emptyHintRow}>
+            <Ionicons name="mic" size={15} color="#A89888" />
+            <Text style={styles.emptyHint}>Tap Record below to begin</Text>
+          </View>
+        </View>
       </View>
     );
   }
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#E8734A" />
+      <View style={styles.container}>
+        {renderHeader()}
+        <View style={styles.skeletonList}>
+          {[0, 1, 2].map((i) => (
+            <CastCardSkeleton key={i} />
+          ))}
+        </View>
       </View>
     );
   }
@@ -134,16 +140,40 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 24,
   },
+  skeletonList: {
+    paddingTop: 8,
+  },
   emptyContainer: {
     alignItems: 'center',
-    paddingHorizontal: 40,
-    paddingTop: 80,
+    paddingHorizontal: 24,
+    paddingTop: 64,
+  },
+  emptyCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingHorizontal: 28,
+    paddingVertical: 32,
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  emptyIconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#FCEDE6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 18,
   },
   emptyTitle: {
     fontSize: 20,
     fontFamily: fonts.bold,
     color: '#2D2D2D',
-    marginTop: 20,
     marginBottom: 10,
   },
   emptyBody: {
@@ -152,6 +182,17 @@ const styles = StyleSheet.create({
     color: '#8C7B6B',
     textAlign: 'center',
     lineHeight: 22,
+  },
+  emptyHintRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 18,
+  },
+  emptyHint: {
+    fontSize: 13,
+    fontFamily: fonts.medium,
+    color: '#A89888',
+    marginLeft: 6,
   },
   errorContainer: {
     flex: 1,

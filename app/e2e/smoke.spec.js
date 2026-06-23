@@ -74,6 +74,8 @@ test.describe('signed in', () => {
       .first()
       .click();
     await expect(page.getByText(/new cast/i)).toBeVisible();
+    // The "soft game" conversation prompt is shown on the record screen.
+    await expect(page.getByTestId('conversation-tip')).toBeVisible();
 
     // Start capturing.
     await page.getByTestId('record-start').click();

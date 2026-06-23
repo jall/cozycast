@@ -16,6 +16,7 @@ import { createCast, shareCast, getFriends } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { fonts } from '../theme/typography';
+import { randomTip } from '../constants/tips';
 
 function formatElapsed(seconds) {
   const m = Math.floor(seconds / 60);
@@ -65,6 +66,8 @@ export default function RecordScreen() {
 
   const [submitting, setSubmitting] = useState(false);
   const [createdCast, setCreatedCast] = useState(null);
+  // A gentle conversation prompt, picked once per visit to this screen.
+  const [tip] = useState(randomTip);
 
   const timerRef = useRef(null);
   const pulse = useRef(new Animated.Value(0)).current;
@@ -260,6 +263,14 @@ export default function RecordScreen() {
             <Text style={styles.choiceDesc}>Upload an existing audio file</Text>
           </View>
         </TouchableOpacity>
+
+        <View style={styles.tipCard} testID="conversation-tip">
+          <View style={styles.tipHeader}>
+            <Ionicons name="sparkles-outline" size={15} color="#E8734A" />
+            <Text style={styles.tipLabel}>a tiny game</Text>
+          </View>
+          <Text style={styles.tipText}>{tip}</Text>
+        </View>
       </View>
     );
   }
@@ -558,6 +569,33 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: fonts.regular,
     color: '#8C7B6B',
+  },
+
+  // Conversation prompt ("a tiny game")
+  tipCard: {
+    backgroundColor: '#FCEDE6',
+    borderRadius: 16,
+    padding: 18,
+    marginTop: 12,
+  },
+  tipHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  tipLabel: {
+    fontSize: 12,
+    fontFamily: fonts.bold,
+    color: '#E8734A',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginLeft: 6,
+  },
+  tipText: {
+    fontSize: 15,
+    fontFamily: fonts.medium,
+    color: '#6B5E50',
+    lineHeight: 21,
   },
 
   // Recording screen
