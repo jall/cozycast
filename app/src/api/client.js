@@ -1,10 +1,70 @@
+import { Platform } from 'react-native';
 import { supabase } from './supabase';
+
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
 async function currentUserId() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
   return user?.id;
+}
+
+// Map an audio mime type to a file extension. Defaults to m4a (the recorder's
+// output) when unknown so existing behaviour is preserved.
+const MIME_EXT = {
+  'audio/mpeg': 'mp3',
+  'audio/mp3': 'mp3',
+  'audio/mp4': 'm4a',
+  'audio/m4a': 'm4a',
+  'audio/x-m4a': 'm4a',
+  'audio/aac': 'aac',
+  'audio/wav': 'wav',
+  'audio/x-wav': 'wav',
+  'audio/ogg': 'ogg',
+  'audio/webm': 'webm',
+  'audio/flac': 'flac',
+  'audio/x-flac': 'flac',
+};
+
+function extFromMime(mime) {
+  return MIME_EXT[mime] || 'm4a';
+}
+
+// Upload a blob to the casts bucket. On web we use XHR so we can report upload
+// progress — supabase-js's upload() exposes none. Elsewhere (and whenever no
+// progress callback is supplied, e.g. in tests) we use the SDK. The content-type
+// is set explicitly so the bucket's audio/* restriction sees the real type.
+async function uploadAudio(path, blob, contentType, onProgress) {
+  if (onProgress && Platform.OS === 'web' && typeof XMLHttpRequest !== 'undefined') {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${SUPABASE_URL}/storage/v1/object/casts/${path}`);
+      xhr.setRequestHeader('authorization', `Bearer ${token}`);
+      xhr.setRequestHeader('apikey', SUPABASE_ANON_KEY);
+      xhr.setRequestHeader('x-upsert', 'false');
+      xhr.setRequestHeader('cache-control', 'max-age=3600');
+      if (contentType) xhr.setRequestHeader('content-type', contentType);
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) onProgress(e.loaded / e.total);
+      };
+      xhr.onload = () =>
+        xhr.status >= 200 && xhr.status < 300
+          ? resolve()
+          : reject(new Error(`Upload failed (${xhr.status}).`));
+      xhr.onerror = () => reject(new Error('Upload failed — check your connection.'));
+      xhr.send(blob);
+    });
+    return;
+  }
+
+  const { error } = await supabase.storage.from('casts').upload(path, blob, { contentType });
+  if (error) throw error;
 }
 
 // The feed is everything the current user can access — RLS already limits this
@@ -49,19 +109,18 @@ export async function createCast({
   duration,
   participants = [],
   sharerId,
+  mimeType,
+  onProgress,
 }) {
   const userId = await currentUserId();
 
   // Upload audio into the creator's own folder (storage RLS keys off this).
-  const fileName = `${userId}/${Date.now()}.m4a`;
+  const contentType = mimeType || 'audio/m4a';
+  const fileName = `${userId}/${Date.now()}.${extFromMime(mimeType)}`;
   const response = await fetch(audioUri);
   const blob = await response.blob();
 
-  const { error: uploadError } = await supabase.storage
-    .from('casts')
-    .upload(fileName, blob, { contentType: 'audio/m4a' });
-
-  if (uploadError) throw uploadError;
+  await uploadAudio(fileName, blob, contentType, onProgress);
 
   const { data: cast, error } = await supabase
     .from('casts')

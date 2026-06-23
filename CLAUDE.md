@@ -106,6 +106,15 @@ Destructive migrations are fine pre-v1 — there's no real user data yet. Don't
 hand-write data into prod; seed non-prod environments from `supabase/seed.sql`
 (applied by `supabase db reset` locally), never against the production project.
 
+**Migrations are the single source of truth for the schema.** The full database
+must rebuild from `supabase/migrations/` alone (`supabase db reset` does exactly
+that) — so the safety net for an off-piste change is "wipe and replay". That only
+holds if every schema change lives in a migration: experimenting directly on prod
+(SQL editor, MCP) is fine pre-v1, but **capture the change as a migration file
+afterward**, or a wipe-and-replay will silently drop it. Apply migrations by
+landing them on `main` (the Supabase GitHub integration runs them) rather than
+poking prod by hand.
+
 ## Configuration (12-factor)
 
 - Config lives in the **environment, not the repo**. Read it from

@@ -81,6 +81,21 @@ describe('createCast (recording a cast)', () => {
     expect(participantInsert).not.toHaveBeenCalled();
   });
 
+  it('uses the file’s real mime type and extension for uploaded audio', async () => {
+    const upload = jest.fn().mockResolvedValue({ error: null });
+    const single = jest.fn().mockResolvedValue({ data: { id: 'c3' }, error: null });
+    const castInsert = jest.fn(() => ({ select: () => ({ single }) }));
+
+    supabase.storage.from.mockReturnValue({ upload });
+    supabase.from.mockImplementation(() => ({ insert: castInsert }));
+
+    await createCast({ title: 'Pod', audioUri: 'blob:x', mimeType: 'audio/mpeg' });
+
+    const [path, , opts] = upload.mock.calls[0];
+    expect(path).toMatch(/^u1\/\d+\.mp3$/);
+    expect(opts).toEqual({ contentType: 'audio/mpeg' });
+  });
+
   it('throws if the audio upload fails', async () => {
     supabase.storage.from.mockReturnValue({
       upload: jest.fn().mockResolvedValue({ error: new Error('storage down') }),

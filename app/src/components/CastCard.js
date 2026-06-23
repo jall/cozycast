@@ -104,7 +104,16 @@ export default function CastCard({ cast, index = 0 }) {
         </View>
       )}
 
-      {audioUrl && <AudioPlayer uri={audioUrl} style={styles.player} />}
+      {audioUrl && (
+        <AudioPlayer
+          uri={audioUrl}
+          style={styles.player}
+          title={title}
+          seed={id}
+          artist={shared_with_me ? sharer_name || creator_name : creator_name}
+          durationSeconds={cast.duration}
+        />
+      )}
 
       {!shared_with_me && recipient_count > 0 ? (
         <Text style={styles.sharedNote}>

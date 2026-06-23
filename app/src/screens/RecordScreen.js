@@ -8,6 +8,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Animated,
+  Platform,
 } from 'react-native';
 import { Audio } from 'expo-av';
 import * as DocumentPicker from 'expo-document-picker';
@@ -26,6 +27,33 @@ function formatElapsed(seconds) {
 
 function initial(name) {
   return name ? name.charAt(0).toUpperCase() : '?';
+}
+
+// Read an audio file's duration (seconds) from its metadata so the cast stores
+// it up front — otherwise the feed shows 0:00 until the listener hits play.
+// Web only; resolves null when unavailable.
+function getAudioDurationSeconds(uri) {
+  if (Platform.OS !== 'web' || typeof document === 'undefined') return Promise.resolve(null);
+  return new Promise((resolve) => {
+    try {
+      const el = document.createElement('audio');
+      el.preload = 'metadata';
+      el.onloadedmetadata = () =>
+        resolve(Number.isFinite(el.duration) && el.duration > 0 ? Math.round(el.duration) : null);
+      el.onerror = () => resolve(null);
+      el.src = uri;
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+// Accept audio only for now (the bucket rejects video, and we don't yet extract
+// audio from video). Trust the picked mime type, falling back to the extension.
+function isAudioFile(mime, name) {
+  if (mime && mime.startsWith('audio/')) return true;
+  if (mime && mime.startsWith('video/')) return false;
+  return /\.(mp3|m4a|aac|wav|ogg|oga|opus|flac|weba|webm)$/i.test(name || '');
 }
 
 // A tappable person row used for tagging participants and picking recipients.
@@ -55,6 +83,8 @@ export default function RecordScreen() {
   const [mode, setMode] = useState(null);
   const [recording, setRecording] = useState(null);
   const [recordingUri, setRecordingUri] = useState(null);
+  const [audioMime, setAudioMime] = useState(null);
+  const [pickedDuration, setPickedDuration] = useState(null);
   const [elapsed, setElapsed] = useState(0);
 
   const [title, setTitle] = useState('');
@@ -65,6 +95,7 @@ export default function RecordScreen() {
   const [recipientIds, setRecipientIds] = useState([]);
 
   const [submitting, setSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [createdCast, setCreatedCast] = useState(null);
   // A gentle conversation prompt, picked once per visit to this screen.
   const [tip] = useState(randomTip);
@@ -143,10 +174,21 @@ export default function RecordScreen() {
         type: 'audio/*',
         copyToCacheDirectory: true,
       });
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        setRecordingUri(result.assets[0].uri);
-        setMode('form');
+      if (result.canceled || !result.assets || result.assets.length === 0) return;
+
+      const asset = result.assets[0];
+      if (!isAudioFile(asset.mimeType, asset.name)) {
+        toast.error(
+          'cozycast supports audio files for now — please pick an audio file, not a video.',
+        );
+        return;
       }
+
+      setRecordingUri(asset.uri);
+      setAudioMime(asset.mimeType || null);
+      setElapsed(0);
+      setPickedDuration(await getAudioDurationSeconds(asset.uri));
+      setMode('form');
     } catch {
       toast.error('Could not pick that file.');
     }
@@ -176,6 +218,7 @@ export default function RecordScreen() {
     }
 
     setSubmitting(true);
+    setUploadProgress(0);
     try {
       const participants = friends
         .filter((f) => participantIds.includes(f.id))
@@ -185,9 +228,11 @@ export default function RecordScreen() {
         title: title.trim(),
         summary: summary.trim() || null,
         audioUri: recordingUri,
-        duration: elapsed || null,
+        duration: elapsed || pickedDuration || null,
+        mimeType: audioMime,
         participants,
         sharerId: sharerId === 'me' ? user?.id : sharerId,
+        onProgress: setUploadProgress,
       });
 
       setCreatedCast(cast);
@@ -218,6 +263,9 @@ export default function RecordScreen() {
   function resetState() {
     setMode(null);
     setRecordingUri(null);
+    setAudioMime(null);
+    setPickedDuration(null);
+    setUploadProgress(0);
     setElapsed(0);
     setTitle('');
     setSummary('');
@@ -354,7 +402,8 @@ export default function RecordScreen() {
         <View style={styles.audioPreviewRow}>
           <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
           <Text style={styles.audioPreviewText}>
-            Audio ready{elapsed ? ` (${formatElapsed(elapsed)})` : ''}
+            Audio ready
+            {elapsed || pickedDuration ? ` (${formatElapsed(elapsed || pickedDuration)})` : ''}
           </Text>
         </View>
 
@@ -404,6 +453,21 @@ export default function RecordScreen() {
         </View>
 
         {renderSharerPicker()}
+
+        {submitting && uploadProgress > 0 ? (
+          <View style={styles.uploadProgressWrap}>
+            <View style={styles.uploadTrack}>
+              <View
+                style={[styles.uploadFill, { width: `${Math.round(uploadProgress * 100)}%` }]}
+              />
+            </View>
+            <Text style={styles.uploadPct}>
+              {uploadProgress >= 1
+                ? 'Finishing up…'
+                : `Uploading ${Math.round(uploadProgress * 100)}%`}
+            </Text>
+          </View>
+        ) : null}
 
         <TouchableOpacity
           style={[styles.submitButton, submitting && styles.submitDisabled]}
@@ -678,6 +742,27 @@ const styles = StyleSheet.create({
     color: '#4CAF50',
     fontWeight: '500',
     marginLeft: 10,
+  },
+  uploadProgressWrap: {
+    marginTop: 12,
+  },
+  uploadTrack: {
+    height: 8,
+    backgroundColor: '#F0E6DA',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  uploadFill: {
+    height: 8,
+    backgroundColor: '#E8734A',
+    borderRadius: 4,
+  },
+  uploadPct: {
+    fontSize: 12,
+    fontFamily: fonts.medium,
+    color: '#8C7B6B',
+    marginTop: 6,
+    textAlign: 'center',
   },
   inputGroup: {
     marginBottom: 20,

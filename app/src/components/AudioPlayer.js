@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Audio } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
+import { castArtworkDataUrl } from '../utils/castArtwork';
 
 function formatTime(millis) {
   if (!millis || millis < 0) return '0:00';
@@ -11,10 +12,13 @@ function formatTime(millis) {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
-export default function AudioPlayer({ uri, style }) {
+export default function AudioPlayer({ uri, style, title, seed, artist, durationSeconds }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [position, setPosition] = useState(0);
-  const [duration, setDuration] = useState(0);
+  // Seed the total time from the stored duration so it shows before playback
+  // (otherwise the player reads 0:00 until you press play). Real metadata, once
+  // the sound loads, overwrites this.
+  const [duration, setDuration] = useState(durationSeconds ? durationSeconds * 1000 : 0);
   const [isLoaded, setIsLoaded] = useState(false);
   const soundRef = useRef(null);
 
@@ -25,6 +29,28 @@ export default function AudioPlayer({ uri, style }) {
       }
     };
   }, []);
+
+  // Tell the OS media session (lock screen / control center) what's playing and
+  // give it a high-res cover, instead of the default favicon. Web only.
+  function setupMediaSession() {
+    if (Platform.OS !== 'web' || typeof navigator === 'undefined' || !('mediaSession' in navigator))
+      return;
+    const artwork = castArtworkDataUrl(seed, title);
+    navigator.mediaSession.metadata = new window.MediaMetadata({
+      title: title || 'cozycast',
+      artist: artist || 'cozycast',
+      album: 'cozycast',
+      artwork: artwork ? [{ src: artwork, sizes: '512x512', type: 'image/png' }] : [],
+    });
+    navigator.mediaSession.setActionHandler('play', () => soundRef.current?.playAsync());
+    navigator.mediaSession.setActionHandler('pause', () => soundRef.current?.pauseAsync());
+  }
+
+  function setMediaPlaybackState(state) {
+    if (Platform.OS === 'web' && typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = state;
+    }
+  }
 
   async function loadSound() {
     if (soundRef.current) {
@@ -38,16 +64,19 @@ export default function AudioPlayer({ uri, style }) {
     soundRef.current = newSound;
     setIsLoaded(true);
     setIsPlaying(true);
+    setupMediaSession();
   }
 
   function onPlaybackStatusUpdate(status) {
     if (status.isLoaded) {
       setPosition(status.positionMillis || 0);
-      setDuration(status.durationMillis || 0);
+      if (status.durationMillis) setDuration(status.durationMillis);
       setIsPlaying(status.isPlaying);
+      setMediaPlaybackState(status.isPlaying ? 'playing' : 'paused');
       if (status.didJustFinish) {
         setIsPlaying(false);
         setPosition(0);
+        setMediaPlaybackState('paused');
       }
     }
   }

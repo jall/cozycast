@@ -6,7 +6,7 @@ import CastCard from '../components/CastCard';
 import CastCardSkeleton from '../components/CastCardSkeleton';
 import { fonts } from '../theme/typography';
 
-export default function FeedScreen({ navigation }) {
+export default function FeedScreen() {
   const [casts, setCasts] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -33,12 +33,10 @@ export default function FeedScreen({ navigation }) {
   }
 
   function renderHeader() {
+    // Profile lives in the bottom tab bar; the feed header is just the wordmark.
     return (
       <View style={styles.header}>
         <Text style={styles.headerTitle}>cozycast</Text>
-        <TouchableOpacity onPress={() => navigation?.navigate?.('Profile')} activeOpacity={0.7}>
-          <Ionicons name="person-circle-outline" size={32} color="#2D2D2D" />
-        </TouchableOpacity>
       </View>
     );
   }
