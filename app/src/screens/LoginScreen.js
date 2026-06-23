@@ -49,6 +49,16 @@ export default function LoginScreen({ onBack }) {
           name.trim(),
           inviteCode.trim() || undefined,
         );
+        if (result?.alreadyRegistered) {
+          // No email goes out for an existing address — point them at logging in
+          // rather than a confirmation that will never arrive.
+          setIsSignup(false);
+          setFeedback({
+            type: 'error',
+            text: `${email.trim()} already has an account. Try logging in (or reset your password).`,
+          });
+          return;
+        }
         if (result?.needsConfirmation) {
           setFeedback({
             type: 'success',

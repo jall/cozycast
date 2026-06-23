@@ -47,6 +47,19 @@ describe('AuthContext signup', () => {
     expect(res).toEqual({ needsConfirmation: true, inviteError: null });
   });
 
+  it('flags an already-registered email (empty identities) and skips invite redemption', async () => {
+    supabase.auth.signUp.mockResolvedValue({
+      data: { user: { id: 'u1', identities: [] }, session: null },
+      error: null,
+    });
+    const result = await setupAuth();
+
+    const res = await result.current.signup('taken@b.com', 'pw', 'Ada', 'CODE12');
+
+    expect(res).toEqual({ alreadyRegistered: true });
+    expect(redeemInvite).not.toHaveBeenCalled();
+  });
+
   it('reports no confirmation needed when a session is returned', async () => {
     supabase.auth.signUp.mockResolvedValue({
       data: { user: { id: 'u1' }, session: { access_token: 't' } },

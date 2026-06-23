@@ -62,6 +62,14 @@ export function AuthProvider({ children }) {
     });
     if (error) throw error;
 
+    // Supabase hides whether an email is already registered (anti-enumeration):
+    // signUp "succeeds" but the returned user has an empty identities array and
+    // no email is sent. Detect that so we can tell the user to log in instead of
+    // claiming we sent a confirmation that never went out.
+    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      return { alreadyRegistered: true };
+    }
+
     // If invite code provided, redeem it after signup. Don't fail signup if it
     // doesn't take — but do report it back so the caller can tell the user
     // (otherwise they'd silently land in an empty app, unconnected).
