@@ -56,6 +56,15 @@ export default function AudioPlayer({ uri, style, title, seed, artist, durationS
     if (soundRef.current) {
       await soundRef.current.unloadAsync();
     }
+    // Native: keep audio going when the screen locks / app backgrounds (web gets
+    // the same via the browser). Guarded so a missing background-mode config
+    // can't crash playback.
+    if (Platform.OS !== 'web') {
+      await Audio.setAudioModeAsync({
+        staysActiveInBackground: true,
+        playsInSilentModeIOS: true,
+      }).catch(() => {});
+    }
     const { sound: newSound } = await Audio.Sound.createAsync(
       { uri },
       { shouldPlay: true },

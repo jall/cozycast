@@ -128,6 +128,25 @@ poking prod by hand.
   Netlify build env. Missing Supabase vars throw a clear error at startup.
   (`EXPO_PUBLIC_SITE_URL` keeps a safe public default of `https://cozycast.jall.me`.)
 
+## Audio (playback & casts)
+
+- Playback/recording use `expo-av` (`components/AudioPlayer.js`,
+  `screens/RecordScreen.js`). expo-av is deprecated in favour of `expo-audio`;
+  migrating is a worthwhile future cleanup but **doesn't unlock lock-screen
+  artwork** — rich now-playing controls aren't first-class there either, so it
+  doesn't change the decision below.
+- **Lock screen:** on web we set `navigator.mediaSession` metadata with a 512px
+  cover (rendered from `utils/castCover` via `utils/castArtwork`). On native we
+  only keep audio alive in the background (`staysActiveInBackground`, plus iOS
+  `UIBackgroundModes: ["audio"]` in `app.json`) — full native lock-screen
+  artwork/controls would need `react-native-track-player` (a dev/EAS build, no
+  Expo Go); deliberately deferred until native actually ships.
+- **Uploads** go straight to the storage REST endpoint so we can show progress
+  (XHR on web, `expo-file-system` upload on native); the SDK is the no-progress
+  fallback. The `casts` bucket only allows `audio/*`, so the picker filters out
+  video up front. Duration is read from metadata at create time (web `<audio>`,
+  native expo-av) so the feed shows length before playback.
+
 ## Web gotchas
 
 - React Native's `Alert` is a **no-op on web**. For non-blocking feedback
