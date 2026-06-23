@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import * as FileSystem from 'expo-file-system';
 import { supabase } from './supabase';
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -32,24 +33,56 @@ function extFromMime(mime) {
   return MIME_EXT[mime] || 'm4a';
 }
 
-// Upload a blob to the casts bucket. On web we use XHR so we can report upload
-// progress — supabase-js's upload() exposes none. Elsewhere (and whenever no
-// progress callback is supplied, e.g. in tests) we use the SDK. The content-type
-// is set explicitly so the bucket's audio/* restriction sees the real type.
-async function uploadAudio(path, blob, contentType, onProgress) {
+async function storageHeaders(contentType) {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  return {
+    authorization: `Bearer ${session?.access_token}`,
+    apikey: SUPABASE_ANON_KEY,
+    'x-upsert': 'false',
+    'cache-control': 'max-age=3600',
+    ...(contentType ? { 'content-type': contentType } : {}),
+  };
+}
+
+// Upload audio to the casts bucket, reporting progress when a callback is given.
+// supabase-js's upload() exposes no progress, so for the progress path we hit the
+// storage REST endpoint directly: XHR on web, expo-file-system (streamed from
+// disk) on native. Without a callback — or in tests — we use the SDK. The
+// content-type is set explicitly so the bucket's audio/* restriction sees the
+// real type. `uri` is the local file; `path` is the destination in the bucket.
+async function uploadAudio(path, uri, contentType, onProgress) {
+  const endpoint = `${SUPABASE_URL}/storage/v1/object/casts/${path}`;
+
+  // Native: stream the file from disk so memory stays flat and we get progress.
+  if (onProgress && Platform.OS !== 'web') {
+    const task = FileSystem.createUploadTask(
+      endpoint,
+      uri,
+      {
+        httpMethod: 'POST',
+        uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+        headers: await storageHeaders(contentType),
+      },
+      ({ totalBytesSent, totalBytesExpectedToSend }) => {
+        if (totalBytesExpectedToSend > 0) onProgress(totalBytesSent / totalBytesExpectedToSend);
+      },
+    );
+    const res = await task.uploadAsync();
+    if (!res || res.status < 200 || res.status >= 300)
+      throw new Error(`Upload failed (${res?.status}).`);
+    return;
+  }
+
+  // Web: XHR gives us upload.onprogress events the SDK doesn't.
   if (onProgress && Platform.OS === 'web' && typeof XMLHttpRequest !== 'undefined') {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const token = session?.access_token;
+    const blob = await (await fetch(uri)).blob();
+    const headers = await storageHeaders(contentType);
     await new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.open('POST', `${SUPABASE_URL}/storage/v1/object/casts/${path}`);
-      xhr.setRequestHeader('authorization', `Bearer ${token}`);
-      xhr.setRequestHeader('apikey', SUPABASE_ANON_KEY);
-      xhr.setRequestHeader('x-upsert', 'false');
-      xhr.setRequestHeader('cache-control', 'max-age=3600');
-      if (contentType) xhr.setRequestHeader('content-type', contentType);
+      xhr.open('POST', endpoint);
+      Object.entries(headers).forEach(([k, v]) => xhr.setRequestHeader(k, v));
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) onProgress(e.loaded / e.total);
       };
@@ -63,6 +96,8 @@ async function uploadAudio(path, blob, contentType, onProgress) {
     return;
   }
 
+  // Fallback (no progress callback, e.g. tests): the SDK.
+  const blob = await (await fetch(uri)).blob();
   const { error } = await supabase.storage.from('casts').upload(path, blob, { contentType });
   if (error) throw error;
 }
@@ -117,10 +152,8 @@ export async function createCast({
   // Upload audio into the creator's own folder (storage RLS keys off this).
   const contentType = mimeType || 'audio/m4a';
   const fileName = `${userId}/${Date.now()}.${extFromMime(mimeType)}`;
-  const response = await fetch(audioUri);
-  const blob = await response.blob();
 
-  await uploadAudio(fileName, blob, contentType, onProgress);
+  await uploadAudio(fileName, audioUri, contentType, onProgress);
 
   const { data: cast, error } = await supabase
     .from('casts')

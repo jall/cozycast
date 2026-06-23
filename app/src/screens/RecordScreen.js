@@ -31,21 +31,30 @@ function initial(name) {
 
 // Read an audio file's duration (seconds) from its metadata so the cast stores
 // it up front — otherwise the feed shows 0:00 until the listener hits play.
-// Web only; resolves null when unavailable.
-function getAudioDurationSeconds(uri) {
-  if (Platform.OS !== 'web' || typeof document === 'undefined') return Promise.resolve(null);
-  return new Promise((resolve) => {
-    try {
-      const el = document.createElement('audio');
-      el.preload = 'metadata';
-      el.onloadedmetadata = () =>
-        resolve(Number.isFinite(el.duration) && el.duration > 0 ? Math.round(el.duration) : null);
-      el.onerror = () => resolve(null);
-      el.src = uri;
-    } catch {
-      resolve(null);
+// Web reads it off an <audio> element; native loads metadata via expo-av.
+// Resolves null when unavailable.
+async function getAudioDurationSeconds(uri) {
+  try {
+    if (Platform.OS === 'web') {
+      if (typeof document === 'undefined') return null;
+      return await new Promise((resolve) => {
+        const el = document.createElement('audio');
+        el.preload = 'metadata';
+        el.onloadedmetadata = () =>
+          resolve(Number.isFinite(el.duration) && el.duration > 0 ? Math.round(el.duration) : null);
+        el.onerror = () => resolve(null);
+        el.src = uri;
+      });
     }
-  });
+
+    const { sound, status } = await Audio.Sound.createAsync({ uri }, { shouldPlay: false });
+    const dur =
+      status?.isLoaded && status.durationMillis ? Math.round(status.durationMillis / 1000) : null;
+    await sound.unloadAsync();
+    return dur;
+  } catch {
+    return null;
+  }
 }
 
 // Accept audio only for now (the bucket rejects video, and we don't yet extract

@@ -61,9 +61,24 @@ async function signIn(page) {
     .click();
   await page.getByPlaceholder(/you@example\.com/i).fill(email);
   await page.getByPlaceholder(/your password/i).fill(password);
-  await page.getByText(/^log in$/i).click();
+
   // The authenticated shell shows the bottom tab bar (Feed / Record / Profile).
-  await expect(page.getByText(/^record$/i).first()).toBeVisible({ timeout: 20000 });
+  // The submit can hit a transient network blip ("Failed to fetch" through a
+  // proxy) while the auth endpoint itself is healthy, so re-submit from the
+  // still-present login screen until the shell appears rather than failing once.
+  const recordTab = page.getByText(/^record$/i).first();
+  const loginButton = page.getByText(/^log in$/i).first();
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    await loginButton.click();
+    try {
+      await expect(recordTab).toBeVisible({ timeout: 15000 });
+      return;
+    } catch (err) {
+      if (await recordTab.isVisible()) return;
+      // Out of attempts, or we've left the login screen (a real failure).
+      if (attempt === 3 || !(await loginButton.isVisible())) throw err;
+    }
+  }
 }
 
 test.describe('signed in', () => {
