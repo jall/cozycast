@@ -1,5 +1,5 @@
 import { supabase } from '../supabase';
-import { createCast, shareCast, getAudioUrl, deleteCast } from '../client';
+import { createCast, shareCast, getAudioUrl, deleteCast, getCast } from '../client';
 
 // Mock the supabase client so we exercise the create / share / stream logic in
 // client.js without any network or storage.
@@ -165,6 +165,58 @@ describe('deleteCast', () => {
     });
 
     await expect(deleteCast('c1', 'u1/123.m4a')).resolves.toBeUndefined();
+  });
+});
+
+describe('getCast (detail page / deep link)', () => {
+  function mockSingleRow(row) {
+    const maybeSingle = jest.fn().mockResolvedValue({ data: row, error: null });
+    const eq = jest.fn(() => ({ maybeSingle }));
+    const select = jest.fn(() => ({ eq }));
+    supabase.from.mockReturnValue({ select });
+    return { select, eq, maybeSingle };
+  }
+
+  it('returns a flattened cast, marking ones I created as not shared-with-me', async () => {
+    const { eq } = mockSingleRow({
+      id: 'c1',
+      title: 'Bread talk',
+      creator: { id: 'u1', name: 'Me', email: 'me@x.com' },
+      sharer: null,
+      cast_participants: [{ profile_id: 'p1', name: 'Ben' }],
+      cast_recipients: [{ recipient_id: 'r1' }],
+    });
+
+    const cast = await getCast('c1');
+
+    expect(eq).toHaveBeenCalledWith('id', 'c1');
+    expect(cast).toMatchObject({
+      id: 'c1',
+      creator_name: 'Me',
+      participants: ['Ben'],
+      recipient_count: 1,
+      shared_with_me: false,
+    });
+  });
+
+  it('marks a cast created by someone else as shared-with-me', async () => {
+    mockSingleRow({
+      id: 'c2',
+      title: 'Theirs',
+      creator: { id: 'u2', name: 'Ada', email: 'ada@x.com' },
+      sharer: { id: 'u2', name: 'Ada' },
+      cast_participants: [],
+      cast_recipients: [],
+    });
+
+    const cast = await getCast('c2');
+    expect(cast.shared_with_me).toBe(true);
+    expect(cast.sharer_name).toBe('Ada');
+  });
+
+  it('returns null when no row is visible (RLS) or it does not exist', async () => {
+    mockSingleRow(null);
+    await expect(getCast('missing')).resolves.toBeNull();
   });
 });
 

@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import AudioPlayer from './AudioPlayer';
 import CastCover from './CastCover';
 import { getAudioUrl, deleteCast } from '../api/client';
@@ -50,7 +51,10 @@ export default function CastCard({ cast, index = 0, onDeleted }) {
   const [audioUrl, setAudioUrl] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const toast = useToast();
+  const router = useRouter();
   const { track, stop } = usePlayer();
+
+  const openDetail = () => router.push(`/cast/${id}`);
 
   function confirmDelete() {
     showAlert(
@@ -108,16 +112,23 @@ export default function CastCard({ cast, index = 0, onDeleted }) {
       ]}
     >
       <View style={styles.topRow}>
-        <CastCover seed={id} title={title} size={56} />
-        <View style={styles.headerText}>
-          <Text style={styles.title} numberOfLines={2}>
-            {title}
-          </Text>
-          <Text style={styles.byline}>
-            {shared_with_me ? `Shared by ${sharer_name || creator_name}` : creator_name} ·{' '}
-            {timeAgo(created_at)}
-          </Text>
-        </View>
+        <TouchableOpacity
+          style={styles.headerPress}
+          onPress={openDetail}
+          activeOpacity={0.7}
+          accessibilityLabel={`Open ${title}`}
+        >
+          <CastCover seed={id} title={title} size={56} />
+          <View style={styles.headerText}>
+            <Text style={styles.title} numberOfLines={2}>
+              {title}
+            </Text>
+            <Text style={styles.byline}>
+              {shared_with_me ? `Shared by ${sharer_name || creator_name}` : creator_name} ·{' '}
+              {timeAgo(created_at)}
+            </Text>
+          </View>
+        </TouchableOpacity>
         {!shared_with_me ? (
           <TouchableOpacity
             onPress={confirmDelete}
@@ -136,9 +147,11 @@ export default function CastCard({ cast, index = 0, onDeleted }) {
       </View>
 
       {body ? (
-        <Text style={styles.summary} numberOfLines={4}>
-          {body}
-        </Text>
+        <TouchableOpacity onPress={openDetail} activeOpacity={0.7}>
+          <Text style={styles.summary} numberOfLines={4}>
+            {body}
+          </Text>
+        </TouchableOpacity>
       ) : null}
 
       {participantList.length > 0 && (
@@ -195,6 +208,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
+  },
+  headerPress: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   headerText: {
     flex: 1,

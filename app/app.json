@@ -28,8 +28,9 @@
     },
     "web": {
       "bundler": "metro",
+      "output": "single",
       "favicon": "./assets/favicon.png"
     },
-    "plugins": ["expo-font", "@sentry/react-native"]
+    "plugins": ["expo-router", "expo-font", "@sentry/react-native"]
   }
 }

@@ -27,8 +27,17 @@ derived deterministically from the cast id in `components/CastCover.js`).
   Netlify (cozycast.jall.me / cozycast.netlify.app).
 - `supabase/` — Postgres schema (`migrations/`) + `config.toml`. Auth, database,
   and storage are all Supabase; there is no custom backend server.
-- App entry point is `node_modules/expo/AppEntry.js`, which registers
-  `app/App.js` (set via `"main"` in `app/package.json`).
+- **Routing is Expo Router** (`"main": "expo-router/entry"`). Routes live in
+  `app/app/`: `_layout.js` (the root — fonts, Sentry, providers, and the
+  signed-in/out gate; signed-out renders `src/screens/PublicRoot.js`, signed-in
+  renders the `<Stack>`), `index.js` (the tab home: Feed/Record/Profile behind a
+  custom bottom tab bar — tabs are local state, not routes), and `cast/[id].js`
+  (the shareable cast detail page). Reusable UI/logic stays in `app/src/`
+  (`components/`, `screens/`, `context/`, `api/`). Web build is a single-page SPA
+  (`web.output: "single"` in `app.json`); the `netlify.toml` `/* → /index.html`
+  redirect serves deep links like `/cast/:id`. Because the URL is untouched while
+  signed out, a deep link is preserved through login (the Stack mounts on it once
+  a session exists).
 
 ## Commands (run from `app/`)
 

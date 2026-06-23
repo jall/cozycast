@@ -102,27 +102,19 @@ async function uploadAudio(path, uri, contentType, onProgress) {
   if (error) throw error;
 }
 
-// The feed is everything the current user can access — RLS already limits this
-// to casts they created, are the sharer of, are tagged in, or were shared with.
-export async function getFeed() {
-  const { data, error } = await supabase
-    .from('casts')
-    .select(
-      `
-      *,
-      creator:profiles!casts_creator_id_fkey(id, name, email),
-      sharer:profiles!casts_sharer_id_fkey(id, name, email),
-      cast_participants(profile_id, name),
-      cast_recipients(recipient_id)
-      `,
-    )
-    .order('created_at', { ascending: false });
+// The joins the feed and the detail page both need on a cast row.
+const CAST_SELECT = `
+  *,
+  creator:profiles!casts_creator_id_fkey(id, name, email),
+  sharer:profiles!casts_sharer_id_fkey(id, name, email),
+  cast_participants(profile_id, name),
+  cast_recipients(recipient_id)
+`;
 
-  if (error) throw error;
-
-  const uid = await currentUserId();
-
-  return (data || []).map((cast) => ({
+// Flatten a joined cast row into the shape the UI consumes. `uid` is the
+// current user, used to decide whether the cast was shared *with* them.
+function mapCast(cast, uid) {
+  return {
     ...cast,
     creator_name: cast.creator?.name || 'Someone',
     creator_email: cast.creator?.email || '',
@@ -132,7 +124,38 @@ export async function getFeed() {
     recipient_count: (cast.cast_recipients || []).length,
     // Did this land in my feed because someone shared it with me (vs. mine)?
     shared_with_me: cast.creator?.id !== uid,
-  }));
+  };
+}
+
+// The feed is everything the current user can access — RLS already limits this
+// to casts they created, are the sharer of, are tagged in, or were shared with.
+export async function getFeed() {
+  const { data, error } = await supabase
+    .from('casts')
+    .select(CAST_SELECT)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+
+  const uid = await currentUserId();
+  return (data || []).map((cast) => mapCast(cast, uid));
+}
+
+// A single cast by id, for the detail page / deep links. Returns null when the
+// row isn't visible to the user (RLS) or doesn't exist, so callers can show a
+// friendly "not available" state rather than crashing.
+export async function getCast(castId) {
+  const { data, error } = await supabase
+    .from('casts')
+    .select(CAST_SELECT)
+    .eq('id', castId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return null;
+
+  const uid = await currentUserId();
+  return mapCast(data, uid);
 }
 
 // Create a cast: upload the audio, insert the row, then tag participants.
