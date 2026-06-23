@@ -16,6 +16,7 @@ import { ToastProvider } from './src/context/ToastContext';
 import LandingScreen from './src/screens/LandingScreen';
 import ManifestoScreen from './src/screens/ManifestoScreen';
 import LoginScreen from './src/screens/LoginScreen';
+import ResetPasswordScreen from './src/screens/ResetPasswordScreen';
 import FeedScreen from './src/screens/FeedScreen';
 import RecordScreen from './src/screens/RecordScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
@@ -83,10 +84,13 @@ function PublicRoot() {
 }
 
 function AppRoot() {
-  const { user, loading } = useAuth();
+  const { user, loading, passwordRecovery } = useAuth();
   const [activeTab, setActiveTab] = useState('feed');
 
   if (loading) return <LoadingScreen />;
+  // A reset link creates a session, so this must win over both the app and the
+  // public surface until the new password is set.
+  if (passwordRecovery) return <ResetPasswordScreen />;
   if (!user) return <PublicRoot />;
 
   return (

@@ -19,6 +19,8 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  // True after the user follows a password-reset link, until they set a new one.
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -31,7 +33,10 @@ export function AuthProvider({ children }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      // Following a reset link establishes a temporary session and fires this —
+      // route the user to "set a new password" rather than into the app.
+      if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true);
       const u = session?.user || null;
       setUser(u);
       if (u) loadProfile(u.id);
@@ -92,6 +97,20 @@ export function AuthProvider({ children }) {
     await supabase.auth.signOut();
   }
 
+  // Send a password-reset email. The link returns the user to SITE_URL, where
+  // detectSessionInUrl (web) consumes the token and fires PASSWORD_RECOVERY.
+  async function requestPasswordReset(email) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: SITE_URL });
+    if (error) throw error;
+  }
+
+  // Set the new password during a recovery session, then leave recovery mode.
+  async function updatePassword(newPassword) {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw error;
+    setPasswordRecovery(false);
+  }
+
   return (
     <AuthContext.Provider
       value={{
@@ -99,9 +118,12 @@ export function AuthProvider({ children }) {
           profile ||
           (user ? { id: user.id, email: user.email, name: user.user_metadata?.name } : null),
         loading,
+        passwordRecovery,
         login,
         signup,
         logout,
+        requestPasswordReset,
+        updatePassword,
       }}
     >
       {children}

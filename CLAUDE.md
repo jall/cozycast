@@ -159,7 +159,17 @@ hand-write data into prod; seed non-prod environments from `supabase/seed.sql`
   email confirmation links break. Signup passes `emailRedirectTo` from
   `EXPO_PUBLIC_SITE_URL` (default `https://cozycast.jall.me`).
 - Email confirmation is **enabled**, so new signups must confirm via email
-  before they can log in.
+  before they can log in. Signing up with an **already-registered** email is
+  hidden by Supabase (anti-enumeration): `signUp` "succeeds" with an empty
+  `identities` array and **no email is sent** — `AuthContext.signup` detects this
+  (`alreadyRegistered`) so we tell the user to log in instead of waiting forever.
+- **Password reset** is in-app: "Forgot password?" → `resetPasswordForEmail`
+  (redirects to the Site URL); the link returns to the web app where
+  `detectSessionInUrl` (web-only, see `api/supabase.js`) consumes the token and
+  fires `PASSWORD_RECOVERY`, which routes to `ResetPasswordScreen`.
+- **Email delivery caveat:** the project uses Supabase's built-in SMTP, which is
+  heavily rate-limited (a few/hour) and for testing only. Real
+  confirmation/reset emails need a custom SMTP provider configured before launch.
 
 ## Test account (pre-v1 only — remove before launch)
 

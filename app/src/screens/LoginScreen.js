@@ -16,9 +16,10 @@ import { useToast } from '../context/ToastContext';
 import { fonts } from '../theme/typography';
 
 export default function LoginScreen({ onBack }) {
-  const { login, signup } = useAuth();
+  const { login, signup, requestPasswordReset } = useAuth();
   const toast = useToast();
   const [isSignup, setIsSignup] = useState(false);
+  const [resetMode, setResetMode] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -30,6 +31,26 @@ export default function LoginScreen({ onBack }) {
 
   async function handleSubmit() {
     setFeedback(null);
+
+    if (resetMode) {
+      if (!email.trim()) {
+        setFeedback({ type: 'error', text: 'Enter your email to get a reset link.' });
+        return;
+      }
+      setSubmitting(true);
+      try {
+        await requestPasswordReset(email.trim());
+        setFeedback({
+          type: 'success',
+          text: `If ${email.trim()} has an account, a reset link is on its way. Check your inbox.`,
+        });
+      } catch (err) {
+        setFeedback({ type: 'error', text: err.message || 'Could not send a reset link.' });
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
 
     if (!email.trim() || !password.trim()) {
       setFeedback({ type: 'error', text: 'Please fill in your email and password.' });
@@ -85,8 +106,19 @@ export default function LoginScreen({ onBack }) {
 
   function toggleMode() {
     setIsSignup(!isSignup);
+    setResetMode(false);
     setName('');
     setInviteCode('');
+    setFeedback(null);
+  }
+
+  function enterResetMode() {
+    setResetMode(true);
+    setFeedback(null);
+  }
+
+  function exitResetMode() {
+    setResetMode(false);
     setFeedback(null);
   }
 
@@ -108,7 +140,9 @@ export default function LoginScreen({ onBack }) {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>{isSignup ? 'Create your account' : 'Welcome back'}</Text>
+          <Text style={styles.cardTitle}>
+            {resetMode ? 'Reset your password' : isSignup ? 'Create your account' : 'Welcome back'}
+          </Text>
 
           {feedback && (
             <View
@@ -158,17 +192,28 @@ export default function LoginScreen({ onBack }) {
             />
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={styles.input}
-              value={password}
-              onChangeText={setPassword}
-              placeholder="Your password"
-              placeholderTextColor="#C4B5A8"
-              secureTextEntry
-            />
-          </View>
+          {!resetMode && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Password</Text>
+              <TextInput
+                style={styles.input}
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Your password"
+                placeholderTextColor="#C4B5A8"
+                secureTextEntry
+              />
+              {!isSignup && (
+                <TouchableOpacity
+                  style={styles.forgotButton}
+                  onPress={enterResetMode}
+                  activeOpacity={0.6}
+                >
+                  <Text style={styles.forgotText}>Forgot password?</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
 
           {isSignup && (
             <View style={styles.inputGroup}>
@@ -194,15 +239,27 @@ export default function LoginScreen({ onBack }) {
             {submitting ? (
               <ActivityIndicator color="#FFF" />
             ) : (
-              <Text style={styles.buttonText}>{isSignup ? 'Sign Up' : 'Log In'}</Text>
+              <Text style={styles.buttonText}>
+                {resetMode ? 'Send reset link' : isSignup ? 'Sign Up' : 'Log In'}
+              </Text>
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.toggleButton} onPress={toggleMode} activeOpacity={0.6}>
-            <Text style={styles.toggleText}>
-              {isSignup ? 'Already have an account? Log in' : "Don't have an account? Sign up"}
-            </Text>
-          </TouchableOpacity>
+          {resetMode ? (
+            <TouchableOpacity
+              style={styles.toggleButton}
+              onPress={exitResetMode}
+              activeOpacity={0.6}
+            >
+              <Text style={styles.toggleText}>Back to log in</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={styles.toggleButton} onPress={toggleMode} activeOpacity={0.6}>
+              <Text style={styles.toggleText}>
+                {isSignup ? 'Already have an account? Log in' : "Don't have an account? Sign up"}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -311,6 +368,16 @@ const styles = StyleSheet.create({
     color: '#2D2D2D',
     borderWidth: 1,
     borderColor: '#F0E6DA',
+  },
+  forgotButton: {
+    alignSelf: 'flex-end',
+    marginTop: 8,
+    paddingVertical: 2,
+  },
+  forgotText: {
+    fontSize: 13,
+    fontFamily: fonts.medium,
+    color: '#E8734A',
   },
   button: {
     backgroundColor: '#E8734A',

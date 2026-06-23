@@ -37,6 +37,17 @@ test.describe('public landing', () => {
     await expect(page.getByText(/welcome back|create your account/i)).toBeVisible();
     await expect(page.getByPlaceholder(/you@example\.com/i)).toBeVisible();
   });
+
+  test('“Forgot password?” reveals the reset-request view', async ({ page }) => {
+    await page.goto('/');
+    await page
+      .getByText(/^get started$/i)
+      .first()
+      .click();
+    await page.getByText(/forgot password/i).click();
+    await expect(page.getByText(/reset your password/i)).toBeVisible();
+    await expect(page.getByText(/send reset link/i)).toBeVisible();
+  });
 });
 
 const email = process.env.E2E_EMAIL;

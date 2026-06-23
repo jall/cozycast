@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react-native';
+import { renderHook, waitFor, act } from '@testing-library/react-native';
 import { supabase } from '../../api/supabase';
 import { redeemInvite } from '../../api/client';
 import { AuthProvider, useAuth } from '../AuthContext';
@@ -13,6 +13,8 @@ jest.mock('../../api/supabase', () => ({
       signUp: jest.fn(),
       signInWithPassword: jest.fn(),
       signOut: jest.fn(),
+      resetPasswordForEmail: jest.fn(),
+      updateUser: jest.fn(),
     },
     from: jest.fn(),
   },
@@ -125,5 +127,50 @@ describe('AuthContext signup', () => {
     const result = await setupAuth();
 
     await expect(result.current.signup('a@b.com', 'pw', 'Ada')).rejects.toThrow('boom');
+  });
+});
+
+describe('AuthContext password reset', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    supabase.auth.getSession.mockResolvedValue({ data: { session: null } });
+    supabase.auth.onAuthStateChange.mockReturnValue({
+      data: { subscription: { unsubscribe: jest.fn() } },
+    });
+  });
+
+  it('requestPasswordReset emails a reset link pointed at the site URL', async () => {
+    supabase.auth.resetPasswordForEmail.mockResolvedValue({ error: null });
+    const result = await setupAuth();
+
+    await result.current.requestPasswordReset('a@b.com');
+
+    expect(supabase.auth.resetPasswordForEmail).toHaveBeenCalledWith('a@b.com', {
+      redirectTo: expect.any(String),
+    });
+  });
+
+  it('enters recovery mode on the PASSWORD_RECOVERY event', async () => {
+    let authCallback;
+    supabase.auth.onAuthStateChange.mockImplementation((cb) => {
+      authCallback = cb;
+      return { data: { subscription: { unsubscribe: jest.fn() } } };
+    });
+    const result = await setupAuth();
+
+    expect(result.current.passwordRecovery).toBe(false);
+    await act(async () => {
+      authCallback('PASSWORD_RECOVERY', null);
+    });
+    expect(result.current.passwordRecovery).toBe(true);
+  });
+
+  it('updatePassword updates the user', async () => {
+    supabase.auth.updateUser.mockResolvedValue({ error: null });
+    const result = await setupAuth();
+
+    await result.current.updatePassword('newpass123');
+
+    expect(supabase.auth.updateUser).toHaveBeenCalledWith({ password: 'newpass123' });
   });
 });
