@@ -16,16 +16,33 @@
 // Run it via `npm run fixtures` (or `npm run dev:seed` to reset + seed in one go).
 // ============================================================
 import { createClient } from '@supabase/supabase-js';
+import { execSync } from 'node:child_process';
 
 // The production project ref — never seed against this, no matter what.
 const PROD_PROJECT_REF = 'yhaswqvewhigrpoduhyr';
 
-// Supabase's local stack uses a fixed, publicly-documented service-role key
-// (same for every `supabase start`), so defaulting to it for localhost is safe
-// — it grants nothing beyond a machine-local dev database.
 const LOCAL_URL = 'http://127.0.0.1:54321';
+
+// Last-resort fallback: the classic, publicly-documented local service-role key.
+// Newer CLI versions mint a differently-signed key, so we prefer the live key
+// from `supabase status` (see localServiceRoleKey) and only fall back to this.
 const LOCAL_SERVICE_ROLE_KEY =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UtZGVtbyIsImlhdCI6MTY0MTc2OTIwMCwiZXhwIjoxNzk5NTM1NjAwfQ.DaYlNEoUrrEn2Ig7tqibS-PHK5vgusbcbo7X36XVt4Q';
+
+// Ask the running local stack for its actual service-role key, so we don't
+// depend on a hardcoded value that drifts between CLI versions. Best-effort:
+// returns null if the CLI isn't installed or the stack isn't up.
+function localServiceRoleKey() {
+  try {
+    const out = execSync('supabase status --workdir .. -o env', {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    return out.match(/SERVICE_ROLE_KEY="?([^"\n]+)"?/)?.[1] || null;
+  } catch {
+    return null;
+  }
+}
 
 // Must match the audio_path values in supabase/seed.sql.
 const SEED_AUDIO_PATHS = ['seed/late-night-kitchen.m4a', 'seed/the-walk.m4a'];
@@ -77,7 +94,8 @@ function resolveTarget() {
   }
 
   const serviceKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY || (isLocal ? LOCAL_SERVICE_ROLE_KEY : null);
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    (isLocal ? localServiceRoleKey() || LOCAL_SERVICE_ROLE_KEY : null);
   if (!serviceKey) {
     throw new Error('Set SUPABASE_SERVICE_ROLE_KEY for a non-local target.');
   }
