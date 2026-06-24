@@ -12,7 +12,11 @@ const executablePath = process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined;
 
 module.exports = defineConfig({
   testDir: './e2e',
-  fullyParallel: true,
+  // Tests within a file run serially (separate files still parallelize). The
+  // signed-in/fixture tests all share one backend account and a single local
+  // Supabase stack, so running them concurrently caused transient write
+  // failures (e.g. two record+share flows at once); serial keeps them honest.
+  fullyParallel: false,
   forbidOnly: !!process.env.CI,
   // One retry by default absorbs transient network blips (e.g. HTTP/3 resets
   // through a proxy); CI gets two.

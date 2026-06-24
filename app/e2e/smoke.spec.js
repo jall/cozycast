@@ -224,4 +224,92 @@ test.describe('signed in (local fixtures)', () => {
     // Not hers to manage — no delete affordance.
     await expect(detail.getByText(/delete cast/i)).toHaveCount(0);
   });
+
+  test('Profile shows Alice and her seeded friends', async ({ page }) => {
+    await signIn(page, ALICE.email, ALICE.password);
+    await page
+      .getByText(/^profile$/i)
+      .first()
+      .click();
+
+    await expect(page.getByText('Alice', { exact: true })).toBeVisible();
+    await expect(page.getByText(ALICE.email)).toBeVisible();
+    // Mutual friendships from the seed: Ben and Cleo.
+    await expect(page.getByText('Ben', { exact: true })).toBeVisible();
+    await expect(page.getByText('Cleo', { exact: true })).toBeVisible();
+  });
+
+  test('Profile can generate an invite code', async ({ page }) => {
+    // expo-clipboard writes the code; grant access so the success path runs.
+    await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+    await signIn(page, ALICE.email, ALICE.password);
+    await page
+      .getByText(/^profile$/i)
+      .first()
+      .click();
+
+    await page.getByText(/generate invite/i).click();
+    // The success toast echoes the freshly-minted code.
+    await expect(page.getByText(/invite [a-z0-9]+ (copied|created)/i)).toBeVisible({
+      timeout: 15000,
+    });
+  });
+
+  test('records a cast, tags a participant, shares with a friend, then deletes it', async ({
+    page,
+  }) => {
+    await signIn(page, ALICE.email, ALICE.password);
+    const title = `E2E shared ${Date.now()}`;
+
+    await page
+      .getByText(/^record$/i)
+      .first()
+      .click();
+    await page.getByTestId('record-start').click();
+    await expect(page.getByText(/recording/i)).toBeVisible();
+    await page.getByTestId('record-stop').click();
+    await expect(page.getByText(/add some details/i)).toBeVisible({ timeout: 15000 });
+
+    // Title + tag Ben as a participant.
+    await page.getByPlaceholder(/what's this about/i).fill(title);
+    await page.getByText('Ben', { exact: true }).click();
+    await page.getByText(/continue to sharing/i).click();
+
+    // Sharing step: pick Ben as a recipient and send.
+    await expect(page.getByText(/share with/i)).toBeVisible({ timeout: 20000 });
+    await page.getByText('Ben', { exact: true }).click();
+    await page.getByText(/share with 1 person/i).click();
+    await expect(page.getByText(/all set/i)).toBeVisible({ timeout: 20000 });
+
+    // Open it from the feed; the detail page reflects the participant + recipient.
+    await page
+      .getByText(/^feed$/i)
+      .first()
+      .click();
+    await page.getByText(title).click();
+    await expect(page).toHaveURL(/\/cast\//);
+    const detail = page.getByTestId('cast-detail');
+    await expect(detail.getByText(/in this cast/i)).toBeVisible({ timeout: 15000 });
+    // Ben shows up twice — once as a participant, once as a recipient.
+    await expect(detail.getByText('Ben', { exact: true }).first()).toBeVisible();
+    await expect(detail.getByText(/shared with 1 person/i)).toBeVisible();
+
+    // Clean up.
+    page.on('dialog', (dialog) => dialog.accept());
+    await detail.getByText(/delete cast/i).click();
+    await expect(page.getByText(title)).toHaveCount(0, { timeout: 20000 });
+  });
+
+  test('can log out from Profile back to the landing page', async ({ page }) => {
+    await signIn(page, ALICE.email, ALICE.password);
+    await page
+      .getByText(/^profile$/i)
+      .first()
+      .click();
+
+    page.on('dialog', (dialog) => dialog.accept());
+    await page.getByText(/^log out$/i).click();
+    // Back on the public surface.
+    await expect(page.getByText(/what is a cozy cast/i)).toBeVisible({ timeout: 15000 });
+  });
 });

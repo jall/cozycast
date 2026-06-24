@@ -49,11 +49,23 @@ export default function ProfileScreen() {
     try {
       const code = await genInvite();
       if (code) {
-        await Clipboard.setStringAsync(code);
-        toast.success(`Invite ${code} copied — share it with someone special 🌱`);
-        // Refresh invites list
+        // Show the new code first — it's saved regardless of whether the
+        // clipboard copy works (it can reject in some browsers/contexts), so
+        // never let a failed copy hide a successfully-created invite.
         const newInvites = await getPendingInvites();
         setInvites(newInvites);
+        let copied = false;
+        try {
+          await Clipboard.setStringAsync(code);
+          copied = true;
+        } catch {
+          // Non-fatal — the code is listed above and tappable to copy.
+        }
+        toast.success(
+          copied
+            ? `Invite ${code} copied — share it with someone special 🌱`
+            : `Invite ${code} created — tap it to copy 🌱`,
+        );
       }
     } catch (err) {
       toast.error(err.message || 'Could not generate an invite code.');
