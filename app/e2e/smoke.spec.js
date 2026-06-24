@@ -121,4 +121,59 @@ test.describe('signed in', () => {
     await page.getByText(/^cancel$/i).click();
     await expect(page.getByText(/new cast/i)).toBeVisible();
   });
+
+  // Full round-trip for the shareable cast detail page (#11): record a real
+  // cast, open it by tapping the feed card (client-side nav to /cast/:id), then
+  // delete it. The test seeds and cleans up its own data — nothing permanent is
+  // written — so it doesn't depend on pre-existing casts or leave any behind.
+  test('records a cast, opens its detail page, and deletes it', async ({ page }) => {
+    await signIn(page);
+
+    // A unique title so we can find exactly this cast and assert it's gone.
+    const title = `E2E detail ${Date.now()}`;
+
+    await page
+      .getByText(/^record$/i)
+      .first()
+      .click();
+    await page.getByTestId('record-start').click();
+    await expect(page.getByText(/recording/i)).toBeVisible();
+    await page.getByTestId('record-stop').click();
+    await expect(page.getByText(/add some details/i)).toBeVisible({ timeout: 15000 });
+
+    // Title + create (uploads the audio and inserts the cast row).
+    await page.getByPlaceholder(/what's this about/i).fill(title);
+    await page.getByText(/continue to sharing/i).click();
+
+    // Sharing step → skip (no recipients) → done.
+    await expect(page.getByText(/share with/i)).toBeVisible({ timeout: 20000 });
+    await page.getByText(/skip for now/i).click();
+    await expect(page.getByText(/all set/i)).toBeVisible({ timeout: 20000 });
+
+    // Back to the feed (refetches on focus); the new cast is on top. Open it.
+    await page
+      .getByText(/^feed$/i)
+      .first()
+      .click();
+    await page.getByText(title).click();
+
+    // We're on the shareable detail route, showing this cast.
+    await expect(page).toHaveURL(/\/cast\//);
+    await expect(page.getByText(title)).toBeVisible();
+    await expect(page.getByText(/delete cast/i)).toBeVisible();
+
+    // Clean up: delete it (confirm dialog → accept) and confirm it's gone from
+    // the feed we land back on.
+    page.on('dialog', (dialog) => dialog.accept());
+    await page.getByText(/delete cast/i).click();
+    await expect(page.getByText(title)).toHaveCount(0, { timeout: 20000 });
+  });
+
+  // Deep-linking to a cast you can't access (RLS) shows a friendly state rather
+  // than crashing — exercises the /cast/:id route + getCast's null path.
+  test('a cast you cannot access shows a friendly not-available page', async ({ page }) => {
+    await signIn(page);
+    await page.goto('/cast/00000000-0000-0000-0000-000000000000');
+    await expect(page.getByText(/this cast isn.t available/i)).toBeVisible({ timeout: 20000 });
+  });
 });

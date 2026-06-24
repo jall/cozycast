@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, FlatList, StyleSheet, RefreshControl, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from 'expo-router';
 import { getFeed } from '../api/client';
 import CastCard from '../components/CastCard';
 import CastCardSkeleton from '../components/CastCardSkeleton';
@@ -22,9 +23,18 @@ export default function FeedScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchCasts().finally(() => setLoading(false));
-  }, [fetchCasts]);
+  // Refetch whenever the feed regains focus — on first mount, and on returning
+  // from the cast detail page (so a cast deleted there disappears, and a freshly
+  // recorded one shows up, without a manual pull-to-refresh).
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      fetchCasts().finally(() => active && setLoading(false));
+      return () => {
+        active = false;
+      };
+    }, [fetchCasts]),
+  );
 
   async function handleRefresh() {
     setRefreshing(true);
