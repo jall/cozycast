@@ -105,6 +105,25 @@ Commands (from `app/`): `npm run db:reset` (relational), `npm run fixtures`
 `npx expo start --web`, and run `E2E_FIXTURES=1 E2E_BASE_URL=http://localhost:8081
 npm run test:e2e`.
 
+### Provisioning the local stack
+
+`supabase start` (Docker) runs the whole stack locally. Notes from getting it
+up, including in constrained/CI sandboxes:
+
+- **CLI:** `brew install supabase/tap/supabase` (macOS) or `npm i -g supabase`.
+  GitHub release-asset downloads can be blocked behind some proxies — the npm
+  package pulls the binary from the npm registry instead.
+- **Unprivileged containers:** the `edge-runtime` (and some extras) can't set
+  rlimits and abort the start. Bring up just what the app/tests need with
+  `supabase start -x edge-runtime,studio,imgproxy,realtime,vector,logflare,supavisor,postgres-meta,mailpit`
+  (leaves db, auth, rest, storage, kong). Get keys with `supabase status -o env`.
+- **`EXPO_PUBLIC_*` are inlined into a *cached* Metro transform.** After changing
+  which Supabase a build points at, rebuild with `npx expo export --platform web
+  --clear` (or `expo start --clear`) or you'll keep hitting the old project.
+- The detail screen has `testID="cast-detail"`; scope detail assertions to it
+  (`getByTestId('cast-detail')`) — the router keeps the feed mounted/hidden
+  behind it, so unscoped text matches the feed card too.
+
 ## CI
 
 GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main`, on

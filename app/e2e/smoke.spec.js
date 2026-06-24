@@ -157,15 +157,18 @@ test.describe('signed in', () => {
       .click();
     await page.getByText(title).click();
 
-    // We're on the shareable detail route, showing this cast.
+    // We're on the shareable detail route, showing this cast. Scope to the
+    // detail screen — expo-router keeps the feed mounted (hidden) behind it, so
+    // the title/controls would otherwise also match the feed card.
     await expect(page).toHaveURL(/\/cast\//);
-    await expect(page.getByText(title)).toBeVisible();
-    await expect(page.getByText(/delete cast/i)).toBeVisible();
+    const detail = page.getByTestId('cast-detail');
+    await expect(detail.getByText(title)).toBeVisible();
+    await expect(detail.getByText(/delete cast/i)).toBeVisible();
 
     // Clean up: delete it (confirm dialog → accept) and confirm it's gone from
     // the feed we land back on.
     page.on('dialog', (dialog) => dialog.accept());
-    await page.getByText(/delete cast/i).click();
+    await detail.getByText(/delete cast/i).click();
     await expect(page.getByText(title)).toHaveCount(0, { timeout: 20000 });
   });
 
@@ -201,12 +204,14 @@ test.describe('signed in (local fixtures)', () => {
     await expect(page.getByText(/the walk we always mean to take/i)).toBeVisible();
 
     // Open her own cast → detail page shows participants and the recipient count.
+    // Scope to the detail screen (the feed stays mounted/hidden behind it).
     await page.getByText(/late-night kitchen talk/i).click();
     await expect(page).toHaveURL(/\/cast\//);
-    await expect(page.getByText(/in this cast/i)).toBeVisible();
-    await expect(page.getByText(/shared with 2 people/i)).toBeVisible();
+    const detail = page.getByTestId('cast-detail');
+    await expect(detail.getByText(/in this cast/i)).toBeVisible();
+    await expect(detail.getByText(/shared with 2 people/i)).toBeVisible();
     // It's hers, so she can delete it.
-    await expect(page.getByText(/delete cast/i)).toBeVisible();
+    await expect(detail.getByText(/delete cast/i)).toBeVisible();
   });
 
   test('a cast shared with Alice shows who shared it (and no delete)', async ({ page }) => {
@@ -214,8 +219,9 @@ test.describe('signed in (local fixtures)', () => {
 
     await page.getByText(/the walk we always mean to take/i).click();
     await expect(page).toHaveURL(/\/cast\//);
-    await expect(page.getByText(/shared by/i)).toBeVisible();
+    const detail = page.getByTestId('cast-detail');
+    await expect(detail.getByText(/shared by/i)).toBeVisible();
     // Not hers to manage — no delete affordance.
-    await expect(page.getByText(/delete cast/i)).toHaveCount(0);
+    await expect(detail.getByText(/delete cast/i)).toHaveCount(0);
   });
 });

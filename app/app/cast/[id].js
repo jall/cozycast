@@ -126,7 +126,7 @@ export default function CastDetailScreen() {
   const participantList = Array.isArray(cast.participants) ? cast.participants : [];
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID="cast-detail">
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <BackButton onPress={goBack} />
 
