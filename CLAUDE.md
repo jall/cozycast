@@ -110,9 +110,12 @@ npm run test:e2e`.
 `supabase start` (Docker) runs the whole stack locally. Notes from getting it
 up, including in constrained/CI sandboxes:
 
-- **CLI:** `brew install supabase/tap/supabase` (macOS) or `npm i -g supabase`.
-  GitHub release-asset downloads can be blocked behind some proxies — the npm
-  package pulls the binary from the npm registry instead.
+- **CLI:** ships as a dev dependency (`supabase` in `app/package.json`), so a
+  plain `npm install` provides it — the `db:reset` / `fixtures` / `dev:seed`
+  scripts find it on the local `.bin`, and you can call it directly with `npx
+  supabase …`. The npm package is a tiny shim that fetches the platform binary
+  lazily on first run (no install-time/CI download), which also sidesteps proxies
+  that block GitHub release assets.
 - **Unprivileged containers:** the `edge-runtime` (and some extras) can't set
   rlimits and abort the start. Bring up just what the app/tests need with
   `supabase start -x edge-runtime,studio,imgproxy,realtime,vector,logflare,supavisor,postgres-meta,mailpit`
