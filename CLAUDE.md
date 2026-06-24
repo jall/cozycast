@@ -68,16 +68,42 @@ offline; run `test:e2e` on its own.
   CI/sandboxes where Chromium is pre-provisioned, set `PLAYWRIGHT_CHROMIUM_PATH`
   to the binary so nothing downloads. `playwright.config.js` disables QUIC/ECH for
   reliability behind proxies (harmless elsewhere).
-- **Public vs. signed-in:** the public checks need no credentials and always run.
-  The signed-in test runs only when `E2E_EMAIL` / `E2E_PASSWORD` are set (use the
-  pre-v1 test account) — keeps secrets out of the repo and lets CI opt in.
+- **Three tiers of signed-in coverage:**
+  - *Public* checks need no credentials and always run.
+  - *Prod-safe signed-in* tests run when `E2E_EMAIL` / `E2E_PASSWORD` are set
+    (the pre-v1 test account). These never depend on pre-existing data: the
+    cast-detail round-trip **records → creates → opens → deletes** its own cast,
+    so it's self-cleaning and safe against prod.
+  - *Fixture-dependent* tests (`signed in (local fixtures)`) assert against the
+    seeded Alice/Ben/Cleo data and run only with `E2E_FIXTURES=1` against a local
+    seeded stack (see "Local fixtures" below). This is where comprehensive
+    signed-in coverage should grow — deterministic data, no prod writes.
 - **Selectors:** react-native-web renders `Text` as `<div>` and `TouchableOpacity`
   as a clickable `<div>`, so tests locate elements by visible text
   (case-insensitive — some headings use CSS `text-transform`). Where text isn't
   unique or stable, add a `testID` and select with `getByTestId` (e.g.
-  `record-start` / `record-stop` drive the recording flow). The recording test
-  uses a fake audio device (Chromium media flags in `playwright.config.js`) and
-  stops/cancels without uploading, so it never writes to the backend.
+  `record-start` / `record-stop` drive the recording flow).
+
+## Local fixtures (for comprehensive signed-in tests)
+
+Two layers seed a full local world to test logged-in flows deterministically,
+**never against prod**:
+
+- **Relational** — `supabase/seed.sql`, applied by `supabase db reset`: users
+  Alice/Ben/Cleo (`*@cozycast.test`, password `cozytest1234`), mutual
+  friendships, and two shared casts with participants/recipients.
+- **Storage** — `app/scripts/seed-fixtures.mjs` (`npm run fixtures`): SQL can't
+  put files in storage, so this uploads a placeholder audio clip to each seeded
+  cast's `audio_path` (readable via `can_access_audio`, which matches on path) so
+  playback/detail actually resolve. It writes with the service-role key and so
+  **hard-refuses any non-local target** (the prod project ref is blocked
+  outright; non-local needs `ALLOW_REMOTE_FIXTURES=1`).
+
+Commands (from `app/`): `npm run db:reset` (relational), `npm run fixtures`
+(storage), or `npm run dev:seed` (both). Then point the app at local
+(`EXPO_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321` + local anon key),
+`npx expo start --web`, and run `E2E_FIXTURES=1 E2E_BASE_URL=http://localhost:8081
+npm run test:e2e`.
 
 ## CI
 

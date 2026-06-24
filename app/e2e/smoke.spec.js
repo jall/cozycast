@@ -53,14 +53,14 @@ test.describe('public landing', () => {
 const email = process.env.E2E_EMAIL;
 const password = process.env.E2E_PASSWORD;
 
-async function signIn(page) {
+async function signIn(page, userEmail = email, userPassword = password) {
   await page.goto('/');
   await page
     .getByText(/^get started$/i)
     .first()
     .click();
-  await page.getByPlaceholder(/you@example\.com/i).fill(email);
-  await page.getByPlaceholder(/your password/i).fill(password);
+  await page.getByPlaceholder(/you@example\.com/i).fill(userEmail);
+  await page.getByPlaceholder(/your password/i).fill(userPassword);
 
   // The authenticated shell shows the bottom tab bar (Feed / Record / Profile).
   // The submit can hit a transient network blip ("Failed to fetch" through a
@@ -175,5 +175,47 @@ test.describe('signed in', () => {
     await signIn(page);
     await page.goto('/cast/00000000-0000-0000-0000-000000000000');
     await expect(page.getByText(/this cast isn.t available/i)).toBeVisible({ timeout: 20000 });
+  });
+});
+
+// Deterministic signed-in coverage that leans on the seeded fixtures (Alice/Ben/
+// Cleo + their shared casts). Requires the local stack seeded via
+// `npm run dev:seed` and the app pointed at it; opt in with E2E_FIXTURES=1 (and
+// E2E_BASE_URL pointing at the local web server). These creds are local-only.
+const FIXTURES = process.env.E2E_FIXTURES === '1';
+const ALICE = { email: 'alice@cozycast.test', password: 'cozytest1234' };
+
+test.describe('signed in (local fixtures)', () => {
+  test.skip(
+    !FIXTURES,
+    'seed the local stack (npm run dev:seed) and set E2E_FIXTURES=1 to run fixture tests',
+  );
+
+  test('Alice sees her seeded casts and opens her own with its sharing details', async ({
+    page,
+  }) => {
+    await signIn(page, ALICE.email, ALICE.password);
+
+    // Both seeded casts appear in her feed.
+    await expect(page.getByText(/late-night kitchen talk/i)).toBeVisible();
+    await expect(page.getByText(/the walk we always mean to take/i)).toBeVisible();
+
+    // Open her own cast → detail page shows participants and the recipient count.
+    await page.getByText(/late-night kitchen talk/i).click();
+    await expect(page).toHaveURL(/\/cast\//);
+    await expect(page.getByText(/in this cast/i)).toBeVisible();
+    await expect(page.getByText(/shared with 2 people/i)).toBeVisible();
+    // It's hers, so she can delete it.
+    await expect(page.getByText(/delete cast/i)).toBeVisible();
+  });
+
+  test('a cast shared with Alice shows who shared it (and no delete)', async ({ page }) => {
+    await signIn(page, ALICE.email, ALICE.password);
+
+    await page.getByText(/the walk we always mean to take/i).click();
+    await expect(page).toHaveURL(/\/cast\//);
+    await expect(page.getByText(/shared by/i)).toBeVisible();
+    // Not hers to manage — no delete affordance.
+    await expect(page.getByText(/delete cast/i)).toHaveCount(0);
   });
 });
