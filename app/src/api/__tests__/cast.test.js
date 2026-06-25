@@ -5,6 +5,7 @@ import {
   getAudioUrl,
   deleteCast,
   getCast,
+  removeRecipient,
   getComments,
   addComment,
   deleteComment,
@@ -140,6 +141,20 @@ describe('shareCast', () => {
   });
 });
 
+describe('removeRecipient', () => {
+  it('deletes the recipient row for the cast', async () => {
+    const eqRecipient = jest.fn().mockResolvedValue({ error: null });
+    const eqCast = jest.fn(() => ({ eq: eqRecipient }));
+    supabase.from.mockReturnValue({ delete: jest.fn(() => ({ eq: eqCast })) });
+
+    await removeRecipient('c1', 'r1');
+
+    expect(supabase.from).toHaveBeenCalledWith('cast_recipients');
+    expect(eqCast).toHaveBeenCalledWith('cast_id', 'c1');
+    expect(eqRecipient).toHaveBeenCalledWith('recipient_id', 'r1');
+  });
+});
+
 describe('deleteCast', () => {
   it('deletes the cast row, then removes its audio object', async () => {
     const eq = jest.fn().mockResolvedValue({ error: null });
@@ -221,6 +236,23 @@ describe('getCast (detail page / deep link)', () => {
     const cast = await getCast('c2');
     expect(cast.shared_with_me).toBe(true);
     expect(cast.sharer_name).toBe('Ada');
+    expect(cast.can_manage).toBe(false);
+  });
+
+  it('lets an assigned sharer manage even though the cast is shared with them', async () => {
+    mockSingleRow({
+      id: 'c3',
+      title: 'Assigned to me',
+      creator: { id: 'u2', name: 'Ben' },
+      sharer: { id: 'u1', name: 'Me' },
+      sharer_id: 'u1',
+      cast_participants: [],
+      cast_recipients: [],
+    });
+
+    const cast = await getCast('c3');
+    expect(cast.shared_with_me).toBe(true); // creator isn't me
+    expect(cast.can_manage).toBe(true); // but I'm the assigned sharer
   });
 
   it('returns null when no row is visible (RLS) or it does not exist', async () => {

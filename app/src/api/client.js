@@ -112,18 +112,24 @@ const CAST_SELECT = `
 `;
 
 // Flatten a joined cast row into the shape the UI consumes. `uid` is the
-// current user, used to decide whether the cast was shared *with* them.
+// current user, used to decide whether the cast was shared *with* them and
+// whether they may manage it.
 function mapCast(cast, uid) {
+  const creatorId = cast.creator?.id || cast.creator_id;
+  const sharerId = cast.sharer_id || creatorId;
   return {
     ...cast,
+    creator_id: creatorId,
     creator_name: cast.creator?.name || 'Someone',
     creator_email: cast.creator?.email || '',
     sharer_name: cast.sharer?.name || cast.creator?.name || 'Someone',
-    sharer_id: cast.sharer_id || cast.creator?.id,
+    sharer_id: sharerId,
     participants: (cast.cast_participants || []).map((p) => p.name),
     recipient_count: (cast.cast_recipients || []).length,
     // Did this land in my feed because someone shared it with me (vs. mine)?
-    shared_with_me: cast.creator?.id !== uid,
+    shared_with_me: creatorId !== uid,
+    // Creator or assigned sharer may manage recipients (matches can_manage_cast).
+    can_manage: creatorId === uid || sharerId === uid,
   };
 }
 
@@ -232,6 +238,17 @@ export async function getRecipients(castId) {
     .eq('cast_id', castId);
   if (error) throw error;
   return (data || []).map((r) => r.profiles).filter(Boolean);
+}
+
+// Stop sharing a cast with someone. Only the creator/sharer may do this (RLS
+// cast_recipients_delete_manage); removing access they never had is a no-op.
+export async function removeRecipient(castId, recipientId) {
+  const { error } = await supabase
+    .from('cast_recipients')
+    .delete()
+    .eq('cast_id', castId)
+    .eq('recipient_id', recipientId);
+  if (error) throw error;
 }
 
 export async function updateCastSummary(castId, summary) {

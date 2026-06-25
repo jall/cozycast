@@ -17,6 +17,9 @@ import {
   getCast,
   getAudioUrl,
   getRecipients,
+  getFriends,
+  shareCast,
+  removeRecipient,
   deleteCast,
   getComments,
   addComment,
@@ -62,11 +65,15 @@ export default function CastDetailScreen() {
   const [cast, setCast] = useState(null);
   const [audioUrl, setAudioUrl] = useState(null);
   const [recipients, setRecipients] = useState([]);
+  const [friends, setFriends] = useState([]);
+  const [managing, setManaging] = useState(false);
   const [comments, setComments] = useState([]);
   const [commentText, setCommentText] = useState('');
   const [posting, setPosting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+
+  const recipientIds = new Set(recipients.map((r) => r.id));
 
   const goBack = useCallback(() => {
     if (router.canGoBack()) router.back();
@@ -81,8 +88,14 @@ export default function CastDetailScreen() {
         if (!active) return;
         setCast(c);
         if (c?.audio_path) getAudioUrl(c.audio_path).then((u) => active && setAudioUrl(u));
-        // Recipients are only meaningful (and visible) to the creator/sharer.
-        if (c && !c.shared_with_me) getRecipients(id).then((r) => active && setRecipients(r));
+        // Recipients + the address book are only needed by a manager (creator
+        // or assigned sharer), who can add/remove who the cast is shared with.
+        if (c?.can_manage) {
+          getRecipients(id).then((r) => active && setRecipients(r));
+          getFriends()
+            .then((f) => active && setFriends(f))
+            .catch(() => {});
+        }
         // Comments are visible to anyone who can access the cast.
         if (c) getComments(id).then((cs) => active && setComments(cs));
       })
@@ -92,6 +105,20 @@ export default function CastDetailScreen() {
       active = false;
     };
   }, [id]);
+
+  async function toggleRecipient(friend) {
+    const has = recipientIds.has(friend.id);
+    const prev = recipients;
+    // Optimistic: reflect the change immediately, revert on failure.
+    setRecipients(has ? recipients.filter((r) => r.id !== friend.id) : [...recipients, friend]);
+    try {
+      if (has) await removeRecipient(id, friend.id);
+      else await shareCast(id, [friend.id]);
+    } catch (err) {
+      setRecipients(prev);
+      toast.error(err.message || 'Could not update who this is shared with.');
+    }
+  }
 
   async function handlePostComment() {
     const body = commentText.trim();
@@ -222,18 +249,67 @@ export default function CastDetailScreen() {
           </View>
         ) : null}
 
-        {!cast.shared_with_me && recipients.length > 0 ? (
+        {cast.can_manage ? (
           <View style={styles.section}>
-            <Text style={styles.sectionHeading}>
-              Shared with {recipients.length} {recipients.length === 1 ? 'person' : 'people'}
-            </Text>
-            <View style={styles.tagRow}>
-              {recipients.map((r) => (
-                <View key={r.id} style={styles.tag}>
-                  <Text style={styles.tagText}>{r.name || r.email}</Text>
-                </View>
-              ))}
+            <View style={styles.manageHeader}>
+              <Text style={styles.sectionHeading}>
+                {recipients.length > 0
+                  ? `Shared with ${recipients.length} ${
+                      recipients.length === 1 ? 'person' : 'people'
+                    }`
+                  : 'Not shared yet'}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setManaging((m) => !m)}
+                testID="manage-recipients"
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={styles.manageToggle}>{managing ? 'Done' : 'Manage'}</Text>
+              </TouchableOpacity>
             </View>
+
+            {managing ? (
+              friends.length === 0 ? (
+                <Text style={styles.commentsEmpty}>
+                  Add friends from your Profile to share with them.
+                </Text>
+              ) : (
+                friends.map((f) => {
+                  const selected = recipientIds.has(f.id);
+                  return (
+                    <TouchableOpacity
+                      key={f.id}
+                      style={styles.recipientRow}
+                      onPress={() => toggleRecipient(f)}
+                      activeOpacity={0.7}
+                      testID="recipient-row"
+                    >
+                      <View style={styles.recipientInfo}>
+                        <Text style={styles.recipientName}>{f.name}</Text>
+                        {f.email ? <Text style={styles.recipientEmail}>{f.email}</Text> : null}
+                      </View>
+                      <Ionicons
+                        name={selected ? 'checkmark-circle' : 'ellipse-outline'}
+                        size={24}
+                        color={selected ? '#E8734A' : '#D4C5B5'}
+                      />
+                    </TouchableOpacity>
+                  );
+                })
+              )
+            ) : recipients.length > 0 ? (
+              <View style={styles.tagRow}>
+                {recipients.map((r) => (
+                  <View key={r.id} style={styles.tag}>
+                    <Text style={styles.tagText}>{r.name || r.email}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.commentsEmpty}>
+                Only you can see this. Tap Manage to choose who hears it.
+              </Text>
+            )}
           </View>
         ) : null}
 
@@ -399,6 +475,40 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#E8734A',
     fontFamily: fonts.medium,
+  },
+  manageHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  manageToggle: {
+    fontSize: 14,
+    fontFamily: fonts.bold,
+    color: '#E8734A',
+  },
+  recipientRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F5EFE8',
+  },
+  recipientInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  recipientName: {
+    fontSize: 15,
+    fontFamily: fonts.medium,
+    color: '#2D2D2D',
+  },
+  recipientEmail: {
+    fontSize: 13,
+    fontFamily: fonts.regular,
+    color: '#A89888',
+    marginTop: 2,
   },
   commentsEmpty: {
     fontSize: 14,

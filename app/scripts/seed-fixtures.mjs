@@ -45,7 +45,7 @@ function localServiceRoleKey() {
 }
 
 // Must match the audio_path values in supabase/seed.sql.
-const SEED_AUDIO_PATHS = ['seed/late-night-kitchen.m4a', 'seed/the-walk.m4a'];
+const SEED_AUDIO_PATHS = ['seed/late-night-kitchen.m4a', 'seed/the-walk.m4a', 'seed/song-idea.m4a'];
 
 // A tiny valid WAV (1s of silence, 8kHz mono 16-bit) — enough for the player to
 // load and the detail page to resolve a signed URL. Content type is audio/wav;

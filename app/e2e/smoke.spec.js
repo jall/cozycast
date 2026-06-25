@@ -208,8 +208,9 @@ test.describe('signed in (local fixtures)', () => {
     await page.getByText(/late-night kitchen talk/i).click();
     await expect(page).toHaveURL(/\/cast\//);
     const detail = page.getByTestId('cast-detail');
-    await expect(detail.getByText(/in this cast/i)).toBeVisible();
-    await expect(detail.getByText(/shared with 2 people/i)).toBeVisible();
+    await expect(detail.getByText(/in this cast/i)).toBeVisible({ timeout: 15000 });
+    // Recipient count loads via a follow-up fetch; give it room.
+    await expect(detail.getByText(/shared with 2 people/i)).toBeVisible({ timeout: 15000 });
     // It's hers, so she can delete it.
     await expect(detail.getByText(/delete cast/i)).toBeVisible();
   });
@@ -316,9 +317,48 @@ test.describe('signed in (local fixtures)', () => {
     await expect(comments.getByText(body)).toBeVisible({ timeout: 15000 });
 
     // Delete that specific comment (scope to its row) and confirm it's gone.
+    // Wait for the DELETE to persist (the UI removes optimistically) so the row
+    // isn't left behind when the test ends.
     const row = comments.getByTestId('comment-row').filter({ hasText: body });
-    await row.getByTestId('comment-delete').click();
+    await Promise.all([
+      page.waitForResponse(
+        (r) => r.url().includes('cast_comments') && r.request().method() === 'DELETE',
+      ),
+      row.getByTestId('comment-delete').click(),
+    ]);
     await expect(comments.getByText(body)).toHaveCount(0, { timeout: 15000 });
+  });
+
+  test('the creator can manage recipients (remove and re-add a friend)', async ({ page }) => {
+    await signIn(page, ALICE.email, ALICE.password);
+
+    await page.getByText(/late-night kitchen talk/i).click();
+    await expect(page).toHaveURL(/\/cast\//);
+    const detail = page.getByTestId('cast-detail');
+    // Seeded: shared with Ben + Cleo.
+    await expect(detail.getByText(/shared with 2 people/i)).toBeVisible({ timeout: 15000 });
+
+    await detail.getByTestId('manage-recipients').click();
+    // Remove Cleo → count drops; re-add → back to two (self-cleaning). Scope to
+    // her recipient row — "Cleo" also appears as a seeded comment author. The
+    // toggle is optimistic, so wait for each write to persist before continuing
+    // (and before the test ends) or the re-add could be aborted, polluting reruns.
+    const cleoRow = detail.getByTestId('recipient-row').filter({ hasText: 'Cleo' });
+    const recipientWrite = (method) =>
+      page.waitForResponse(
+        (r) => r.url().includes('cast_recipients') && r.request().method() === method,
+      );
+
+    await Promise.all([recipientWrite('DELETE'), cleoRow.click()]);
+    await expect(detail.getByText(/shared with 1 person/i)).toBeVisible({ timeout: 15000 });
+    await Promise.all([recipientWrite('POST'), cleoRow.click()]);
+    await expect(detail.getByText(/shared with 2 people/i)).toBeVisible({ timeout: 15000 });
+  });
+
+  test('a cast you were assigned to share nudges you in the feed', async ({ page }) => {
+    await signIn(page, ALICE.email, ALICE.password);
+    // Ben created "A song idea…" but made Alice the sharer, with no recipients yet.
+    await expect(page.getByText(/you.re the sharer/i)).toBeVisible({ timeout: 15000 });
   });
 
   test('can log out from Profile back to the landing page', async ({ page }) => {

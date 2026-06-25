@@ -59,8 +59,8 @@ insert into friendships (user_id, friend_id) values
   ('22222222-2222-2222-2222-222222222222', '33333333-3333-3333-3333-333333333333'),
   ('33333333-3333-3333-3333-333333333333', '22222222-2222-2222-2222-222222222222');
 
--- Two casts. (audio_path points at objects that don't exist locally — the cards
--- render fine; playback just won't resolve without seeded storage.)
+-- Three casts. (audio_path points at objects that don't exist locally until
+-- `npm run fixtures` uploads them — the cards render fine regardless.)
 insert into casts (id, creator_id, sharer_id, title, summary, audio_path, duration, created_at) values
   ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
    '11111111-1111-1111-1111-111111111111', '11111111-1111-1111-1111-111111111111',
@@ -71,7 +71,14 @@ insert into casts (id, creator_id, sharer_id, title, summary, audio_path, durati
    '22222222-2222-2222-2222-222222222222', '33333333-3333-3333-3333-333333333333',
    'The walk we always mean to take',
    'Ben interviews Alice about a trail near her childhood home. Cleo is responsible for sharing it.',
-   'seed/the-walk.m4a', 1503, now() - interval '1 day');
+   'seed/the-walk.m4a', 1503, now() - interval '1 day'),
+  -- Ben created this but assigned Alice to share it, and she hasn't picked
+  -- recipients yet — surfaces the "you're the sharer" nudge in Alice's feed.
+  ('cccccccc-cccc-cccc-cccc-cccccccccccc',
+   '22222222-2222-2222-2222-222222222222', '11111111-1111-1111-1111-111111111111',
+   'A song idea for the road trip',
+   'Ben hums a half-finished tune and asks Alice to help finish it.',
+   'seed/song-idea.m4a', 215, now() - interval '5 hours');
 
 -- Who was tagged in each conversation.
 insert into cast_participants (cast_id, profile_id, name) values

@@ -14,6 +14,7 @@ import CastCover from './CastCover';
 import { getAudioUrl, deleteCast } from '../api/client';
 import { usePlayer } from '../context/PlayerContext';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
 import { showAlert } from '../utils/alert';
 import { fonts } from '../theme/typography';
 
@@ -52,9 +53,15 @@ export default function CastCard({ cast, index = 0, onDeleted }) {
   const [deleting, setDeleting] = useState(false);
   const toast = useToast();
   const router = useRouter();
+  const { user } = useAuth();
   const { track, stop } = usePlayer();
 
   const openDetail = () => router.push(`/cast/${id}`);
+
+  // You were assigned to share this cast (you're the sharer, not the creator)
+  // but haven't sent it to anyone yet — a gentle nudge to choose recipients.
+  const needsSharing =
+    !!user && cast.sharer_id === user.id && cast.creator_id !== user.id && recipient_count === 0;
 
   function confirmDelete() {
     showAlert(
@@ -182,7 +189,12 @@ export default function CastCard({ cast, index = 0, onDeleted }) {
         />
       )}
 
-      {!shared_with_me && recipient_count > 0 ? (
+      {needsSharing ? (
+        <TouchableOpacity style={styles.nudge} onPress={openDetail} activeOpacity={0.7}>
+          <Ionicons name="megaphone-outline" size={15} color="#E8734A" />
+          <Text style={styles.nudgeText}>You’re the sharer — choose who hears this</Text>
+        </TouchableOpacity>
+      ) : !shared_with_me && recipient_count > 0 ? (
         <Text style={styles.sharedNote}>
           Shared with {recipient_count} {recipient_count === 1 ? 'person' : 'people'}
         </Text>
@@ -272,5 +284,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#A89888',
     marginTop: 8,
+  },
+  nudge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+    backgroundColor: '#FFF0E6',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  nudgeText: {
+    fontSize: 12,
+    fontFamily: fonts.medium,
+    color: '#E8734A',
+    marginLeft: 6,
   },
 });
