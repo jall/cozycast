@@ -361,6 +361,23 @@ test.describe('signed in (local fixtures)', () => {
     await expect(page.getByText(/you.re the sharer/i)).toBeVisible({ timeout: 15000 });
   });
 
+  test('shows notifications generated from seeded activity', async ({ page }) => {
+    await signIn(page, ALICE.email, ALICE.password);
+
+    // Seed activity notifies Alice: Cleo shared "the walk" with her, and Ben +
+    // Cleo commented on her kitchen cast. (Rows persist regardless of read
+    // state, so this is rerun-safe.)
+    await page.getByTestId('notifications-bell').click();
+    const inbox = page.getByTestId('notifications');
+    await expect(inbox.getByTestId('notification-row').first()).toBeVisible({ timeout: 15000 });
+    await expect(inbox.getByText(/shared .* with you/i)).toBeVisible();
+    await expect(inbox.getByText(/commented on/i).first()).toBeVisible();
+
+    // Tapping a notification opens its cast.
+    await inbox.getByTestId('notification-row').first().click();
+    await expect(page).toHaveURL(/\/cast\//);
+  });
+
   test('can log out from Profile back to the landing page', async ({ page }) => {
     await signIn(page, ALICE.email, ALICE.password);
     await page

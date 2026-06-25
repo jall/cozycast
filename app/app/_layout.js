@@ -14,6 +14,7 @@ import { fonts } from '../src/theme/typography';
 import { AuthProvider, useAuth } from '../src/context/AuthContext';
 import { ToastProvider } from '../src/context/ToastContext';
 import { PlayerProvider } from '../src/context/PlayerContext';
+import { NotificationsProvider } from '../src/context/NotificationsContext';
 import PublicRoot from '../src/screens/PublicRoot';
 import ResetPasswordScreen from '../src/screens/ResetPasswordScreen';
 
@@ -89,9 +90,11 @@ function RootLayout() {
     <SafeAreaProvider>
       <ToastProvider>
         <AuthProvider>
-          <PlayerProvider>
-            <RootNav />
-          </PlayerProvider>
+          <NotificationsProvider>
+            <PlayerProvider>
+              <RootNav />
+            </PlayerProvider>
+          </NotificationsProvider>
         </AuthProvider>
       </ToastProvider>
     </SafeAreaProvider>

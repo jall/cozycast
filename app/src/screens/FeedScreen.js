@@ -1,10 +1,11 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, FlatList, StyleSheet, RefreshControl, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { getFeed } from '../api/client';
 import CastCard from '../components/CastCard';
 import CastCardSkeleton from '../components/CastCardSkeleton';
+import { useNotifications } from '../context/NotificationsContext';
 import { fonts } from '../theme/typography';
 
 export default function FeedScreen() {
@@ -12,6 +13,8 @@ export default function FeedScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const router = useRouter();
+  const { unreadCount, refresh: refreshNotifications } = useNotifications();
 
   const fetchCasts = useCallback(async () => {
     try {
@@ -25,15 +28,17 @@ export default function FeedScreen() {
 
   // Refetch whenever the feed regains focus — on first mount, and on returning
   // from the cast detail page (so a cast deleted there disappears, and a freshly
-  // recorded one shows up, without a manual pull-to-refresh).
+  // recorded one shows up, without a manual pull-to-refresh). Also refresh the
+  // notification badge here (e.g. after marking them read on the inbox screen).
   useFocusEffect(
     useCallback(() => {
       let active = true;
       fetchCasts().finally(() => active && setLoading(false));
+      refreshNotifications();
       return () => {
         active = false;
       };
-    }, [fetchCasts]),
+    }, [fetchCasts, refreshNotifications]),
   );
 
   async function handleRefresh() {
@@ -47,10 +52,24 @@ export default function FeedScreen() {
   }, []);
 
   function renderHeader() {
-    // Profile lives in the bottom tab bar; the feed header is just the wordmark.
+    // Wordmark + a bell to the notifications inbox (Profile lives in the tab bar).
     return (
       <View style={styles.header}>
         <Text style={styles.headerTitle}>cozycast</Text>
+        <TouchableOpacity
+          onPress={() => router.push('/notifications')}
+          style={styles.bell}
+          accessibilityLabel="Notifications"
+          testID="notifications-bell"
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons name="notifications-outline" size={24} color="#6B5E50" />
+          {unreadCount > 0 ? (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+            </View>
+          ) : null}
+        </TouchableOpacity>
       </View>
     );
   }
@@ -149,6 +168,26 @@ const styles = StyleSheet.create({
     fontFamily: fonts.display,
     color: '#E8734A',
     letterSpacing: -0.5,
+  },
+  bell: {
+    padding: 4,
+  },
+  badge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#E8734A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontFamily: fonts.bold,
   },
   listContent: {
     paddingTop: 8,

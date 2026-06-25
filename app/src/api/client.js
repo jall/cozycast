@@ -320,6 +320,50 @@ export async function deleteComment(commentId) {
   if (error) throw error;
 }
 
+// ---- Notifications (your own inbox; rows are written by DB triggers) --------
+
+export async function getNotifications() {
+  const { data, error } = await supabase
+    .from('notifications')
+    .select(
+      `id, type, cast_id, created_at, read_at,
+       actor:profiles!notifications_actor_id_fkey(name),
+       cast:casts!notifications_cast_id_fkey(title)`,
+    )
+    .order('created_at', { ascending: false })
+    .limit(50);
+  if (error) throw error;
+  return (data || []).map((n) => ({
+    id: n.id,
+    type: n.type,
+    cast_id: n.cast_id,
+    cast_title: n.cast?.title || 'a cast',
+    actor_name: n.actor?.name || 'Someone',
+    created_at: n.created_at,
+    read: !!n.read_at,
+  }));
+}
+
+export async function getUnreadNotificationCount() {
+  const { count, error } = await supabase
+    .from('notifications')
+    .select('id', { count: 'exact', head: true })
+    .is('read_at', null);
+  if (error) throw error;
+  return count || 0;
+}
+
+// Mark all of my unread notifications as read (RLS limits this to my own).
+export async function markNotificationsRead() {
+  const userId = await currentUserId();
+  const { error } = await supabase
+    .from('notifications')
+    .update({ read_at: new Date().toISOString() })
+    .eq('user_id', userId)
+    .is('read_at', null);
+  if (error) throw error;
+}
+
 // Your address book: the people you can choose to share with.
 export async function getFriends() {
   const userId = await currentUserId();

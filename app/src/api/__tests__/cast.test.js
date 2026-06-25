@@ -9,6 +9,9 @@ import {
   getComments,
   addComment,
   deleteComment,
+  getNotifications,
+  getUnreadNotificationCount,
+  markNotificationsRead,
 } from '../client';
 
 // Mock the supabase client so we exercise the create / share / stream logic in
@@ -312,6 +315,61 @@ describe('comments', () => {
     supabase.from.mockReturnValue({ delete: jest.fn(() => ({ eq })) });
 
     await expect(deleteComment('cm1')).rejects.toThrow('not allowed');
+  });
+});
+
+describe('notifications', () => {
+  it('getNotifications flattens actor + cast and a read flag', async () => {
+    const limit = jest.fn().mockResolvedValue({
+      data: [
+        {
+          id: 'n1',
+          type: 'comment',
+          cast_id: 'c1',
+          created_at: 't',
+          read_at: null,
+          actor: { name: 'Ben' },
+          cast: { title: 'Kitchen' },
+        },
+      ],
+      error: null,
+    });
+    const order = jest.fn(() => ({ limit }));
+    const select = jest.fn(() => ({ order }));
+    supabase.from.mockReturnValue({ select });
+
+    const out = await getNotifications();
+
+    expect(supabase.from).toHaveBeenCalledWith('notifications');
+    expect(out[0]).toMatchObject({
+      id: 'n1',
+      type: 'comment',
+      cast_title: 'Kitchen',
+      actor_name: 'Ben',
+      read: false,
+    });
+  });
+
+  it('getUnreadNotificationCount counts unread rows', async () => {
+    const is = jest.fn().mockResolvedValue({ count: 3, error: null });
+    const select = jest.fn(() => ({ is }));
+    supabase.from.mockReturnValue({ select });
+
+    expect(await getUnreadNotificationCount()).toBe(3);
+    expect(is).toHaveBeenCalledWith('read_at', null);
+  });
+
+  it('markNotificationsRead stamps read_at on my unread rows', async () => {
+    const is = jest.fn().mockResolvedValue({ error: null });
+    const eq = jest.fn(() => ({ is }));
+    const update = jest.fn(() => ({ eq }));
+    supabase.from.mockReturnValue({ update });
+
+    await markNotificationsRead();
+
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ read_at: expect.any(String) }));
+    expect(eq).toHaveBeenCalledWith('user_id', 'u1');
+    expect(is).toHaveBeenCalledWith('read_at', null);
   });
 });
 
