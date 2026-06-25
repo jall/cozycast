@@ -109,6 +109,20 @@ async function main() {
   const audio = makeSilentWav();
 
   console.log(`Seeding storage fixtures → ${url}`);
+
+  // The `casts` bucket is normally created by `supabase start` / `db reset` from
+  // config.toml, but an interrupted reset can leave it missing (uploads then
+  // 400 with "Bucket not found"). Recreate it if absent so seeding is reliable.
+  const { data: buckets } = await supabase.storage.listBuckets();
+  if (!buckets?.some((b) => b.id === 'casts')) {
+    const { error: bucketErr } = await supabase.storage.createBucket('casts', {
+      public: false,
+      allowedMimeTypes: ['audio/*'],
+    });
+    if (bucketErr) throw new Error(`Could not create the casts bucket: ${bucketErr.message}`);
+    console.log('  + created missing casts bucket');
+  }
+
   for (const path of SEED_AUDIO_PATHS) {
     const { error } = await supabase.storage
       .from('casts')

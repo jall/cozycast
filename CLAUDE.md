@@ -130,6 +130,12 @@ up, including in constrained/CI sandboxes:
 - **`EXPO_PUBLIC_*` are inlined into a *cached* Metro transform.** After changing
   which Supabase a build points at, rebuild with `npx expo export --platform web
   --clear` (or `expo start --clear`) or you'll keep hitting the old project.
+- **Ephemeral sandboxes tear the stack down between idle periods** (a manually
+  started `dockerd` and its containers don't persist) — it's not OOM (plenty of
+  RAM, no cgroup limit), just lifecycle, so re-run the bring-up after a gap. A
+  reset interrupted mid-flight can leave the `casts` bucket uncreated (uploads
+  then 400 "Bucket not found"); `npm run fixtures` recreates it if missing, and
+  after a `db reset`/`start` wait for all containers `healthy` before running e2e.
 - The detail screen has `testID="cast-detail"`; scope detail assertions to it
   (`getByTestId('cast-detail')`) — the router keeps the feed mounted/hidden
   behind it, so unscoped text matches the feed card too.
