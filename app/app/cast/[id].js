@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
+  TextInput,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
@@ -12,7 +13,15 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import CastCover from '../../src/components/CastCover';
 import AudioPlayer from '../../src/components/AudioPlayer';
 import MiniPlayer from '../../src/components/MiniPlayer';
-import { getCast, getAudioUrl, getRecipients, deleteCast } from '../../src/api/client';
+import {
+  getCast,
+  getAudioUrl,
+  getRecipients,
+  deleteCast,
+  getComments,
+  addComment,
+  deleteComment,
+} from '../../src/api/client';
 import { usePlayer } from '../../src/context/PlayerContext';
 import { useToast } from '../../src/context/ToastContext';
 import { showAlert } from '../../src/utils/alert';
@@ -22,6 +31,17 @@ function formatDate(dateString) {
   if (!dateString) return '';
   const d = new Date(dateString);
   return d.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function timeAgo(dateString) {
+  const diffSec = Math.floor((Date.now() - new Date(dateString).getTime()) / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHr = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHr / 24);
+  if (diffMin < 1) return 'just now';
+  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffHr < 24) return `${diffHr}h ago`;
+  return `${diffDay}d ago`;
 }
 
 function BackButton({ onPress }) {
@@ -42,6 +62,9 @@ export default function CastDetailScreen() {
   const [cast, setCast] = useState(null);
   const [audioUrl, setAudioUrl] = useState(null);
   const [recipients, setRecipients] = useState([]);
+  const [comments, setComments] = useState([]);
+  const [commentText, setCommentText] = useState('');
+  const [posting, setPosting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
 
@@ -60,6 +83,8 @@ export default function CastDetailScreen() {
         if (c?.audio_path) getAudioUrl(c.audio_path).then((u) => active && setAudioUrl(u));
         // Recipients are only meaningful (and visible) to the creator/sharer.
         if (c && !c.shared_with_me) getRecipients(id).then((r) => active && setRecipients(r));
+        // Comments are visible to anyone who can access the cast.
+        if (c) getComments(id).then((cs) => active && setComments(cs));
       })
       .catch(() => active && setCast(null))
       .finally(() => active && setLoading(false));
@@ -67,6 +92,33 @@ export default function CastDetailScreen() {
       active = false;
     };
   }, [id]);
+
+  async function handlePostComment() {
+    const body = commentText.trim();
+    if (!body) return;
+    setPosting(true);
+    try {
+      const comment = await addComment(id, body);
+      setComments((prev) => [...prev, comment]);
+      setCommentText('');
+    } catch (err) {
+      toast.error(err.message || 'Could not post your comment.');
+    } finally {
+      setPosting(false);
+    }
+  }
+
+  async function handleDeleteComment(commentId) {
+    // Optimistic: drop it, restore on failure.
+    const prev = comments;
+    setComments((cs) => cs.filter((c) => c.id !== commentId));
+    try {
+      await deleteComment(commentId);
+    } catch (err) {
+      setComments(prev);
+      toast.error(err.message || 'Could not delete that comment.');
+    }
+  }
 
   function confirmDelete() {
     showAlert(
@@ -185,6 +237,63 @@ export default function CastDetailScreen() {
           </View>
         ) : null}
 
+        <View style={styles.section} testID="comments">
+          <Text style={styles.sectionHeading}>Comments</Text>
+
+          {comments.length === 0 ? (
+            <Text style={styles.commentsEmpty}>No comments yet — start the conversation.</Text>
+          ) : (
+            comments.map((c) => (
+              <View key={c.id} style={styles.comment} testID="comment-row">
+                <View style={styles.commentHeader}>
+                  <Text style={styles.commentAuthor}>{c.author_name}</Text>
+                  <Text style={styles.commentTime}>{timeAgo(c.created_at)}</Text>
+                  {c.mine || !cast.shared_with_me ? (
+                    <TouchableOpacity
+                      onPress={() => handleDeleteComment(c.id)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityLabel="Delete comment"
+                      testID="comment-delete"
+                      style={styles.commentDelete}
+                    >
+                      <Ionicons name="close" size={15} color="#C9B8A8" />
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+                <Text style={styles.commentBody}>{c.body}</Text>
+              </View>
+            ))
+          )}
+
+          <View style={styles.commentInputRow}>
+            <TextInput
+              style={styles.commentInput}
+              value={commentText}
+              onChangeText={setCommentText}
+              placeholder="Add a comment…"
+              placeholderTextColor="#C4B5A8"
+              multiline
+              testID="comment-input"
+            />
+            <TouchableOpacity
+              style={[
+                styles.commentPost,
+                (!commentText.trim() || posting) && styles.commentPostOff,
+              ]}
+              onPress={handlePostComment}
+              disabled={!commentText.trim() || posting}
+              activeOpacity={0.7}
+              testID="comment-post"
+            >
+              {posting ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Ionicons name="arrow-up" size={20} color="#FFFFFF" />
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {!cast.shared_with_me ? (
           <TouchableOpacity
             style={styles.deleteRow}
@@ -290,6 +399,74 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#E8734A',
     fontFamily: fonts.medium,
+  },
+  commentsEmpty: {
+    fontSize: 14,
+    fontFamily: fonts.regular,
+    color: '#A89888',
+    marginBottom: 12,
+  },
+  comment: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+  },
+  commentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  commentAuthor: {
+    fontSize: 13,
+    fontFamily: fonts.bold,
+    color: '#2D2D2D',
+  },
+  commentTime: {
+    fontSize: 12,
+    fontFamily: fonts.regular,
+    color: '#A89888',
+    marginLeft: 8,
+    flex: 1,
+  },
+  commentDelete: {
+    padding: 2,
+  },
+  commentBody: {
+    fontSize: 14,
+    fontFamily: fonts.regular,
+    color: '#6B5E50',
+    lineHeight: 20,
+  },
+  commentInputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    marginTop: 4,
+  },
+  commentInput: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#F0E6DA',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 14,
+    fontFamily: fonts.regular,
+    color: '#2D2D2D',
+    maxHeight: 120,
+  },
+  commentPost: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#E8734A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+  commentPostOff: {
+    opacity: 0.45,
   },
   deleteRow: {
     flexDirection: 'row',

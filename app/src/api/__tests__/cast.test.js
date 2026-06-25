@@ -1,5 +1,14 @@
 import { supabase } from '../supabase';
-import { createCast, shareCast, getAudioUrl, deleteCast, getCast } from '../client';
+import {
+  createCast,
+  shareCast,
+  getAudioUrl,
+  deleteCast,
+  getCast,
+  getComments,
+  addComment,
+  deleteComment,
+} from '../client';
 
 // Mock the supabase client so we exercise the create / share / stream logic in
 // client.js without any network or storage.
@@ -217,6 +226,60 @@ describe('getCast (detail page / deep link)', () => {
   it('returns null when no row is visible (RLS) or it does not exist', async () => {
     mockSingleRow(null);
     await expect(getCast('missing')).resolves.toBeNull();
+  });
+});
+
+describe('comments', () => {
+  it('getComments flattens rows and flags the current user’s own', async () => {
+    const order = jest.fn().mockResolvedValue({
+      data: [
+        { id: 'cm1', body: 'hi', created_at: 't1', author: { id: 'u2', name: 'Ben' } },
+        { id: 'cm2', body: 'me', created_at: 't2', author: { id: 'u1', name: 'Me' } },
+      ],
+      error: null,
+    });
+    const eq = jest.fn(() => ({ order }));
+    const select = jest.fn(() => ({ eq }));
+    supabase.from.mockReturnValue({ select });
+
+    const out = await getComments('c1');
+
+    expect(supabase.from).toHaveBeenCalledWith('cast_comments');
+    expect(eq).toHaveBeenCalledWith('cast_id', 'c1');
+    expect(out[0]).toMatchObject({ id: 'cm1', author_name: 'Ben', author_id: 'u2', mine: false });
+    expect(out[1]).toMatchObject({ id: 'cm2', author_name: 'Me', mine: true });
+  });
+
+  it('addComment inserts as the current user and returns the mapped comment', async () => {
+    const single = jest.fn().mockResolvedValue({
+      data: { id: 'cm9', body: 'yo', created_at: 't', author: { id: 'u1', name: 'Me' } },
+      error: null,
+    });
+    const select = jest.fn(() => ({ single }));
+    const insert = jest.fn(() => ({ select }));
+    supabase.from.mockReturnValue({ insert });
+
+    const c = await addComment('c1', 'yo');
+
+    expect(insert).toHaveBeenCalledWith({ cast_id: 'c1', author_id: 'u1', body: 'yo' });
+    expect(c).toMatchObject({ id: 'cm9', body: 'yo', author_name: 'Me', mine: true });
+  });
+
+  it('deleteComment removes by id (RLS enforces author/manager)', async () => {
+    const eq = jest.fn().mockResolvedValue({ error: null });
+    supabase.from.mockReturnValue({ delete: jest.fn(() => ({ eq })) });
+
+    await deleteComment('cm1');
+
+    expect(supabase.from).toHaveBeenCalledWith('cast_comments');
+    expect(eq).toHaveBeenCalledWith('id', 'cm1');
+  });
+
+  it('deleteComment throws when the delete is refused', async () => {
+    const eq = jest.fn().mockResolvedValue({ error: new Error('not allowed') });
+    supabase.from.mockReturnValue({ delete: jest.fn(() => ({ eq })) });
+
+    await expect(deleteComment('cm1')).rejects.toThrow('not allowed');
   });
 });
 

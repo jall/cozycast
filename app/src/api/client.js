@@ -262,6 +262,47 @@ export async function getAudioUrl(audioPath) {
   return data?.signedUrl;
 }
 
+// ---- Comments (RLS: anyone with cast access can read/post; author or cast
+// manager can delete) -------------------------------------------------------
+
+function mapComment(row, uid) {
+  return {
+    id: row.id,
+    body: row.body,
+    created_at: row.created_at,
+    author_id: row.author?.id || null,
+    author_name: row.author?.name || 'Someone',
+    mine: !!uid && row.author?.id === uid,
+  };
+}
+
+export async function getComments(castId) {
+  const { data, error } = await supabase
+    .from('cast_comments')
+    .select('id, body, created_at, author:profiles!cast_comments_author_id_fkey(id, name)')
+    .eq('cast_id', castId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  const uid = await currentUserId();
+  return (data || []).map((row) => mapComment(row, uid));
+}
+
+export async function addComment(castId, body) {
+  const userId = await currentUserId();
+  const { data, error } = await supabase
+    .from('cast_comments')
+    .insert({ cast_id: castId, author_id: userId, body })
+    .select('id, body, created_at, author:profiles!cast_comments_author_id_fkey(id, name)')
+    .single();
+  if (error) throw error;
+  return mapComment(data, userId);
+}
+
+export async function deleteComment(commentId) {
+  const { error } = await supabase.from('cast_comments').delete().eq('id', commentId);
+  if (error) throw error;
+}
+
 // Your address book: the people you can choose to share with.
 export async function getFriends() {
   const userId = await currentUserId();

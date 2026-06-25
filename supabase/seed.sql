@@ -85,3 +85,12 @@ insert into cast_recipients (cast_id, recipient_id, shared_by) values
   ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '33333333-3333-3333-3333-333333333333', '11111111-1111-1111-1111-111111111111'),
   -- Cleo (the assigned sharer of Ben's cast) shared it with Alice.
   ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '11111111-1111-1111-1111-111111111111', '33333333-3333-3333-3333-333333333333');
+
+-- A little conversation under each cast (everyone here can access them).
+insert into cast_comments (cast_id, author_id, body, created_at) values
+  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '22222222-2222-2222-2222-222222222222',
+   'Still thinking about that sourdough plan.', now() - interval '90 minutes'),
+  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '33333333-3333-3333-3333-333333333333',
+   'Loved this one — so cozy.', now() - interval '30 minutes'),
+  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '11111111-1111-1111-1111-111111111111',
+   'That trail sounds wonderful, we should go.', now() - interval '20 hours');

@@ -16,7 +16,8 @@ This is enforced in Postgres (see `supabase/migrations/`): `cast_participants`
 and `cast_recipients` tables, with RLS driven by the `can_access_cast` /
 `can_manage_cast` `SECURITY DEFINER` helpers (security-definer so cross-table
 policies don't recurse). Storage reads follow the same rule via
-`can_access_audio`. Manual summaries ship now; AI summaries/cover art are a
+`can_access_audio`. Comments (`cast_comments`) use the same helpers: anyone with
+cast access can read/post; the author or a cast manager can delete. Manual summaries ship now; AI summaries/cover art are a
 planned fast-follow behind a Supabase Edge Function (cover art is currently
 derived deterministically from the cast id in `components/CastCover.js`).
 

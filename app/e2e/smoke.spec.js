@@ -300,6 +300,27 @@ test.describe('signed in (local fixtures)', () => {
     await expect(page.getByText(title)).toHaveCount(0, { timeout: 20000 });
   });
 
+  test('shows seeded comments, and Alice can post and delete her own', async ({ page }) => {
+    await signIn(page, ALICE.email, ALICE.password);
+
+    await page.getByText(/late-night kitchen talk/i).click();
+    await expect(page).toHaveURL(/\/cast\//);
+    const comments = page.getByTestId('comments');
+    // A seeded comment from Ben is shown.
+    await expect(comments.getByText(/sourdough plan/i)).toBeVisible({ timeout: 15000 });
+
+    // Post a new comment.
+    const body = `e2e comment ${Date.now()}`;
+    await page.getByTestId('comment-input').fill(body);
+    await page.getByTestId('comment-post').click();
+    await expect(comments.getByText(body)).toBeVisible({ timeout: 15000 });
+
+    // Delete that specific comment (scope to its row) and confirm it's gone.
+    const row = comments.getByTestId('comment-row').filter({ hasText: body });
+    await row.getByTestId('comment-delete').click();
+    await expect(comments.getByText(body)).toHaveCount(0, { timeout: 15000 });
+  });
+
   test('can log out from Profile back to the landing page', async ({ page }) => {
     await signIn(page, ALICE.email, ALICE.password);
     await page
