@@ -324,7 +324,9 @@ export default function CastDetailScreen() {
                 <View style={styles.commentHeader}>
                   <Text style={styles.commentAuthor}>{c.author_name}</Text>
                   <Text style={styles.commentTime}>{timeAgo(c.created_at)}</Text>
-                  {c.mine || !cast.shared_with_me ? (
+                  {/* Author or a cast manager may delete (matches the RLS
+                      cast_comments_delete_author_or_manager policy). */}
+                  {c.mine || cast.can_manage ? (
                     <TouchableOpacity
                       onPress={() => handleDeleteComment(c.id)}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}

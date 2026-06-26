@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
   avatarLargeText: {
     color: '#FFFFFF',
     fontSize: 32,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
   userName: {
     fontSize: 24,
@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
   friendAvatarText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
   friendInfo: {
     flex: 1,
@@ -342,7 +342,6 @@ const styles = StyleSheet.create({
   },
   inviteCode: {
     fontSize: 15,
-    fontWeight: '600',
     color: '#2D2D2D',
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },

@@ -1,5 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  TouchableOpacity,
+  Platform,
+} from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
 import * as Sentry from '@sentry/react-native';
@@ -87,17 +94,39 @@ function RootLayout() {
   if (!fontsLoaded && !fontError) return <LoadingScreen />;
 
   return (
-    <SafeAreaProvider>
-      <ToastProvider>
-        <AuthProvider>
-          <NotificationsProvider>
-            <PlayerProvider>
-              <RootNav />
-            </PlayerProvider>
-          </NotificationsProvider>
-        </AuthProvider>
-      </ToastProvider>
-    </SafeAreaProvider>
+    <Sentry.ErrorBoundary fallback={<ErrorFallback />}>
+      <SafeAreaProvider>
+        <ToastProvider>
+          <AuthProvider>
+            <NotificationsProvider>
+              <PlayerProvider>
+                <RootNav />
+              </PlayerProvider>
+            </NotificationsProvider>
+          </AuthProvider>
+        </ToastProvider>
+      </SafeAreaProvider>
+    </Sentry.ErrorBoundary>
+  );
+}
+
+// Last-resort UI if a render throws — a calm message instead of a blank SPA.
+// (Sentry still reports the error when a DSN is configured.)
+function ErrorFallback() {
+  return (
+    <View style={styles.loading}>
+      <Text style={styles.loadingLogo}>cozycast</Text>
+      <Text style={styles.errorText}>Something went quiet unexpectedly.</Text>
+      {Platform.OS === 'web' ? (
+        <TouchableOpacity
+          style={styles.errorButton}
+          onPress={() => window.location.reload()}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.errorButtonText}>Reload</Text>
+        </TouchableOpacity>
+      ) : null}
+    </View>
   );
 }
 
@@ -116,5 +145,23 @@ const styles = StyleSheet.create({
     fontFamily: fonts.display,
     color: '#E8734A',
     letterSpacing: -1,
+  },
+  errorText: {
+    fontSize: 15,
+    fontFamily: fonts.regular,
+    color: '#8C7B6B',
+    marginTop: 16,
+  },
+  errorButton: {
+    marginTop: 20,
+    backgroundColor: '#E8734A',
+    borderRadius: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+  },
+  errorButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontFamily: fonts.bold,
   },
 });

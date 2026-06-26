@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
   backText: {
     fontSize: 15,
     color: '#8C7B6B',
-    fontWeight: '500',
+    fontFamily: fonts.medium,
   },
   header: {
     alignItems: 'center',
@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
   feedbackText: {
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
   },
   feedbackTextError: {
     color: '#B5482E',
@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: fonts.medium,
     color: '#6B5E50',
     marginBottom: 6,
     marginLeft: 4,
@@ -406,6 +406,6 @@ const styles = StyleSheet.create({
   toggleText: {
     color: '#E8734A',
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
   },
 });

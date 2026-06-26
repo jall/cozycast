@@ -680,13 +680,13 @@ const styles = StyleSheet.create({
   },
   recordingLabel: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: fonts.medium,
     color: '#E8734A',
     marginBottom: 12,
   },
   elapsed: {
     fontSize: 48,
-    fontWeight: '200',
+    fontFamily: fonts.regular,
     color: '#2D2D2D',
     fontVariant: ['tabular-nums'],
     marginBottom: 48,
@@ -749,7 +749,7 @@ const styles = StyleSheet.create({
   audioPreviewText: {
     fontSize: 14,
     color: '#4CAF50',
-    fontWeight: '500',
+    fontFamily: fonts.medium,
     marginLeft: 10,
   },
   uploadProgressWrap: {
@@ -830,14 +830,14 @@ const styles = StyleSheet.create({
   personAvatarText: {
     color: '#FFFFFF',
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
   personInfo: {
     flex: 1,
   },
   personName: {
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: fonts.medium,
     color: '#2D2D2D',
   },
   personEmail: {
@@ -902,7 +902,7 @@ const styles = StyleSheet.create({
   cancelText: {
     color: '#A89888',
     fontSize: 15,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
   },
 
   // Done

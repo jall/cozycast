@@ -122,7 +122,7 @@ export default function FeedScreen() {
       ) : (
         <FlatList
           data={casts}
-          keyExtractor={(item) => item._id || item.id || String(Math.random())}
+          keyExtractor={(item) => item.id}
           renderItem={({ item, index }) => (
             <CastCard cast={item} index={index} onDeleted={handleDeleted} />
           )}
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
   },
   retryText: {
     color: '#FFFFFF',
-    fontWeight: '600',
+    fontFamily: fonts.medium,
     fontSize: 15,
   },
 });
