@@ -86,7 +86,7 @@ test.describe('signed in', () => {
 
   test('signs in and lands on the feed', async ({ page }) => {
     await signIn(page);
-    await expect(page.getByText(/^profile$/i).first()).toBeVisible();
+    await expect(page.getByText(/^you$/i).first()).toBeVisible();
   });
 
   // Exercises the in-browser recording path end to end (getUserMedia +
@@ -152,7 +152,7 @@ test.describe('signed in', () => {
 
     // Back to the feed (refetches on focus); the new cast is on top. Open it.
     await page
-      .getByText(/^feed$/i)
+      .getByText(/^home$/i)
       .first()
       .click();
     await page.getByText(title).click();
@@ -194,12 +194,25 @@ test.describe('signed in (local fixtures)', () => {
     'seed the local stack (npm run dev:seed) and set E2E_FIXTURES=1 to run fixture tests',
   );
 
+  // The calm home greets you and surfaces the next *unheard* cast left for you
+  // (Cleo shared "the walk" with Alice and she hasn't opened it). Runs first and
+  // doesn't open it, so it stays unheard for the assertion (assumes a fresh seed).
+  test('calm home surfaces an unheard cast waiting for you', async ({ page }) => {
+    await signIn(page, ALICE.email, ALICE.password);
+    await expect(page.getByText(/good (morning|afternoon|evening)/i)).toBeVisible();
+    const waiting = page.getByTestId('waiting-cast');
+    await expect(waiting).toBeVisible({ timeout: 15000 });
+    await expect(waiting.getByText(/left for you by/i)).toBeVisible();
+    await expect(waiting.getByText(/the walk we always mean to take/i)).toBeVisible();
+  });
+
   test('Alice sees her seeded casts and opens her own with its sharing details', async ({
     page,
   }) => {
     await signIn(page, ALICE.email, ALICE.password);
 
-    // Both seeded casts appear in her feed.
+    // Both seeded casts appear — her own as a card, "the walk" as the waiting
+    // highlight (a recipient cast she hasn't heard).
     await expect(page.getByText(/late-night kitchen talk/i)).toBeVisible();
     await expect(page.getByText(/the walk we always mean to take/i)).toBeVisible();
 
@@ -228,10 +241,7 @@ test.describe('signed in (local fixtures)', () => {
 
   test('Profile shows Alice and her seeded friends', async ({ page }) => {
     await signIn(page, ALICE.email, ALICE.password);
-    await page
-      .getByText(/^profile$/i)
-      .first()
-      .click();
+    await page.getByText(/^you$/i).first().click();
 
     await expect(page.getByText('Alice', { exact: true })).toBeVisible();
     await expect(page.getByText(ALICE.email)).toBeVisible();
@@ -244,10 +254,7 @@ test.describe('signed in (local fixtures)', () => {
     // expo-clipboard writes the code; grant access so the success path runs.
     await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
     await signIn(page, ALICE.email, ALICE.password);
-    await page
-      .getByText(/^profile$/i)
-      .first()
-      .click();
+    await page.getByText(/^you$/i).first().click();
 
     await page.getByText(/generate invite/i).click();
     // The success toast echoes the freshly-minted code.
@@ -284,7 +291,7 @@ test.describe('signed in (local fixtures)', () => {
 
     // Open it from the feed; the detail page reflects the participant + recipient.
     await page
-      .getByText(/^feed$/i)
+      .getByText(/^home$/i)
       .first()
       .click();
     await page.getByText(title).click();
@@ -380,10 +387,7 @@ test.describe('signed in (local fixtures)', () => {
 
   test('can log out from Profile back to the landing page', async ({ page }) => {
     await signIn(page, ALICE.email, ALICE.password);
-    await page
-      .getByText(/^profile$/i)
-      .first()
-      .click();
+    await page.getByText(/^you$/i).first().click();
 
     page.on('dialog', (dialog) => dialog.accept());
     await page.getByText(/^log out$/i).click();

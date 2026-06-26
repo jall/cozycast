@@ -18,6 +18,7 @@ import { Nunito_600SemiBold } from '@expo-google-fonts/nunito/600SemiBold';
 import { Nunito_700Bold } from '@expo-google-fonts/nunito/700Bold';
 import { Nunito_800ExtraBold } from '@expo-google-fonts/nunito/800ExtraBold';
 import { fonts } from '../src/theme/typography';
+import { colors } from '../src/theme/colors';
 import { AuthProvider, useAuth } from '../src/context/AuthContext';
 import { ToastProvider } from '../src/context/ToastContext';
 import { PlayerProvider } from '../src/context/PlayerContext';
@@ -74,7 +75,7 @@ function RootNav() {
     <Stack
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: '#FFF8F0' },
+        contentStyle: { backgroundColor: colors.bg },
         animation: 'fade',
       }}
     />
@@ -136,7 +137,7 @@ export default sentryDsn ? Sentry.wrap(RootLayout) : RootLayout;
 const styles = StyleSheet.create({
   loading: {
     flex: 1,
-    backgroundColor: '#FFF8F0',
+    backgroundColor: colors.bg,
     alignItems: 'center',
     justifyContent: 'center',
   },

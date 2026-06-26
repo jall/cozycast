@@ -136,7 +136,7 @@ export default function LoginScreen({ onBack }) {
         )}
         <View style={styles.header}>
           <Text style={styles.logo}>cozycast</Text>
-          <Text style={styles.tagline}>share moments with the people who matter</Text>
+          <Text style={styles.tagline}>for the conversations worth keeping</Text>
         </View>
 
         <View style={styles.card}>

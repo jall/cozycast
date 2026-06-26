@@ -108,7 +108,8 @@ const CAST_SELECT = `
   creator:profiles!casts_creator_id_fkey(id, name, email),
   sharer:profiles!casts_sharer_id_fkey(id, name, email),
   cast_participants(profile_id, name),
-  cast_recipients(recipient_id)
+  cast_recipients(recipient_id),
+  cast_plays(played_at)
 `;
 
 // Flatten a joined cast row into the shape the UI consumes. `uid` is the
@@ -130,6 +131,8 @@ function mapCast(cast, uid) {
     shared_with_me: creatorId !== uid,
     // Creator or assigned sharer may manage recipients (matches can_manage_cast).
     can_manage: creatorId === uid || sharerId === uid,
+    // Have I listened to it? (cast_plays is RLS-scoped to my own rows.)
+    played: (cast.cast_plays || []).length > 0,
   };
 }
 
@@ -162,6 +165,19 @@ export async function getCast(castId) {
 
   const uid = await currentUserId();
   return mapCast(data, uid);
+}
+
+// Mark a cast as listened-to by the current user (first play wins). Used by the
+// calm home to know which received casts are still "unheard". Idempotent.
+export async function markPlayed(castId) {
+  const userId = await currentUserId();
+  const { error } = await supabase
+    .from('cast_plays')
+    .upsert(
+      { cast_id: castId, user_id: userId },
+      { onConflict: 'cast_id,user_id', ignoreDuplicates: true },
+    );
+  if (error) throw error;
 }
 
 // Create a cast: upload the audio, insert the row, then tag participants.

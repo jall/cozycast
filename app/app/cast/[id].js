@@ -24,6 +24,7 @@ import {
   getComments,
   addComment,
   deleteComment,
+  markPlayed,
 } from '../../src/api/client';
 import { usePlayer } from '../../src/context/PlayerContext';
 import { useToast } from '../../src/context/ToastContext';
@@ -98,6 +99,9 @@ export default function CastDetailScreen() {
         }
         // Comments are visible to anyone who can access the cast.
         if (c) getComments(id).then((cs) => active && setComments(cs));
+        // Opening a cast shared with you counts as hearing it (clears it from
+        // the calm home's "waiting for you"). Best-effort, fire-and-forget.
+        if (c?.shared_with_me) markPlayed(id).catch(() => {});
       })
       .catch(() => active && setCast(null))
       .finally(() => active && setLoading(false));
