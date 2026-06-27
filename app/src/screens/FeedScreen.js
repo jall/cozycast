@@ -4,10 +4,22 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { getFeed } from '../api/client';
 import CastCard from '../components/CastCard';
+import CastCover from '../components/CastCover';
 import CastCardSkeleton from '../components/CastCardSkeleton';
 import { useNotifications } from '../context/NotificationsContext';
-import { fonts } from '../theme/typography';
+import { colors } from '../theme/colors';
+import { type } from '../theme/type';
+import { space, radius, elevation } from '../theme/space';
 
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'good morning';
+  if (h < 18) return 'good afternoon';
+  return 'good evening';
+}
+
+// The calm home: a quiet greeting, the next unheard cast gently surfaced as
+// "waiting for you", then everything else. No "feed", no scroll-first energy.
 export default function FeedScreen() {
   const [casts, setCasts] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -19,17 +31,12 @@ export default function FeedScreen() {
   const fetchCasts = useCallback(async () => {
     try {
       setError(null);
-      const casts = await getFeed();
-      setCasts(casts);
+      setCasts(await getFeed());
     } catch (err) {
-      setError(err.message || 'Could not load your feed.');
+      setError(err.message || 'Could not load your casts.');
     }
   }, []);
 
-  // Refetch whenever the feed regains focus — on first mount, and on returning
-  // from the cast detail page (so a cast deleted there disappears, and a freshly
-  // recorded one shows up, without a manual pull-to-refresh). Also refresh the
-  // notification badge here (e.g. after marking them read on the inbox screen).
   useFocusEffect(
     useCallback(() => {
       let active = true;
@@ -51,36 +58,73 @@ export default function FeedScreen() {
     setCasts((prev) => prev.filter((c) => c.id !== castId));
   }, []);
 
-  function renderHeader() {
-    // Wordmark + a bell to the notifications inbox (Profile lives in the tab bar).
+  // Casts left for you (you're a recipient, not the creator/sharer) that you
+  // haven't listened to yet.
+  const unheard = casts.filter((c) => c.shared_with_me && !c.can_manage && !c.played);
+  const waiting = unheard[0] || null;
+  const rest = waiting ? casts.filter((c) => c.id !== waiting.id) : casts;
+
+  function header() {
+    const n = unheard.length;
+    const subline =
+      n > 0
+        ? `${n === 1 ? 'a voice' : `${n} voices`} waiting for you`
+        : "it's quiet, and that's okay.";
     return (
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>cozycast</Text>
-        <TouchableOpacity
-          onPress={() => router.push('/notifications')}
-          style={styles.bell}
-          accessibilityLabel="Notifications"
-          testID="notifications-bell"
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="notifications-outline" size={24} color="#6B5E50" />
-          {unreadCount > 0 ? (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+      <View>
+        <View style={styles.header}>
+          <View style={styles.headerText}>
+            <Text style={styles.greeting}>{greeting()}</Text>
+            <Text style={styles.subline}>{subline}</Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => router.push('/notifications')}
+            style={styles.bell}
+            accessibilityLabel="Notifications"
+            testID="notifications-bell"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="notifications-outline" size={22} color={colors.inkMuted} />
+            {unreadCount > 0 ? (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+              </View>
+            ) : null}
+          </TouchableOpacity>
+        </View>
+
+        {waiting ? (
+          <TouchableOpacity
+            style={styles.waiting}
+            activeOpacity={0.85}
+            onPress={() => router.push(`/cast/${waiting.id}`)}
+            testID="waiting-cast"
+          >
+            <CastCover seed={waiting.id} title={waiting.title} size={64} />
+            <View style={styles.waitingText}>
+              <Text style={styles.waitingFrom}>
+                left for you by {waiting.sharer_name || waiting.creator_name}
+              </Text>
+              <Text style={styles.waitingTitle} numberOfLines={2}>
+                {waiting.title}
+              </Text>
             </View>
-          ) : null}
-        </TouchableOpacity>
+            <Ionicons name="play-circle" size={34} color={colors.ember} />
+          </TouchableOpacity>
+        ) : null}
+
+        {rest.length > 0 ? <Text style={styles.eyebrow}>lately</Text> : null}
       </View>
     );
   }
 
   function renderEmpty() {
-    if (loading) return null;
+    if (loading || waiting) return null;
     return (
       <View style={styles.emptyContainer}>
         <View style={styles.emptyCard}>
           <View style={styles.emptyIconWrap}>
-            <Ionicons name="cafe-outline" size={40} color="#E8734A" />
+            <Ionicons name="cafe-outline" size={40} color={colors.ember} />
           </View>
           <Text style={styles.emptyTitle}>It's quiet here…</Text>
           <Text style={styles.emptyBody}>
@@ -88,7 +132,7 @@ export default function FeedScreen() {
             friend to send one your way.
           </Text>
           <View style={styles.emptyHintRow}>
-            <Ionicons name="mic" size={15} color="#A89888" />
+            <Ionicons name="mic" size={15} color={colors.inkMuted} />
             <Text style={styles.emptyHint}>Tap Record below to begin</Text>
           </View>
         </View>
@@ -99,8 +143,12 @@ export default function FeedScreen() {
   if (loading) {
     return (
       <View style={styles.container}>
-        {renderHeader()}
         <View style={styles.skeletonList}>
+          <View style={styles.header}>
+            <View style={styles.headerText}>
+              <Text style={styles.greeting}>{greeting()}</Text>
+            </View>
+          </View>
           {[0, 1, 2].map((i) => (
             <CastCardSkeleton key={i} />
           ))}
@@ -111,29 +159,29 @@ export default function FeedScreen() {
 
   return (
     <View style={styles.container}>
-      {renderHeader()}
       {error ? (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity onPress={fetchCasts} style={styles.retryButton}>
-            <Text style={styles.retryText}>Try Again</Text>
+            <Text style={styles.retryText}>Try again</Text>
           </TouchableOpacity>
         </View>
       ) : (
         <FlatList
-          data={casts}
+          data={rest}
           keyExtractor={(item) => item.id}
           renderItem={({ item, index }) => (
             <CastCard cast={item} index={index} onDeleted={handleDeleted} />
           )}
-          contentContainerStyle={styles.listContent}
+          ListHeaderComponent={header}
           ListEmptyComponent={renderEmpty}
+          contentContainerStyle={styles.listContent}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              tintColor="#E8734A"
-              colors={['#E8734A']}
+              tintColor={colors.ember}
+              colors={[colors.ember]}
             />
           }
           showsVerticalScrollIndicator={false}
@@ -146,31 +194,31 @@ export default function FeedScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF8F0',
-  },
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFF8F0',
+    backgroundColor: colors.bg,
   },
   header: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: space.xl,
     paddingTop: 56,
-    paddingBottom: 12,
-    backgroundColor: '#FFF8F0',
+    paddingBottom: space.md,
   },
-  headerTitle: {
-    fontSize: 28,
-    fontFamily: fonts.display,
-    color: '#E8734A',
-    letterSpacing: -0.5,
+  headerText: {
+    flex: 1,
+  },
+  greeting: {
+    ...type.h1,
+    color: colors.ink,
+  },
+  subline: {
+    ...type.bodySm,
+    color: colors.inkMuted,
+    marginTop: space.xs,
   },
   bell: {
-    padding: 4,
+    padding: space.xs,
+    marginTop: space.xs,
   },
   badge: {
     position: 'absolute',
@@ -179,62 +227,84 @@ const styles = StyleSheet.create({
     minWidth: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: '#E8734A',
+    backgroundColor: colors.ember,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 4,
   },
   badgeText: {
-    color: '#FFFFFF',
+    color: colors.onEmber,
     fontSize: 11,
-    fontFamily: fonts.bold,
+    fontFamily: type.h3.fontFamily,
+  },
+  waiting: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.accentSurface,
+    borderRadius: radius.md,
+    padding: space.lg,
+    marginHorizontal: space.lg,
+    marginBottom: space.lg,
+  },
+  waitingText: {
+    flex: 1,
+    marginHorizontal: space.md,
+  },
+  waitingFrom: {
+    ...type.eyebrow,
+    color: colors.emberInk,
+    marginBottom: space.xs,
+  },
+  waitingTitle: {
+    ...type.h2,
+    color: colors.ink,
+  },
+  eyebrow: {
+    ...type.eyebrow,
+    color: colors.inkMuted,
+    marginHorizontal: space.xl,
+    marginBottom: space.sm,
   },
   listContent: {
-    paddingTop: 8,
-    paddingBottom: 24,
+    paddingTop: space.sm,
+    paddingBottom: space.xl,
   },
   skeletonList: {
-    paddingTop: 8,
+    paddingTop: space.sm,
   },
   emptyContainer: {
     alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingTop: 64,
+    paddingHorizontal: space.xl,
+    paddingTop: space['2xl'],
   },
   emptyCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
     paddingHorizontal: 28,
-    paddingVertical: 32,
+    paddingVertical: space['2xl'],
     alignItems: 'center',
     alignSelf: 'stretch',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
+    ...elevation.rest,
   },
   emptyIconWrap: {
     width: 72,
     height: 72,
-    borderRadius: 36,
-    backgroundColor: '#FCEDE6',
+    borderRadius: radius.pill,
+    backgroundColor: colors.accentSurface,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 18,
   },
   emptyTitle: {
-    fontSize: 20,
-    fontFamily: fonts.bold,
-    color: '#2D2D2D',
-    marginBottom: 10,
+    ...type.h2,
+    color: colors.ink,
+    marginBottom: space.sm,
   },
   emptyBody: {
+    ...type.body,
     fontSize: 15,
-    fontFamily: fonts.regular,
-    color: '#8C7B6B',
+    color: colors.inkSoft,
     textAlign: 'center',
-    lineHeight: 22,
   },
   emptyHintRow: {
     flexDirection: 'row',
@@ -242,32 +312,30 @@ const styles = StyleSheet.create({
     marginTop: 18,
   },
   emptyHint: {
-    fontSize: 13,
-    fontFamily: fonts.medium,
-    color: '#A89888',
-    marginLeft: 6,
+    ...type.label,
+    color: colors.inkMuted,
+    marginLeft: space.xs + 2,
   },
   errorContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: space['2xl'],
   },
   errorText: {
-    fontSize: 15,
-    color: '#C0392B',
+    ...type.bodySm,
+    color: colors.danger,
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: space.lg,
   },
   retryButton: {
-    backgroundColor: '#E8734A',
-    borderRadius: 12,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
+    backgroundColor: colors.ember,
+    borderRadius: radius.sm,
+    paddingHorizontal: space.xl,
+    paddingVertical: space.md,
   },
   retryText: {
-    color: '#FFFFFF',
-    fontFamily: fonts.medium,
-    fontSize: 15,
+    ...type.h3,
+    color: colors.onEmber,
   },
 });

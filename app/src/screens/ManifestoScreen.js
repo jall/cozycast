@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { colors } from '../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
 import { fonts } from '../theme/typography';
 
@@ -15,7 +16,7 @@ export default function ManifestoScreen({ onBack }) {
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
       <View style={styles.content}>
         <TouchableOpacity style={styles.backButton} onPress={onBack} activeOpacity={0.6}>
-          <Ionicons name="arrow-back" size={20} color="#E8734A" />
+          <Ionicons name="arrow-back" size={20} color={colors.ember} />
           <Text style={styles.backText}>Back</Text>
         </TouchableOpacity>
 
@@ -68,7 +69,7 @@ export default function ManifestoScreen({ onBack }) {
           <View style={styles.tipsCard}>
             {SOFT_TIPS.map((tip) => (
               <View key={tip} style={styles.tipRow}>
-                <Ionicons name="ellipse" size={7} color="#E8734A" style={styles.tipDot} />
+                <Ionicons name="ellipse" size={7} color={colors.ember} style={styles.tipDot} />
                 <Text style={styles.tipText}>{tip}</Text>
               </View>
             ))}
@@ -95,7 +96,7 @@ export default function ManifestoScreen({ onBack }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF8F0',
+    backgroundColor: colors.bg,
   },
   scrollContent: {
     flexGrow: 1,
@@ -115,26 +116,26 @@ const styles = StyleSheet.create({
   backText: {
     fontSize: 16,
     fontFamily: fonts.medium,
-    color: '#E8734A',
+    color: colors.ember,
     marginLeft: 6,
   },
   wordmark: {
     fontSize: 28,
     fontFamily: fonts.display,
-    color: '#E8734A',
+    color: colors.ember,
     letterSpacing: -1,
     marginBottom: 8,
   },
   title: {
     fontSize: 34,
     fontFamily: fonts.display,
-    color: '#2D2D2D',
+    color: colors.ink,
     letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 17,
     fontFamily: fonts.regular,
-    color: '#8C7B6B',
+    color: colors.inkMuted,
     marginTop: 8,
     marginBottom: 36,
     lineHeight: 24,
@@ -145,7 +146,7 @@ const styles = StyleSheet.create({
   sectionHeading: {
     fontSize: 21,
     fontFamily: fonts.bold,
-    color: '#2D2D2D',
+    color: colors.ink,
     letterSpacing: -0.3,
     marginBottom: 12,
   },
@@ -157,7 +158,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   tipsCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderRadius: 20,
     padding: 24,
     marginTop: 8,
@@ -191,7 +192,7 @@ const styles = StyleSheet.create({
   closingText: {
     fontSize: 18,
     fontFamily: fonts.display,
-    color: '#E8734A',
+    color: colors.ember,
     letterSpacing: -0.3,
   },
 });

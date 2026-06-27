@@ -12,6 +12,7 @@ import {
   getNotifications,
   getUnreadNotificationCount,
   markNotificationsRead,
+  markPlayed,
 } from '../client';
 
 // Mock the supabase client so we exercise the create / share / stream logic in
@@ -370,6 +371,20 @@ describe('notifications', () => {
     expect(update).toHaveBeenCalledWith(expect.objectContaining({ read_at: expect.any(String) }));
     expect(eq).toHaveBeenCalledWith('user_id', 'u1');
     expect(is).toHaveBeenCalledWith('read_at', null);
+  });
+});
+
+describe('markPlayed', () => {
+  it('upserts a play row for the current user (first play wins)', async () => {
+    const upsert = jest.fn().mockResolvedValue({ error: null });
+    supabase.from.mockReturnValue({ upsert });
+
+    await markPlayed('c1');
+
+    expect(supabase.from).toHaveBeenCalledWith('cast_plays');
+    const [row, opts] = upsert.mock.calls[0];
+    expect(row).toEqual({ cast_id: 'c1', user_id: 'u1' });
+    expect(opts).toEqual({ onConflict: 'cast_id,user_id', ignoreDuplicates: true });
   });
 });
 

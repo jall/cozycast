@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
+import { colors } from '../theme/colors';
 
 // A placeholder card shown while the feed loads — a soft pulsing silhouette of a
 // real CastCard, which feels calmer than a bare spinner.
@@ -39,7 +40,7 @@ const BLOCK = '#EFE6DC';
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderRadius: 18,
     padding: 20,
     marginHorizontal: 16,

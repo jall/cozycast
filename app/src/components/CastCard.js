@@ -16,18 +16,16 @@ import { usePlayer } from '../context/PlayerContext';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { showAlert } from '../utils/alert';
-import { fonts } from '../theme/typography';
+import { colors } from '../theme/colors';
+import { type } from '../theme/type';
+import { space, radius, elevation } from '../theme/space';
 
 function timeAgo(dateString) {
-  const now = Date.now();
-  const then = new Date(dateString).getTime();
-  const diffMs = now - then;
-  const diffSec = Math.floor(diffMs / 1000);
+  const diffSec = Math.floor((Date.now() - new Date(dateString).getTime()) / 1000);
   const diffMin = Math.floor(diffSec / 60);
   const diffHr = Math.floor(diffMin / 60);
   const diffDay = Math.floor(diffHr / 24);
   const diffWeek = Math.floor(diffDay / 7);
-
   if (diffMin < 1) return 'just now';
   if (diffMin < 60) return `${diffMin}m ago`;
   if (diffHr < 24) return `${diffHr}h ago`;
@@ -46,6 +44,7 @@ export default function CastCard({ cast, index = 0, onDeleted }) {
     participants,
     recipient_count,
     shared_with_me,
+    played,
     created_at,
   } = cast;
 
@@ -58,8 +57,11 @@ export default function CastCard({ cast, index = 0, onDeleted }) {
 
   const openDetail = () => router.push(`/cast/${id}`);
 
-  // You were assigned to share this cast (you're the sharer, not the creator)
-  // but haven't sent it to anyone yet — a gentle nudge to choose recipients.
+  // A cast left for you (you're a recipient, not the creator/sharer) that you
+  // haven't listened to yet.
+  const unheard = shared_with_me && !cast.can_manage && !played;
+
+  // You're the assigned sharer (not the creator) and haven't sent it yet.
   const needsSharing =
     !!user && cast.sharer_id === user.id && cast.creator_id !== user.id && recipient_count === 0;
 
@@ -78,7 +80,6 @@ export default function CastCard({ cast, index = 0, onDeleted }) {
     setDeleting(true);
     try {
       await deleteCast(id, cast.audio_path);
-      // If this is what the mini player is playing, dismiss it too.
       if (track?.id === id) await stop();
       toast.success('Cast deleted.');
       onDeleted?.(id);
@@ -88,7 +89,7 @@ export default function CastCard({ cast, index = 0, onDeleted }) {
     }
   }
 
-  // Gentle staggered fade-in-up as cards arrive in the feed.
+  // Gentle staggered fade-in-up as cards arrive.
   const enter = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(enter, {
@@ -110,6 +111,7 @@ export default function CastCard({ cast, index = 0, onDeleted }) {
     <Animated.View
       style={[
         styles.card,
+        unheard && styles.cardUnheard,
         {
           opacity: enter,
           transform: [
@@ -136,6 +138,7 @@ export default function CastCard({ cast, index = 0, onDeleted }) {
             </Text>
           </View>
         </TouchableOpacity>
+        {unheard ? <View style={styles.unheardDot} accessibilityLabel="Unheard" /> : null}
         {!shared_with_me ? (
           <TouchableOpacity
             onPress={confirmDelete}
@@ -145,9 +148,9 @@ export default function CastCard({ cast, index = 0, onDeleted }) {
             accessibilityLabel="Delete cast"
           >
             {deleting ? (
-              <ActivityIndicator size="small" color="#C0392B" />
+              <ActivityIndicator size="small" color={colors.danger} />
             ) : (
-              <Ionicons name="trash-outline" size={18} color="#C9B8A8" />
+              <Ionicons name="trash-outline" size={18} color={colors.inkFaint} />
             )}
           </TouchableOpacity>
         ) : null}
@@ -166,7 +169,7 @@ export default function CastCard({ cast, index = 0, onDeleted }) {
           <Ionicons
             name="people-outline"
             size={14}
-            color="#A89888"
+            color={colors.inkMuted}
             style={styles.participantsIcon}
           />
           {participantList.map((name, i) => (
@@ -191,7 +194,7 @@ export default function CastCard({ cast, index = 0, onDeleted }) {
 
       {needsSharing ? (
         <TouchableOpacity style={styles.nudge} onPress={openDetail} activeOpacity={0.7}>
-          <Ionicons name="megaphone-outline" size={15} color="#E8734A" />
+          <Ionicons name="megaphone-outline" size={15} color={colors.emberInk} />
           <Text style={styles.nudgeText}>You’re the sharer — choose who hears this</Text>
         </TouchableOpacity>
       ) : !shared_with_me && recipient_count > 0 ? (
@@ -205,21 +208,20 @@ export default function CastCard({ cast, index = 0, onDeleted }) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 20,
-    marginHorizontal: 16,
-    marginBottom: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    padding: space.lg + 4,
+    marginHorizontal: space.lg,
+    marginBottom: space.md + 2,
+    ...elevation.rest,
+  },
+  cardUnheard: {
+    backgroundColor: colors.accentSurface,
   },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: space.md,
   },
   headerPress: {
     flex: 1,
@@ -228,76 +230,79 @@ const styles = StyleSheet.create({
   },
   headerText: {
     flex: 1,
-    marginLeft: 14,
+    marginLeft: space.md + 2,
+  },
+  unheardDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.ember,
+    marginLeft: space.sm,
   },
   deleteButton: {
     width: 32,
     height: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 4,
+    marginLeft: space.xs,
   },
   title: {
-    fontSize: 17,
-    fontFamily: fonts.bold,
-    color: '#2D2D2D',
-    marginBottom: 4,
+    ...type.h3,
+    color: colors.ink,
+    marginBottom: space.xs,
   },
   byline: {
-    fontSize: 13,
-    fontFamily: fonts.regular,
-    color: '#A89888',
+    ...type.caption,
+    color: colors.inkMuted,
   },
   summary: {
-    fontSize: 14,
-    fontFamily: fonts.regular,
-    color: '#6B5E50',
-    lineHeight: 20,
-    marginBottom: 12,
+    ...type.bodySm,
+    color: colors.inkSoft,
+    marginBottom: space.md,
   },
   participantsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: space.sm,
   },
   participantsIcon: {
-    marginRight: 6,
+    marginRight: space.xs + 2,
   },
   participantTag: {
-    backgroundColor: '#FFF0E6',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    marginRight: 6,
-    marginBottom: 4,
+    backgroundColor: colors.surfaceSunk,
+    borderRadius: radius.sm,
+    paddingHorizontal: space.md,
+    paddingVertical: space.xs,
+    marginRight: space.xs + 2,
+    marginBottom: space.xs,
   },
   participantText: {
-    fontSize: 12,
-    color: '#E8734A',
-    fontFamily: fonts.medium,
+    ...type.caption,
+    color: colors.emberInk,
+    fontFamily: type.label.fontFamily,
   },
   player: {
-    marginTop: 4,
+    marginTop: space.xs,
   },
   sharedNote: {
-    fontSize: 12,
-    color: '#A89888',
-    marginTop: 8,
+    ...type.caption,
+    color: colors.inkMuted,
+    marginTop: space.sm,
   },
   nudge: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 10,
-    backgroundColor: '#FFF0E6',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    marginTop: space.sm + 2,
+    backgroundColor: colors.surfaceSunk,
+    borderRadius: radius.sm,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
   },
   nudgeText: {
-    fontSize: 12,
-    fontFamily: fonts.medium,
-    color: '#E8734A',
-    marginLeft: 6,
+    ...type.caption,
+    color: colors.emberInk,
+    fontFamily: type.label.fontFamily,
+    marginLeft: space.xs + 2,
   },
 });
