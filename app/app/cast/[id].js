@@ -29,7 +29,9 @@ import {
 import { usePlayer } from '../../src/context/PlayerContext';
 import { useToast } from '../../src/context/ToastContext';
 import { showAlert } from '../../src/utils/alert';
-import { fonts } from '../../src/theme/typography';
+import { colors } from '../../src/theme/colors';
+import { type } from '../../src/theme/type';
+import { space, radius } from '../../src/theme/space';
 
 function formatDate(dateString) {
   if (!dateString) return '';
@@ -51,7 +53,7 @@ function timeAgo(dateString) {
 function BackButton({ onPress }) {
   return (
     <TouchableOpacity style={styles.backButton} onPress={onPress} activeOpacity={0.6}>
-      <Ionicons name="arrow-back" size={20} color="#E8734A" />
+      <Ionicons name="arrow-back" size={20} color={colors.ember} />
       <Text style={styles.backText}>Back</Text>
     </TouchableOpacity>
   );
@@ -178,7 +180,7 @@ export default function CastDetailScreen() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#E8734A" />
+        <ActivityIndicator size="large" color={colors.ember} />
       </View>
     );
   }
@@ -190,7 +192,7 @@ export default function CastDetailScreen() {
           <BackButton onPress={goBack} />
           <View style={styles.missing}>
             <View style={styles.missingIcon}>
-              <Ionicons name="lock-closed-outline" size={34} color="#E8734A" />
+              <Ionicons name="lock-closed-outline" size={34} color={colors.ember} />
             </View>
             <Text style={styles.missingTitle}>This cast isn’t available</Text>
             <Text style={styles.missingBody}>
@@ -295,7 +297,7 @@ export default function CastDetailScreen() {
                       <Ionicons
                         name={selected ? 'checkmark-circle' : 'ellipse-outline'}
                         size={24}
-                        color={selected ? '#E8734A' : '#D4C5B5'}
+                        color={selected ? colors.ember : colors.inkFaint}
                       />
                     </TouchableOpacity>
                   );
@@ -338,7 +340,7 @@ export default function CastDetailScreen() {
                       testID="comment-delete"
                       style={styles.commentDelete}
                     >
-                      <Ionicons name="close" size={15} color="#C9B8A8" />
+                      <Ionicons name="close" size={15} color={colors.inkFaint} />
                     </TouchableOpacity>
                   ) : null}
                 </View>
@@ -353,7 +355,7 @@ export default function CastDetailScreen() {
               value={commentText}
               onChangeText={setCommentText}
               placeholder="Add a comment…"
-              placeholderTextColor="#C4B5A8"
+              placeholderTextColor={colors.inkFaint}
               multiline
               testID="comment-input"
             />
@@ -368,9 +370,9 @@ export default function CastDetailScreen() {
               testID="comment-post"
             >
               {posting ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
+                <ActivityIndicator size="small" color={colors.onEmber} />
               ) : (
-                <Ionicons name="arrow-up" size={20} color="#FFFFFF" />
+                <Ionicons name="arrow-up" size={20} color={colors.onEmber} />
               )}
             </TouchableOpacity>
           </View>
@@ -384,9 +386,9 @@ export default function CastDetailScreen() {
             activeOpacity={0.7}
           >
             {deleting ? (
-              <ActivityIndicator size="small" color="#C0392B" />
+              <ActivityIndicator size="small" color={colors.danger} />
             ) : (
-              <Ionicons name="trash-outline" size={18} color="#C0392B" />
+              <Ionicons name="trash-outline" size={18} color={colors.danger} />
             )}
             <Text style={styles.deleteText}>Delete cast</Text>
           </TouchableOpacity>
@@ -399,229 +401,113 @@ export default function CastDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFF8F0',
-  },
+  container: { flex: 1, backgroundColor: colors.bg },
   centered: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFF8F0',
+    backgroundColor: colors.bg,
   },
   scrollContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: space.xl,
     paddingTop: 56,
-    paddingBottom: 32,
+    paddingBottom: space['2xl'],
   },
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    marginBottom: 12,
+    marginBottom: space.md,
   },
-  backText: {
-    fontSize: 15,
-    fontFamily: fonts.medium,
-    color: '#E8734A',
-    marginLeft: 4,
-  },
-  hero: {
-    alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontFamily: fonts.bold,
-    color: '#2D2D2D',
-    textAlign: 'center',
-    marginTop: 16,
-  },
-  byline: {
-    fontSize: 14,
-    fontFamily: fonts.regular,
-    color: '#A89888',
-    marginTop: 6,
-    textAlign: 'center',
-  },
-  player: {
-    marginBottom: 12,
-  },
-  section: {
-    marginTop: 20,
-  },
-  sectionHeading: {
-    fontSize: 13,
-    fontFamily: fonts.bold,
-    color: '#A89888',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 8,
-  },
-  bodyText: {
-    fontSize: 15,
-    fontFamily: fonts.regular,
-    color: '#6B5E50',
-    lineHeight: 23,
-  },
-  tagRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
+  backText: { ...type.label, color: colors.ember, marginLeft: space.xs },
+  hero: { alignItems: 'center', marginTop: space.sm, marginBottom: space.xl },
+  title: { ...type.h1, color: colors.ink, textAlign: 'center', marginTop: space.lg },
+  byline: { ...type.bodySm, color: colors.inkMuted, marginTop: space.xs + 2, textAlign: 'center' },
+  player: { marginBottom: space.md },
+  section: { marginTop: space.xl },
+  sectionHeading: { ...type.eyebrow, color: colors.inkMuted, marginBottom: space.sm },
+  bodyText: { ...type.body, fontSize: 15, color: colors.inkSoft },
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap' },
   tag: {
-    backgroundColor: '#FFF0E6',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    marginRight: 8,
-    marginBottom: 8,
+    backgroundColor: colors.surfaceSunk,
+    borderRadius: radius.sm,
+    paddingHorizontal: space.md,
+    paddingVertical: space.xs + 2,
+    marginRight: space.sm,
+    marginBottom: space.sm,
   },
-  tagText: {
-    fontSize: 13,
-    color: '#E8734A',
-    fontFamily: fonts.medium,
-  },
+  tagText: { ...type.caption, color: colors.emberInk, fontFamily: type.label.fontFamily },
   manageHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: space.sm,
   },
-  manageToggle: {
-    fontSize: 14,
-    fontFamily: fonts.bold,
-    color: '#E8734A',
-  },
+  manageToggle: { ...type.label, color: colors.ember },
   recipientRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 10,
+    paddingVertical: space.sm + 2,
     borderBottomWidth: 1,
-    borderBottomColor: '#F5EFE8',
+    borderBottomColor: colors.hairline,
   },
-  recipientInfo: {
-    flex: 1,
-    marginRight: 12,
-  },
-  recipientName: {
-    fontSize: 15,
-    fontFamily: fonts.medium,
-    color: '#2D2D2D',
-  },
-  recipientEmail: {
-    fontSize: 13,
-    fontFamily: fonts.regular,
-    color: '#A89888',
-    marginTop: 2,
-  },
-  commentsEmpty: {
-    fontSize: 14,
-    fontFamily: fonts.regular,
-    color: '#A89888',
-    marginBottom: 12,
-  },
+  recipientInfo: { flex: 1, marginRight: space.md },
+  recipientName: { ...type.label, fontSize: 15, color: colors.ink },
+  recipientEmail: { ...type.caption, color: colors.inkMuted, marginTop: 2 },
+  commentsEmpty: { ...type.bodySm, color: colors.inkMuted, marginBottom: space.md },
   comment: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 8,
+    backgroundColor: colors.surface,
+    borderRadius: radius.sm,
+    padding: space.md,
+    marginBottom: space.sm,
   },
-  commentHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  commentAuthor: {
-    fontSize: 13,
-    fontFamily: fonts.bold,
-    color: '#2D2D2D',
-  },
-  commentTime: {
-    fontSize: 12,
-    fontFamily: fonts.regular,
-    color: '#A89888',
-    marginLeft: 8,
-    flex: 1,
-  },
-  commentDelete: {
-    padding: 2,
-  },
-  commentBody: {
-    fontSize: 14,
-    fontFamily: fonts.regular,
-    color: '#6B5E50',
-    lineHeight: 20,
-  },
-  commentInputRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    marginTop: 4,
-  },
+  commentHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: space.xs },
+  commentAuthor: { ...type.caption, fontFamily: type.h3.fontFamily, color: colors.ink },
+  commentTime: { ...type.caption, color: colors.inkMuted, marginLeft: space.sm, flex: 1 },
+  commentDelete: { padding: 2 },
+  commentBody: { ...type.bodySm, color: colors.inkSoft },
+  commentInputRow: { flexDirection: 'row', alignItems: 'flex-end', marginTop: space.xs },
   commentInput: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    backgroundColor: colors.surface,
+    borderRadius: radius.sm,
     borderWidth: 1,
-    borderColor: '#F0E6DA',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 14,
-    fontFamily: fonts.regular,
-    color: '#2D2D2D',
+    borderColor: colors.hairline,
+    paddingHorizontal: space.md + 2,
+    paddingVertical: space.sm + 2,
+    ...type.bodySm,
+    color: colors.ink,
     maxHeight: 120,
   },
   commentPost: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: '#E8734A',
+    borderRadius: radius.pill,
+    backgroundColor: colors.ember,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 8,
+    marginLeft: space.sm,
   },
-  commentPostOff: {
-    opacity: 0.45,
-  },
+  commentPostOff: { opacity: 0.45 },
   deleteRow: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    marginTop: 32,
-    paddingVertical: 8,
+    marginTop: space['2xl'],
+    paddingVertical: space.sm,
   },
-  deleteText: {
-    fontSize: 15,
-    fontFamily: fonts.medium,
-    color: '#C0392B',
-    marginLeft: 8,
-  },
-  missing: {
-    alignItems: 'center',
-    paddingTop: 64,
-    paddingHorizontal: 12,
-  },
+  deleteText: { ...type.label, fontSize: 15, color: colors.danger, marginLeft: space.sm },
+  missing: { alignItems: 'center', paddingTop: 64, paddingHorizontal: space.md },
   missingIcon: {
     width: 72,
     height: 72,
-    borderRadius: 36,
-    backgroundColor: '#FCEDE6',
+    borderRadius: radius.pill,
+    backgroundColor: colors.accentSurface,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 18,
   },
-  missingTitle: {
-    fontSize: 20,
-    fontFamily: fonts.bold,
-    color: '#2D2D2D',
-    marginBottom: 10,
-  },
-  missingBody: {
-    fontSize: 15,
-    fontFamily: fonts.regular,
-    color: '#8C7B6B',
-    textAlign: 'center',
-    lineHeight: 22,
-  },
+  missingTitle: { ...type.h2, color: colors.ink, marginBottom: space.sm + 2 },
+  missingBody: { ...type.body, fontSize: 15, color: colors.inkSoft, textAlign: 'center' },
 });

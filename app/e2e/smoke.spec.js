@@ -164,7 +164,7 @@ test.describe('signed in', () => {
     await page.getByText(/continue to sharing/i).click();
 
     // Sharing step → skip (no recipients) → done.
-    await expect(page.getByText(/share with/i)).toBeVisible({ timeout: 20000 });
+    await expect(page.getByText(/^share with/i)).toBeVisible({ timeout: 20000 });
     await page.getByText(/skip for now/i).click();
     await expect(page.getByText(/all set/i)).toBeVisible({ timeout: 20000 });
 
@@ -302,7 +302,7 @@ test.describe('signed in (local fixtures)', () => {
     await page.getByText(/continue to sharing/i).click();
 
     // Sharing step: pick Ben as a recipient and send.
-    await expect(page.getByText(/share with/i)).toBeVisible({ timeout: 20000 });
+    await expect(page.getByText(/^share with/i)).toBeVisible({ timeout: 20000 });
     await page.getByText('Ben', { exact: true }).click();
     await page.getByText(/share with 1 person/i).click();
     await expect(page.getByText(/all set/i)).toBeVisible({ timeout: 20000 });
