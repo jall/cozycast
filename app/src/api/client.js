@@ -108,14 +108,23 @@ const CAST_SELECT = `
   creator:profiles!casts_creator_id_fkey(id, name, email),
   sharer:profiles!casts_sharer_id_fkey(id, name, email),
   cast_participants(profile_id, name),
-  cast_recipients(recipient_id),
-  cast_plays(played_at)
+  cast_recipients(recipient_id)
 `;
+
+// Which casts the current user has listened to. Fetched separately (not embedded
+// in CAST_SELECT) so the feed/detail still work if the cast_plays table isn't
+// there yet — e.g. a deploy preview pointing at a prod DB without the migration.
+// Degrades to "nothing played" rather than failing the whole query.
+async function fetchPlayedIds() {
+  const { data, error } = await supabase.from('cast_plays').select('cast_id');
+  if (error) return new Set();
+  return new Set((data || []).map((r) => r.cast_id));
+}
 
 // Flatten a joined cast row into the shape the UI consumes. `uid` is the
 // current user, used to decide whether the cast was shared *with* them and
 // whether they may manage it.
-function mapCast(cast, uid) {
+function mapCast(cast, uid, played = false) {
   const creatorId = cast.creator?.id || cast.creator_id;
   const sharerId = cast.sharer_id || creatorId;
   return {
@@ -131,8 +140,8 @@ function mapCast(cast, uid) {
     shared_with_me: creatorId !== uid,
     // Creator or assigned sharer may manage recipients (matches can_manage_cast).
     can_manage: creatorId === uid || sharerId === uid,
-    // Have I listened to it? (cast_plays is RLS-scoped to my own rows.)
-    played: (cast.cast_plays || []).length > 0,
+    // Have I listened to it?
+    played,
   };
 }
 
@@ -147,7 +156,8 @@ export async function getFeed() {
   if (error) throw error;
 
   const uid = await currentUserId();
-  return (data || []).map((cast) => mapCast(cast, uid));
+  const playedIds = await fetchPlayedIds();
+  return (data || []).map((cast) => mapCast(cast, uid, playedIds.has(cast.id)));
 }
 
 // A single cast by id, for the detail page / deep links. Returns null when the
@@ -164,7 +174,8 @@ export async function getCast(castId) {
   if (!data) return null;
 
   const uid = await currentUserId();
-  return mapCast(data, uid);
+  const playedIds = await fetchPlayedIds();
+  return mapCast(data, uid, playedIds.has(data.id));
 }
 
 // Mark a cast as listened-to by the current user (first play wins). Used by the

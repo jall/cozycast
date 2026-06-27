@@ -8,6 +8,24 @@ const { test, expect } = require('@playwright/test');
 // <div>, so we locate things by their visible text. Matching is
 // case-insensitive because some headings use CSS text-transform.
 
+// Netlify deploy previews inject a "Netlify Drawer" badge/iframe that overlays
+// the bottom of the page and intercepts clicks on the tab bar. Hide it on every
+// page so tab taps land. (No-op locally / in prod where it isn't present.)
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    const css =
+      '[data-netlify-deploy-id], iframe[title="Netlify Drawer"] { display: none !important; }';
+    const apply = () => {
+      if (!document.head) return;
+      const s = document.createElement('style');
+      s.textContent = css;
+      document.head.appendChild(s);
+    };
+    apply();
+    document.addEventListener('DOMContentLoaded', apply);
+  });
+});
+
 test.describe('public landing', () => {
   test('shows the pitch and explains a Cozy Cast', async ({ page }) => {
     await page.goto('/');
