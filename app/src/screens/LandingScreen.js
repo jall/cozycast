@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { colors } from '../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
 import { fonts } from '../theme/typography';
 
@@ -54,7 +55,7 @@ export default function LandingScreen({ onGetStarted, onOpenManifesto }) {
           {STEPS.map((step, index) => (
             <View key={step.title} style={styles.step}>
               <View style={styles.stepIcon}>
-                <Ionicons name={step.icon} size={22} color="#E8734A" />
+                <Ionicons name={step.icon} size={22} color={colors.ember} />
               </View>
               <View style={styles.stepBody}>
                 <Text style={styles.stepTitle}>
@@ -79,7 +80,7 @@ export default function LandingScreen({ onGetStarted, onOpenManifesto }) {
             activeOpacity={0.6}
           >
             <Text style={styles.manifestoLinkText}>Read the manifesto</Text>
-            <Ionicons name="arrow-forward" size={16} color="#E8734A" />
+            <Ionicons name="arrow-forward" size={16} color={colors.ember} />
           </TouchableOpacity>
         </View>
 
@@ -99,7 +100,7 @@ export default function LandingScreen({ onGetStarted, onOpenManifesto }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF8F0',
+    backgroundColor: colors.bg,
   },
   scrollContent: {
     flexGrow: 1,
@@ -118,20 +119,20 @@ const styles = StyleSheet.create({
   wordmark: {
     fontSize: 48,
     fontFamily: fonts.display,
-    color: '#E8734A',
+    color: colors.ember,
     letterSpacing: -1,
   },
   tagline: {
     fontSize: 17,
     fontFamily: fonts.regular,
-    color: '#8C7B6B',
+    color: colors.inkMuted,
     marginTop: 12,
     textAlign: 'center',
     lineHeight: 24,
     maxWidth: 420,
   },
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderRadius: 20,
     padding: 28,
     marginBottom: 36,
@@ -144,7 +145,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 12,
     fontFamily: fonts.bold,
-    color: '#B0A090',
+    color: colors.inkMuted,
     letterSpacing: 1,
     marginBottom: 14,
   },
@@ -161,7 +162,7 @@ const styles = StyleSheet.create({
   sectionHeading: {
     fontSize: 24,
     fontFamily: fonts.bold,
-    color: '#2D2D2D',
+    color: colors.ink,
     letterSpacing: -0.5,
     marginBottom: 20,
   },
@@ -174,7 +175,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#FCEDE6',
+    backgroundColor: colors.accentSurface,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
@@ -186,17 +187,17 @@ const styles = StyleSheet.create({
   stepTitle: {
     fontSize: 16,
     fontFamily: fonts.bold,
-    color: '#2D2D2D',
+    color: colors.ink,
     marginBottom: 3,
   },
   stepText: {
     fontSize: 15,
     fontFamily: fonts.regular,
-    color: '#8C7B6B',
+    color: colors.inkMuted,
     lineHeight: 22,
   },
   philosophyCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderRadius: 20,
     padding: 28,
     marginBottom: 40,
@@ -214,27 +215,27 @@ const styles = StyleSheet.create({
   manifestoLinkText: {
     fontSize: 16,
     fontFamily: fonts.bold,
-    color: '#E8734A',
+    color: colors.ember,
     marginRight: 6,
   },
   ctaSection: {
     alignItems: 'center',
   },
   primaryButton: {
-    backgroundColor: '#E8734A',
+    backgroundColor: colors.ember,
     borderRadius: 14,
     paddingVertical: 16,
     paddingHorizontal: 48,
     alignItems: 'center',
     alignSelf: 'stretch',
-    shadowColor: '#E8734A',
+    shadowColor: colors.ember,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
   primaryButtonText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 17,
     fontFamily: fonts.bold,
   },
@@ -243,7 +244,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   signInText: {
-    color: '#E8734A',
+    color: colors.ember,
     fontSize: 14,
     fontFamily: fonts.medium,
   },

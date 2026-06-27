@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Platform } from 'react-native';
+import { colors } from '../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
 import { fonts } from '../theme/typography';
 
@@ -17,9 +18,14 @@ export function useToast() {
 
 // On-brand tints, matching the inline feedback styles used elsewhere.
 const VARIANTS = {
-  success: { bg: '#EDF7EE', border: '#C3E2C6', fg: '#2F6B34', icon: 'checkmark-circle' },
-  error: { bg: '#FCEDE9', border: '#F3C9BD', fg: '#B5482E', icon: 'alert-circle' },
-  info: { bg: '#FFF3E9', border: '#F0D9C8', fg: '#9A6A3F', icon: 'leaf' },
+  success: {
+    bg: colors.successSurface,
+    border: '#C3E2C6',
+    fg: '#2F6B34',
+    icon: 'checkmark-circle',
+  },
+  error: { bg: colors.dangerSurface, border: '#F3C9BD', fg: colors.emberInk, icon: 'alert-circle' },
+  info: { bg: colors.accentSurface, border: '#F0D9C8', fg: '#9A6A3F', icon: 'leaf' },
 };
 
 let idSeq = 0;

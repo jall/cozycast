@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
+import { colors } from '../src/theme/colors';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { getNotifications } from '../src/api/client';
@@ -62,17 +63,17 @@ export default function NotificationsScreen() {
     <View style={styles.container} testID="notifications">
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <TouchableOpacity style={styles.backButton} onPress={goBack} activeOpacity={0.6}>
-          <Ionicons name="arrow-back" size={20} color="#E8734A" />
+          <Ionicons name="arrow-back" size={20} color={colors.ember} />
           <Text style={styles.backText}>Back</Text>
         </TouchableOpacity>
 
         <Text style={styles.title}>Notifications</Text>
 
         {loading ? (
-          <ActivityIndicator color="#E8734A" style={{ marginTop: 32 }} />
+          <ActivityIndicator color={colors.ember} style={{ marginTop: 32 }} />
         ) : items.length === 0 ? (
           <View style={styles.empty}>
-            <Ionicons name="notifications-off-outline" size={32} color="#D4C5B5" />
+            <Ionicons name="notifications-off-outline" size={32} color={colors.inkFaint} />
             <Text style={styles.emptyText}>Nothing yet — it’s calm in here.</Text>
           </View>
         ) : (
@@ -87,7 +88,7 @@ export default function NotificationsScreen() {
               <Ionicons
                 name={n.type === 'comment' ? 'chatbubble-outline' : 'paper-plane-outline'}
                 size={18}
-                color="#E8734A"
+                color={colors.ember}
                 style={styles.rowIcon}
               />
               <View style={styles.rowText}>
@@ -106,7 +107,7 @@ export default function NotificationsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF8F0',
+    backgroundColor: colors.bg,
   },
   content: {
     paddingHorizontal: 20,
@@ -122,13 +123,13 @@ const styles = StyleSheet.create({
   backText: {
     fontSize: 15,
     fontFamily: fonts.medium,
-    color: '#E8734A',
+    color: colors.ember,
     marginLeft: 4,
   },
   title: {
     fontSize: 24,
     fontFamily: fonts.bold,
-    color: '#2D2D2D',
+    color: colors.ink,
     marginBottom: 16,
   },
   empty: {
@@ -138,19 +139,19 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 14,
     fontFamily: fonts.regular,
-    color: '#A89888',
+    color: colors.inkMuted,
     marginTop: 10,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderRadius: 12,
     padding: 14,
     marginBottom: 8,
   },
   rowUnread: {
-    backgroundColor: '#FFF3EA',
+    backgroundColor: colors.accentSurface,
   },
   rowIcon: {
     marginRight: 12,
@@ -161,20 +162,20 @@ const styles = StyleSheet.create({
   rowBody: {
     fontSize: 14,
     fontFamily: fonts.medium,
-    color: '#2D2D2D',
+    color: colors.ink,
     lineHeight: 20,
   },
   rowTime: {
     fontSize: 12,
     fontFamily: fonts.regular,
-    color: '#A89888',
+    color: colors.inkMuted,
     marginTop: 2,
   },
   dot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#E8734A',
+    backgroundColor: colors.ember,
     marginLeft: 8,
   },
 });
