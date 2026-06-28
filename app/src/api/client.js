@@ -33,6 +33,13 @@ function extFromMime(mime) {
   return MIME_EXT[mime] || 'm4a';
 }
 
+const IMAGE_EXT = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/jpg': 'jpg',
+  'image/webp': 'webp',
+};
+
 async function storageHeaders(contentType) {
   const {
     data: { session },
@@ -105,8 +112,8 @@ async function uploadAudio(path, uri, contentType, onProgress) {
 // The joins the feed and the detail page both need on a cast row.
 const CAST_SELECT = `
   *,
-  creator:profiles!casts_creator_id_fkey(id, name, email),
-  sharer:profiles!casts_sharer_id_fkey(id, name, email),
+  creator:profiles!casts_creator_id_fkey(id, name, email, avatar_path),
+  sharer:profiles!casts_sharer_id_fkey(id, name, email, avatar_path),
   cast_participants(profile_id, name),
   cast_recipients(recipient_id)
 `;
@@ -132,8 +139,10 @@ function mapCast(cast, uid, played = false) {
     creator_id: creatorId,
     creator_name: cast.creator?.name || 'Someone',
     creator_email: cast.creator?.email || '',
+    creator_avatar: cast.creator?.avatar_path || null,
     sharer_name: cast.sharer?.name || cast.creator?.name || 'Someone',
     sharer_id: sharerId,
+    sharer_avatar: cast.sharer?.avatar_path || cast.creator?.avatar_path || null,
     participants: (cast.cast_participants || []).map((p) => p.name),
     recipient_count: (cast.cast_recipients || []).length,
     // Did this land in my feed because someone shared it with me (vs. mine)?
@@ -261,7 +270,7 @@ export async function shareCast(castId, recipientIds) {
 export async function getRecipients(castId) {
   const { data, error } = await supabase
     .from('cast_recipients')
-    .select('profiles!cast_recipients_recipient_id_fkey(id, name, email)')
+    .select('profiles!cast_recipients_recipient_id_fkey(id, name, email, avatar_path)')
     .eq('cast_id', castId);
   if (error) throw error;
   return (data || []).map((r) => r.profiles).filter(Boolean);
@@ -306,6 +315,60 @@ export async function getAudioUrl(audioPath) {
   return data?.signedUrl;
 }
 
+// ---- Avatars (profile pictures; public bucket) -----------------------------
+
+// Public URL for an avatar object path, or null when the user has no avatar.
+// The bucket is public, so this URL is stable and needs no signing; each upload
+// uses a fresh filename, so the URL changes when the avatar does (no stale cache).
+export function avatarUrl(path) {
+  if (!path) return null;
+  const { data } = supabase.storage.from('avatars').getPublicUrl(path);
+  return data?.publicUrl || null;
+}
+
+// Upload a new profile picture and point the user's profile at it. Uses a
+// unique filename per change ("<uid>/<timestamp>.<ext>") for cache-busting, then
+// removes the previous object best-effort (an orphan is harmless). Returns the
+// new path so the caller can update local state without a refetch.
+export async function uploadAvatar(uri, mimeType) {
+  const userId = await currentUserId();
+  if (!userId) throw new Error('You need to be signed in to set a picture.');
+
+  // Read the blob first so we can trust its real mime type (the picker's
+  // reported type is unreliable on web).
+  const blob = await (await fetch(uri)).blob();
+  const contentType = mimeType || blob.type || 'image/jpeg';
+  const ext = IMAGE_EXT[contentType] || 'jpg';
+  const path = `${userId}/${Date.now()}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('avatars')
+    .upload(path, blob, { contentType });
+  if (uploadError) throw uploadError;
+
+  // Read the old path before we overwrite it, so we can clean it up after.
+  const { data: prev } = await supabase
+    .from('profiles')
+    .select('avatar_path')
+    .eq('id', userId)
+    .single();
+
+  const { error: updateError } = await supabase
+    .from('profiles')
+    .update({ avatar_path: path })
+    .eq('id', userId);
+  if (updateError) throw updateError;
+
+  if (prev?.avatar_path && prev.avatar_path !== path) {
+    await supabase.storage
+      .from('avatars')
+      .remove([prev.avatar_path])
+      .catch(() => {});
+  }
+
+  return path;
+}
+
 // ---- Comments (RLS: anyone with cast access can read/post; author or cast
 // manager can delete) -------------------------------------------------------
 
@@ -316,6 +379,7 @@ function mapComment(row, uid) {
     created_at: row.created_at,
     author_id: row.author?.id || null,
     author_name: row.author?.name || 'Someone',
+    author_avatar: row.author?.avatar_path || null,
     mine: !!uid && row.author?.id === uid,
   };
 }
@@ -323,7 +387,9 @@ function mapComment(row, uid) {
 export async function getComments(castId) {
   const { data, error } = await supabase
     .from('cast_comments')
-    .select('id, body, created_at, author:profiles!cast_comments_author_id_fkey(id, name)')
+    .select(
+      'id, body, created_at, author:profiles!cast_comments_author_id_fkey(id, name, avatar_path)',
+    )
     .eq('cast_id', castId)
     .order('created_at', { ascending: true });
   if (error) throw error;
@@ -336,7 +402,9 @@ export async function addComment(castId, body) {
   const { data, error } = await supabase
     .from('cast_comments')
     .insert({ cast_id: castId, author_id: userId, body })
-    .select('id, body, created_at, author:profiles!cast_comments_author_id_fkey(id, name)')
+    .select(
+      'id, body, created_at, author:profiles!cast_comments_author_id_fkey(id, name, avatar_path)',
+    )
     .single();
   if (error) throw error;
   return mapComment(data, userId);
@@ -396,7 +464,7 @@ export async function getFriends() {
   const userId = await currentUserId();
   const { data, error } = await supabase
     .from('friendships')
-    .select('profiles!friendships_friend_id_fkey(id, name, email)')
+    .select('profiles!friendships_friend_id_fkey(id, name, email, avatar_path)')
     .eq('user_id', userId);
 
   if (error) throw error;
