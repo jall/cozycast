@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
+import { colors } from '../theme/colors';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
@@ -106,10 +107,10 @@ export default function ProfileScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Friends</Text>
         {loadingFriends ? (
-          <ActivityIndicator color="#E8734A" style={{ marginTop: 12 }} />
+          <ActivityIndicator color={colors.ember} style={{ marginTop: 12 }} />
         ) : friends.length === 0 ? (
           <View style={styles.emptySection}>
-            <Ionicons name="people-outline" size={32} color="#D4C5B5" />
+            <Ionicons name="people-outline" size={32} color={colors.inkFaint} />
             <Text style={styles.emptyText}>No friends yet. Share an invite code to connect!</Text>
           </View>
         ) : (
@@ -140,10 +141,10 @@ export default function ProfileScreen() {
           activeOpacity={0.8}
         >
           {generatingInvite ? (
-            <ActivityIndicator color="#FFF" size="small" />
+            <ActivityIndicator color={colors.white} size="small" />
           ) : (
             <>
-              <Ionicons name="add-circle-outline" size={20} color="#FFFFFF" />
+              <Ionicons name="add-circle-outline" size={20} color={colors.white} />
               <Text style={styles.generateText}>Generate Invite</Text>
             </>
           )}
@@ -166,7 +167,7 @@ export default function ProfileScreen() {
                     <Text style={[styles.inviteCode, used && styles.inviteUsed]}>{code}</Text>
                     <Text style={styles.inviteStatus}>{used ? 'Used' : 'Pending'}</Text>
                   </View>
-                  <Ionicons name="copy-outline" size={18} color="#A89888" />
+                  <Ionicons name="copy-outline" size={18} color={colors.inkMuted} />
                 </TouchableOpacity>
               );
             })}
@@ -176,7 +177,7 @@ export default function ProfileScreen() {
 
       {/* Logout */}
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.7}>
-        <Ionicons name="log-out-outline" size={20} color="#C0392B" />
+        <Ionicons name="log-out-outline" size={20} color={colors.danger} />
         <Text style={styles.logoutText}>Log Out</Text>
       </TouchableOpacity>
 
@@ -188,7 +189,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF8F0',
+    backgroundColor: colors.bg,
   },
   content: {
     paddingTop: 64,
@@ -205,31 +206,31 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#F4A261',
+    backgroundColor: colors.emberSoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
-    shadowColor: '#F4A261',
+    shadowColor: colors.emberSoft,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 4,
   },
   avatarLargeText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 32,
     fontFamily: fonts.bold,
   },
   userName: {
     fontSize: 24,
     fontFamily: fonts.bold,
-    color: '#2D2D2D',
+    color: colors.ink,
     marginBottom: 4,
   },
   userEmail: {
     fontSize: 14,
     fontFamily: fonts.regular,
-    color: '#8C7B6B',
+    color: colors.inkMuted,
   },
 
   // Sections
@@ -240,19 +241,19 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontFamily: fonts.bold,
-    color: '#2D2D2D',
+    color: colors.ink,
     marginBottom: 14,
   },
   emptySection: {
     alignItems: 'center',
     paddingVertical: 24,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderRadius: 16,
     paddingHorizontal: 24,
   },
   emptyText: {
     fontSize: 14,
-    color: '#A89888',
+    color: colors.inkMuted,
     textAlign: 'center',
     marginTop: 10,
     lineHeight: 20,
@@ -260,7 +261,7 @@ const styles = StyleSheet.create({
 
   // Friends
   friendsList: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderRadius: 16,
     overflow: 'hidden',
   },
@@ -269,19 +270,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F5EFE8',
+    borderBottomColor: colors.hairline,
   },
   friendAvatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#E8734A',
+    backgroundColor: colors.ember,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
   },
   friendAvatarText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 16,
     fontFamily: fonts.bold,
   },
@@ -291,23 +292,23 @@ const styles = StyleSheet.create({
   friendName: {
     fontSize: 15,
     fontFamily: fonts.medium,
-    color: '#2D2D2D',
+    color: colors.ink,
   },
   friendEmail: {
     fontSize: 13,
-    color: '#A89888',
+    color: colors.inkMuted,
     marginTop: 2,
   },
 
   // Invites
   generateButton: {
-    backgroundColor: '#E8734A',
+    backgroundColor: colors.ember,
     borderRadius: 14,
     paddingVertical: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#E8734A',
+    shadowColor: colors.ember,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
@@ -317,14 +318,14 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   generateText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 16,
     fontFamily: fonts.bold,
     marginLeft: 8,
   },
   invitesList: {
     marginTop: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderRadius: 16,
     overflow: 'hidden',
   },
@@ -334,7 +335,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F5EFE8',
+    borderBottomColor: colors.hairline,
   },
   inviteInfo: {
     flex: 1,
@@ -342,16 +343,16 @@ const styles = StyleSheet.create({
   },
   inviteCode: {
     fontSize: 15,
-    color: '#2D2D2D',
+    color: colors.ink,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   inviteUsed: {
-    color: '#A89888',
+    color: colors.inkMuted,
     textDecorationLine: 'line-through',
   },
   inviteStatus: {
     fontSize: 12,
-    color: '#A89888',
+    color: colors.inkMuted,
     marginTop: 2,
   },
 
@@ -362,13 +363,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginHorizontal: 24,
     paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#F0E6DA',
+    borderColor: colors.hairline,
   },
   logoutText: {
-    color: '#C0392B',
+    color: colors.danger,
     fontSize: 16,
     fontFamily: fonts.medium,
     marginLeft: 8,

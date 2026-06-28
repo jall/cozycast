@@ -10,6 +10,7 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
+import { colors } from '../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -130,13 +131,13 @@ export default function LoginScreen({ onBack }) {
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         {onBack && (
           <TouchableOpacity style={styles.backButton} onPress={onBack} activeOpacity={0.6}>
-            <Ionicons name="chevron-back" size={20} color="#8C7B6B" />
+            <Ionicons name="chevron-back" size={20} color={colors.inkMuted} />
             <Text style={styles.backText}>Back</Text>
           </TouchableOpacity>
         )}
         <View style={styles.header}>
           <Text style={styles.logo}>cozycast</Text>
-          <Text style={styles.tagline}>share moments with the people who matter</Text>
+          <Text style={styles.tagline}>for the conversations worth keeping</Text>
         </View>
 
         <View style={styles.card}>
@@ -172,7 +173,7 @@ export default function LoginScreen({ onBack }) {
                 value={name}
                 onChangeText={setName}
                 placeholder="Your name"
-                placeholderTextColor="#C4B5A8"
+                placeholderTextColor={colors.inkFaint}
                 autoCapitalize="words"
               />
             </View>
@@ -185,7 +186,7 @@ export default function LoginScreen({ onBack }) {
               value={email}
               onChangeText={setEmail}
               placeholder="you@example.com"
-              placeholderTextColor="#C4B5A8"
+              placeholderTextColor={colors.inkFaint}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
@@ -200,7 +201,7 @@ export default function LoginScreen({ onBack }) {
                 value={password}
                 onChangeText={setPassword}
                 placeholder="Your password"
-                placeholderTextColor="#C4B5A8"
+                placeholderTextColor={colors.inkFaint}
                 secureTextEntry
               />
               {!isSignup && (
@@ -223,7 +224,7 @@ export default function LoginScreen({ onBack }) {
                 value={inviteCode}
                 onChangeText={setInviteCode}
                 placeholder="Enter an invite code"
-                placeholderTextColor="#C4B5A8"
+                placeholderTextColor={colors.inkFaint}
                 autoCapitalize="none"
                 autoCorrect={false}
               />
@@ -237,7 +238,7 @@ export default function LoginScreen({ onBack }) {
             activeOpacity={0.8}
           >
             {submitting ? (
-              <ActivityIndicator color="#FFF" />
+              <ActivityIndicator color={colors.white} />
             ) : (
               <Text style={styles.buttonText}>
                 {resetMode ? 'Send reset link' : isSignup ? 'Sign Up' : 'Log In'}
@@ -269,7 +270,7 @@ export default function LoginScreen({ onBack }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF8F0',
+    backgroundColor: colors.bg,
   },
   scrollContent: {
     flexGrow: 1,
@@ -286,7 +287,7 @@ const styles = StyleSheet.create({
   },
   backText: {
     fontSize: 15,
-    color: '#8C7B6B',
+    color: colors.inkMuted,
     fontFamily: fonts.medium,
   },
   header: {
@@ -296,17 +297,17 @@ const styles = StyleSheet.create({
   logo: {
     fontSize: 42,
     fontFamily: fonts.display,
-    color: '#E8734A',
+    color: colors.ember,
     letterSpacing: -1,
   },
   tagline: {
     fontSize: 15,
-    color: '#8C7B6B',
+    color: colors.inkMuted,
     marginTop: 8,
     textAlign: 'center',
   },
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderRadius: 20,
     padding: 28,
     shadowColor: '#000',
@@ -318,7 +319,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 20,
     fontFamily: fonts.bold,
-    color: '#2D2D2D',
+    color: colors.ink,
     marginBottom: 24,
     textAlign: 'center',
   },
@@ -329,12 +330,12 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   feedbackError: {
-    backgroundColor: '#FCEDE9',
+    backgroundColor: colors.dangerSurface,
     borderWidth: 1,
     borderColor: '#F3C9BD',
   },
   feedbackSuccess: {
-    backgroundColor: '#EDF7EE',
+    backgroundColor: colors.successSurface,
     borderWidth: 1,
     borderColor: '#C3E2C6',
   },
@@ -344,7 +345,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.medium,
   },
   feedbackTextError: {
-    color: '#B5482E',
+    color: colors.emberInk,
   },
   feedbackTextSuccess: {
     color: '#3B7A3F',
@@ -355,19 +356,19 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontFamily: fonts.medium,
-    color: '#6B5E50',
+    color: colors.inkSoft,
     marginBottom: 6,
     marginLeft: 4,
   },
   input: {
-    backgroundColor: '#FFF8F0',
+    backgroundColor: colors.bg,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
-    color: '#2D2D2D',
+    color: colors.ink,
     borderWidth: 1,
-    borderColor: '#F0E6DA',
+    borderColor: colors.hairline,
   },
   forgotButton: {
     alignSelf: 'flex-end',
@@ -377,15 +378,15 @@ const styles = StyleSheet.create({
   forgotText: {
     fontSize: 13,
     fontFamily: fonts.medium,
-    color: '#E8734A',
+    color: colors.ember,
   },
   button: {
-    backgroundColor: '#E8734A',
+    backgroundColor: colors.ember,
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 8,
-    shadowColor: '#E8734A',
+    shadowColor: colors.ember,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -395,7 +396,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   buttonText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 17,
     fontFamily: fonts.bold,
   },
@@ -404,7 +405,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   toggleText: {
-    color: '#E8734A',
+    color: colors.ember,
     fontSize: 14,
     fontFamily: fonts.medium,
   },

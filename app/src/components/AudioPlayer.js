@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { colors } from '../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
 import { usePlayer } from '../context/PlayerContext';
 
@@ -35,7 +36,7 @@ export default function AudioPlayer({ uri, style, castId, title, seed, artist, d
   return (
     <View style={[styles.container, style]}>
       <TouchableOpacity onPress={handlePlayPause} style={styles.playButton} activeOpacity={0.7}>
-        <Ionicons name={playing ? 'pause' : 'play'} size={20} color="#FFFFFF" />
+        <Ionicons name={playing ? 'pause' : 'play'} size={20} color={colors.white} />
       </TouchableOpacity>
 
       <View style={styles.trackArea}>
@@ -61,11 +62,11 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#E8734A',
+    backgroundColor: colors.ember,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
-    shadowColor: '#E8734A',
+    shadowColor: colors.ember,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
@@ -76,13 +77,13 @@ const styles = StyleSheet.create({
   },
   progressBackground: {
     height: 6,
-    backgroundColor: '#F0E6DA',
+    backgroundColor: colors.hairline,
     borderRadius: 3,
     overflow: 'hidden',
   },
   progressFill: {
     height: 6,
-    backgroundColor: '#E8734A',
+    backgroundColor: colors.ember,
     borderRadius: 3,
   },
   timeRow: {
@@ -92,7 +93,7 @@ const styles = StyleSheet.create({
   },
   timeText: {
     fontSize: 11,
-    color: '#8C7B6B',
+    color: colors.inkMuted,
     fontVariant: ['tabular-nums'],
   },
 });

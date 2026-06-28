@@ -10,6 +10,7 @@ import {
   Animated,
   Platform,
 } from 'react-native';
+import { colors } from '../theme/colors';
 import { Audio } from 'expo-av';
 import * as DocumentPicker from 'expo-document-picker';
 import { Ionicons } from '@expo/vector-icons';
@@ -79,7 +80,7 @@ function PersonRow({ person, selected, onToggle }) {
       <Ionicons
         name={selected ? 'checkmark-circle' : 'ellipse-outline'}
         size={24}
-        color={selected ? '#E8734A' : '#D4C5B5'}
+        color={selected ? colors.ember : colors.inkFaint}
       />
     </TouchableOpacity>
   );
@@ -298,7 +299,7 @@ export default function RecordScreen() {
           activeOpacity={0.8}
         >
           <View style={styles.choiceIconWrap}>
-            <Ionicons name="mic" size={32} color="#E8734A" />
+            <Ionicons name="mic" size={32} color={colors.ember} />
           </View>
           <View style={styles.choiceTextWrap}>
             <Text style={styles.choiceTitle}>Record</Text>
@@ -313,7 +314,7 @@ export default function RecordScreen() {
           activeOpacity={0.8}
         >
           <View style={styles.choiceIconWrap}>
-            <Ionicons name="document-outline" size={32} color="#F4A261" />
+            <Ionicons name="document-outline" size={32} color={colors.emberSoft} />
           </View>
           <View style={styles.choiceTextWrap}>
             <Text style={styles.choiceTitle}>Pick a File</Text>
@@ -323,7 +324,7 @@ export default function RecordScreen() {
 
         <View style={styles.tipCard} testID="conversation-tip">
           <View style={styles.tipHeader}>
-            <Ionicons name="sparkles-outline" size={15} color="#E8734A" />
+            <Ionicons name="sparkles-outline" size={15} color={colors.ember} />
             <Text style={styles.tipLabel}>a tiny game</Text>
           </View>
           <Text style={styles.tipText}>{tip}</Text>
@@ -409,7 +410,7 @@ export default function RecordScreen() {
         <Text style={styles.screenSubtitle}>Tell people what this conversation was</Text>
 
         <View style={styles.audioPreviewRow}>
-          <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
+          <Ionicons name="checkmark-circle" size={24} color={colors.success} />
           <Text style={styles.audioPreviewText}>
             Audio ready
             {elapsed || pickedDuration ? ` (${formatElapsed(elapsed || pickedDuration)})` : ''}
@@ -423,7 +424,7 @@ export default function RecordScreen() {
             value={title}
             onChangeText={setTitle}
             placeholder="What's this about?"
-            placeholderTextColor="#C4B5A8"
+            placeholderTextColor={colors.inkFaint}
           />
         </View>
 
@@ -434,7 +435,7 @@ export default function RecordScreen() {
             value={summary}
             onChangeText={setSummary}
             placeholder="A little about the conversation..."
-            placeholderTextColor="#C4B5A8"
+            placeholderTextColor={colors.inkFaint}
             multiline
             numberOfLines={3}
             textAlignVertical="top"
@@ -560,7 +561,7 @@ export default function RecordScreen() {
   function renderDone() {
     return (
       <View style={styles.doneContainer}>
-        <Ionicons name="checkmark-circle" size={72} color="#4CAF50" />
+        <Ionicons name="checkmark-circle" size={72} color={colors.success} />
         <Text style={styles.doneTitle}>All set!</Text>
         <Text style={styles.doneBody}>
           Your cast is saved{recipientIds.length > 0 ? ' and on its way to your people' : ''}.
@@ -586,7 +587,7 @@ export default function RecordScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF8F0',
+    backgroundColor: colors.bg,
   },
 
   // Choice screen
@@ -598,17 +599,17 @@ const styles = StyleSheet.create({
   screenTitle: {
     fontSize: 28,
     fontFamily: fonts.display,
-    color: '#2D2D2D',
+    color: colors.ink,
     marginBottom: 8,
   },
   screenSubtitle: {
     fontSize: 15,
     fontFamily: fonts.regular,
-    color: '#8C7B6B',
+    color: colors.inkMuted,
     marginBottom: 36,
   },
   choiceCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderRadius: 18,
     padding: 24,
     flexDirection: 'row',
@@ -624,7 +625,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 16,
-    backgroundColor: '#FFF0E6',
+    backgroundColor: colors.accentSurface,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 18,
@@ -635,18 +636,18 @@ const styles = StyleSheet.create({
   choiceTitle: {
     fontSize: 17,
     fontFamily: fonts.bold,
-    color: '#2D2D2D',
+    color: colors.ink,
     marginBottom: 4,
   },
   choiceDesc: {
     fontSize: 14,
     fontFamily: fonts.regular,
-    color: '#8C7B6B',
+    color: colors.inkMuted,
   },
 
   // Conversation prompt ("a tiny game")
   tipCard: {
-    backgroundColor: '#FCEDE6',
+    backgroundColor: colors.accentSurface,
     borderRadius: 16,
     padding: 18,
     marginTop: 12,
@@ -659,7 +660,7 @@ const styles = StyleSheet.create({
   tipLabel: {
     fontSize: 12,
     fontFamily: fonts.bold,
-    color: '#E8734A',
+    color: colors.ember,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
     marginLeft: 6,
@@ -667,7 +668,7 @@ const styles = StyleSheet.create({
   tipText: {
     fontSize: 15,
     fontFamily: fonts.medium,
-    color: '#6B5E50',
+    color: colors.inkSoft,
     lineHeight: 21,
   },
 
@@ -681,13 +682,13 @@ const styles = StyleSheet.create({
   recordingLabel: {
     fontSize: 18,
     fontFamily: fonts.medium,
-    color: '#E8734A',
+    color: colors.ember,
     marginBottom: 12,
   },
   elapsed: {
     fontSize: 48,
     fontFamily: fonts.regular,
-    color: '#2D2D2D',
+    color: colors.ink,
     fontVariant: ['tabular-nums'],
     marginBottom: 48,
   },
@@ -709,10 +710,10 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: '#E8734A',
+    backgroundColor: colors.ember,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#E8734A',
+    shadowColor: colors.ember,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 10,
@@ -722,11 +723,11 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 4,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
   },
   recordingHint: {
     fontSize: 14,
-    color: '#A89888',
+    color: colors.inkMuted,
   },
 
   // Form
@@ -741,14 +742,14 @@ const styles = StyleSheet.create({
   audioPreviewRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F0FAF0',
+    backgroundColor: colors.successSurface,
     borderRadius: 12,
     padding: 14,
     marginBottom: 28,
   },
   audioPreviewText: {
     fontSize: 14,
-    color: '#4CAF50',
+    color: colors.success,
     fontFamily: fonts.medium,
     marginLeft: 10,
   },
@@ -757,19 +758,19 @@ const styles = StyleSheet.create({
   },
   uploadTrack: {
     height: 8,
-    backgroundColor: '#F0E6DA',
+    backgroundColor: colors.hairline,
     borderRadius: 4,
     overflow: 'hidden',
   },
   uploadFill: {
     height: 8,
-    backgroundColor: '#E8734A',
+    backgroundColor: colors.ember,
     borderRadius: 4,
   },
   uploadPct: {
     fontSize: 12,
     fontFamily: fonts.medium,
-    color: '#8C7B6B',
+    color: colors.inkMuted,
     marginTop: 6,
     textAlign: 'center',
   },
@@ -779,26 +780,26 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontFamily: fonts.medium,
-    color: '#6B5E50',
+    color: colors.inkSoft,
     marginBottom: 6,
     marginLeft: 4,
   },
   helpText: {
     fontSize: 13,
-    color: '#A89888',
+    color: colors.inkMuted,
     marginBottom: 8,
     marginLeft: 4,
     lineHeight: 19,
   },
   input: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
-    color: '#2D2D2D',
+    color: colors.ink,
     borderWidth: 1,
-    borderColor: '#F0E6DA',
+    borderColor: colors.hairline,
   },
   textArea: {
     minHeight: 80,
@@ -807,7 +808,7 @@ const styles = StyleSheet.create({
 
   // Person list (participants / recipients)
   personList: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderRadius: 16,
     overflow: 'hidden',
   },
@@ -816,19 +817,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#F5EFE8',
+    borderBottomColor: colors.hairline,
   },
   personAvatar: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#F4A261',
+    backgroundColor: colors.emberSoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
   personAvatarText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 15,
     fontFamily: fonts.bold,
   },
@@ -838,11 +839,11 @@ const styles = StyleSheet.create({
   personName: {
     fontSize: 15,
     fontFamily: fonts.medium,
-    color: '#2D2D2D',
+    color: colors.ink,
   },
   personEmail: {
     fontSize: 13,
-    color: '#A89888',
+    color: colors.inkMuted,
     marginTop: 2,
   },
 
@@ -852,35 +853,35 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   chip: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 10,
     marginRight: 8,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#F0E6DA',
+    borderColor: colors.hairline,
   },
   chipActive: {
-    backgroundColor: '#E8734A',
-    borderColor: '#E8734A',
+    backgroundColor: colors.ember,
+    borderColor: colors.ember,
   },
   chipText: {
     fontSize: 14,
     fontFamily: fonts.medium,
-    color: '#6B5E50',
+    color: colors.inkSoft,
   },
   chipTextActive: {
-    color: '#FFFFFF',
+    color: colors.white,
   },
 
   submitButton: {
-    backgroundColor: '#E8734A',
+    backgroundColor: colors.ember,
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 12,
-    shadowColor: '#E8734A',
+    shadowColor: colors.ember,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -890,7 +891,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   submitText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 17,
     fontFamily: fonts.bold,
   },
@@ -900,7 +901,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   cancelText: {
-    color: '#A89888',
+    color: colors.inkMuted,
     fontSize: 15,
     fontFamily: fonts.medium,
   },
@@ -915,14 +916,14 @@ const styles = StyleSheet.create({
   doneTitle: {
     fontSize: 24,
     fontFamily: fonts.bold,
-    color: '#2D2D2D',
+    color: colors.ink,
     marginTop: 20,
     marginBottom: 10,
   },
   doneBody: {
     fontSize: 15,
     fontFamily: fonts.regular,
-    color: '#8C7B6B',
+    color: colors.inkMuted,
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: 32,

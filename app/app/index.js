@@ -5,24 +5,31 @@ import FeedScreen from '../src/screens/FeedScreen';
 import RecordScreen from '../src/screens/RecordScreen';
 import ProfileScreen from '../src/screens/ProfileScreen';
 import MiniPlayer from '../src/components/MiniPlayer';
-import { fonts } from '../src/theme/typography';
+import { colors } from '../src/theme/colors';
+import { type } from '../src/theme/type';
+import { space } from '../src/theme/space';
 
 function TabBar({ active, onNavigate }) {
   const tabs = [
-    { key: 'feed', label: 'Feed', icon: 'home' },
+    { key: 'feed', label: 'Home', icon: 'home' },
     { key: 'record', label: 'Record', icon: 'mic' },
-    { key: 'profile', label: 'Profile', icon: 'person' },
+    { key: 'profile', label: 'You', icon: 'person' },
   ];
   return (
     <View style={styles.tabBar}>
-      {tabs.map((tab) => (
-        <TouchableOpacity key={tab.key} style={styles.tab} onPress={() => onNavigate(tab.key)}>
-          <Ionicons name={tab.icon} size={24} color={active === tab.key ? '#E8734A' : '#B0A090'} />
-          <Text style={[styles.tabLabel, active === tab.key && styles.tabLabelActive]}>
-            {tab.label}
-          </Text>
-        </TouchableOpacity>
-      ))}
+      {tabs.map((tab) => {
+        const on = active === tab.key;
+        return (
+          <TouchableOpacity key={tab.key} style={styles.tab} onPress={() => onNavigate(tab.key)}>
+            <Ionicons
+              name={on ? tab.icon : `${tab.icon}-outline`}
+              size={24}
+              color={on ? colors.ember : colors.inkMuted}
+            />
+            <Text style={[styles.tabLabel, on && styles.tabLabelActive]}>{tab.label}</Text>
+          </TouchableOpacity>
+        );
+      })}
     </View>
   );
 }
@@ -49,19 +56,19 @@ export default function Home() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF8F0',
+    backgroundColor: colors.bg,
   },
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderTopWidth: 0,
-    elevation: 8,
-    shadowColor: '#000',
+    shadowColor: '#7A5A3A',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.06,
-    shadowRadius: 8,
+    shadowRadius: 12,
+    elevation: 8,
     height: 88,
-    paddingTop: 8,
+    paddingTop: space.sm,
     paddingBottom: 28,
   },
   tab: {
@@ -70,12 +77,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   tabLabel: {
+    ...type.caption,
+    fontFamily: type.label.fontFamily,
     fontSize: 11,
-    fontFamily: fonts.medium,
-    color: '#B0A090',
-    marginTop: 4,
+    color: colors.inkMuted,
+    marginTop: space.xs,
   },
   tabLabelActive: {
-    color: '#E8734A',
+    color: colors.ember,
   },
 });

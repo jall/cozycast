@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { colors } from '../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
 import CastCover from './CastCover';
 import { usePlayer } from '../context/PlayerContext';
@@ -39,7 +40,7 @@ export default function MiniPlayer() {
           activeOpacity={0.7}
           accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
         >
-          <Ionicons name={isPlaying ? 'pause' : 'play'} size={20} color="#FFFFFF" />
+          <Ionicons name={isPlaying ? 'pause' : 'play'} size={20} color={colors.white} />
         </TouchableOpacity>
         <TouchableOpacity
           onPress={stop}
@@ -47,7 +48,7 @@ export default function MiniPlayer() {
           activeOpacity={0.7}
           accessibilityLabel="Close player"
         >
-          <Ionicons name="close" size={20} color="#A89888" />
+          <Ionicons name="close" size={20} color={colors.inkMuted} />
         </TouchableOpacity>
       </View>
     </View>
@@ -56,17 +57,17 @@ export default function MiniPlayer() {
 
 const styles = StyleSheet.create({
   wrap: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderTopWidth: 1,
-    borderTopColor: '#F0E6DA',
+    borderTopColor: colors.hairline,
   },
   progressTrack: {
     height: 3,
-    backgroundColor: '#F0E6DA',
+    backgroundColor: colors.hairline,
   },
   progressFill: {
     height: 3,
-    backgroundColor: '#E8734A',
+    backgroundColor: colors.ember,
   },
   row: {
     flexDirection: 'row',
@@ -82,19 +83,19 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 14,
     fontFamily: fonts.bold,
-    color: '#2D2D2D',
+    color: colors.ink,
   },
   artist: {
     fontSize: 12,
     fontFamily: fonts.regular,
-    color: '#A89888',
+    color: colors.inkMuted,
     marginTop: 1,
   },
   playButton: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#E8734A',
+    backgroundColor: colors.ember,
     alignItems: 'center',
     justifyContent: 'center',
   },
