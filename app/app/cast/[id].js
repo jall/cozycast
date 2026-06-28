@@ -141,7 +141,14 @@ export default function CastDetailScreen() {
     }
   }
 
-  async function handleDeleteComment(commentId) {
+  function handleDeleteComment(commentId) {
+    showAlert('Delete this comment?', 'This can’t be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => doDeleteComment(commentId) },
+    ]);
+  }
+
+  async function doDeleteComment(commentId) {
     // Optimistic: drop it, restore on failure.
     const prev = comments;
     setComments((cs) => cs.filter((c) => c.id !== commentId));

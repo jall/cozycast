@@ -345,6 +345,8 @@ test.describe('signed in (local fixtures)', () => {
     // Wait for the DELETE to persist (the UI removes optimistically) so the row
     // isn't left behind when the test ends.
     const row = comments.getByTestId('comment-row').filter({ hasText: body });
+    // Deleting a comment now asks for confirmation (showAlert → window.confirm on web).
+    page.once('dialog', (dialog) => dialog.accept());
     await Promise.all([
       page.waitForResponse(
         (r) => r.url().includes('cast_comments') && r.request().method() === 'DELETE',
