@@ -1,18 +1,36 @@
-// Deterministic cover art derived from a cast's id: same input → same warm
-// look, no image generation needed. Shared by the on-screen <CastCover> and the
-// raster artwork we hand to the OS media session (lock screen / control center).
-// (A richer AI-generated cover can replace this later behind an Edge Function.)
+// Deterministic cover art derived from a cast's id: same input → same warm,
+// handmade-feeling look, no image generation needed. Shared by the on-screen
+// <CastCover> and the raster artwork handed to the OS media session (lock
+// screen / control center). A richer AI-generated cover can replace this later
+// behind an Edge Function (#6).
 
-// Cozy two-tone palettes (background + soft accent blob).
+// Cozy palettes: a base, a soft accent (light blob), and a deeper shade (for a
+// gradient-ish second blob and depth).
 export const PALETTES = [
-  ['#E8734A', '#F4A261'],
-  ['#C97B5A', '#E8A87C'],
-  ['#A8763E', '#E8C06A'],
-  ['#7C9A7E', '#B5CDA3'],
-  ['#6B8E9E', '#A9C5D1'],
-  ['#9B6A8F', '#D2A6C7'],
-  ['#B5654A', '#E89B7C'],
-  ['#8A8FB0', '#C2C6E0'],
+  { base: '#E8734A', accent: '#F4A261', deep: '#C2562F' },
+  { base: '#C97B5A', accent: '#E8A87C', deep: '#A85C3E' },
+  { base: '#A8763E', accent: '#E8C06A', deep: '#855A28' },
+  { base: '#7C9A7E', accent: '#B5CDA3', deep: '#5E7C60' },
+  { base: '#6B8E9E', accent: '#A9C5D1', deep: '#4E707F' },
+  { base: '#9B6A8F', accent: '#D2A6C7', deep: '#7A4E70' },
+  { base: '#B5654A', accent: '#E89B7C', deep: '#8F4A33' },
+  { base: '#8A8FB0', accent: '#C2C6E0', deep: '#686D8E' },
+];
+
+// Crisp line glyphs (Ionicons "-outline" names) — consistent across platforms,
+// unlike system emoji. Order pairs with GLYPHS (the emoji fallback the canvas
+// artwork still uses, since drawing icon fonts to canvas is impractical).
+export const ICONS = [
+  'cafe-outline',
+  'moon-outline',
+  'leaf-outline',
+  'sparkles-outline',
+  'flower-outline',
+  'flame-outline',
+  'wine-outline',
+  'radio-outline',
+  'bonfire-outline',
+  'sunny-outline',
 ];
 
 export const GLYPHS = ['☕', '🌙', '🍂', '✨', '🪴', '🔥', '🫖', '📻', '🕯️', '🌻'];
@@ -27,10 +45,22 @@ export function hash(str) {
   return Math.abs(h);
 }
 
-// The palette + glyph for a given cast (keyed by id, falling back to title).
+// The look for a given cast (keyed by id, falling back to title): palette, a
+// glyph (icon for screens, emoji for canvas), and deterministic blob placement
+// so each cover feels individually composed rather than stamped.
 export function coverFor(seed, title) {
   const h = hash(seed || title || 'cozycast');
-  const [base, accent] = PALETTES[h % PALETTES.length];
-  const glyph = GLYPHS[(h >> 3) % GLYPHS.length];
-  return { base, accent, glyph };
+  const palette = PALETTES[h % PALETTES.length];
+  const i = (h >> 3) % ICONS.length;
+  // Deterministic blob offsets (fractions of the cover), nudged per cast.
+  const accentX = 0.62 + ((h >> 6) % 5) * 0.05; // 0.62–0.82
+  const accentY = 0.08 + ((h >> 9) % 4) * 0.05; // 0.08–0.23
+  const deepX = 0.12 + ((h >> 12) % 4) * 0.05; // 0.12–0.27
+  const deepY = 0.78 + ((h >> 15) % 4) * 0.04; // 0.78–0.90
+  return {
+    ...palette,
+    icon: ICONS[i],
+    glyph: GLYPHS[i],
+    blobs: { accentX, accentY, deepX, deepY },
+  };
 }
