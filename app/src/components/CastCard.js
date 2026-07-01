@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import AudioPlayer from './AudioPlayer';
 import CastCover from './CastCover';
+import Avatar from './Avatar';
 import { getAudioUrl, deleteCast } from '../api/client';
 import { usePlayer } from '../context/PlayerContext';
 import { useToast } from '../context/ToastContext';
@@ -40,7 +41,9 @@ export default function CastCard({ cast, index = 0, onDeleted }) {
     summary,
     description,
     creator_name,
+    creator_avatar,
     sharer_name,
+    sharer_avatar,
     participants,
     recipient_count,
     shared_with_me,
@@ -132,10 +135,18 @@ export default function CastCard({ cast, index = 0, onDeleted }) {
             <Text style={styles.title} numberOfLines={2}>
               {title}
             </Text>
-            <Text style={styles.byline}>
-              {shared_with_me ? `Shared by ${sharer_name || creator_name}` : creator_name} ·{' '}
-              {timeAgo(created_at)}
-            </Text>
+            <View style={styles.bylineRow}>
+              <Avatar
+                name={shared_with_me ? sharer_name || creator_name : creator_name}
+                path={shared_with_me ? sharer_avatar || creator_avatar : creator_avatar}
+                size={18}
+                style={styles.bylineAvatar}
+              />
+              <Text style={styles.byline} numberOfLines={1}>
+                {shared_with_me ? `Shared by ${sharer_name || creator_name}` : creator_name} ·{' '}
+                {timeAgo(created_at)}
+              </Text>
+            </View>
           </View>
         </TouchableOpacity>
         {unheard ? <View style={styles.unheardDot} accessibilityLabel="Unheard" /> : null}
@@ -251,9 +262,17 @@ const styles = StyleSheet.create({
     color: colors.ink,
     marginBottom: space.xs,
   },
+  bylineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  bylineAvatar: {
+    marginRight: space.xs + 2,
+  },
   byline: {
     ...type.caption,
     color: colors.inkMuted,
+    flex: 1,
   },
   summary: {
     ...type.bodySm,
