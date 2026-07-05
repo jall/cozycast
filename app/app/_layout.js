@@ -49,7 +49,7 @@ function LoadingScreen() {
   return (
     <View style={styles.loading}>
       <Text style={styles.loadingLogo}>cozycast</Text>
-      <ActivityIndicator size="large" color="#E8734A" style={{ marginTop: 24 }} />
+      <ActivityIndicator size="large" color={colors.ember} style={{ marginTop: 24 }} />
     </View>
   );
 }
@@ -144,19 +144,19 @@ const styles = StyleSheet.create({
   loadingLogo: {
     fontSize: 36,
     fontFamily: fonts.display,
-    color: '#E8734A',
+    color: colors.ember,
     letterSpacing: -1,
   },
   errorText: {
     fontSize: 15,
     fontFamily: fonts.regular,
-    color: '#8C7B6B',
+    color: colors.inkSoft,
     marginTop: 16,
   },
   errorButton: {
     marginTop: 20,
-    backgroundColor: '#E8734A',
-    borderRadius: 12,
+    backgroundColor: colors.ember,
+    borderRadius: 999,
     paddingHorizontal: 24,
     paddingVertical: 12,
   },

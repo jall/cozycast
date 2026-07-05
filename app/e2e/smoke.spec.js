@@ -117,7 +117,7 @@ test.describe('signed in', () => {
       .getByText(/^record$/i)
       .first()
       .click();
-    await expect(page.getByText(/new cast/i)).toBeVisible();
+    await expect(page.getByText(/start a cast/i)).toBeVisible();
     // The "soft game" conversation prompt is shown on the record screen.
     await expect(page.getByTestId('conversation-tip')).toBeVisible();
 
@@ -127,17 +127,17 @@ test.describe('signed in', () => {
 
     // Stop, and confirm we advance to the details (summary/participants) form.
     await page.getByTestId('record-stop').click();
-    await expect(page.getByText(/add some details/i)).toBeVisible({ timeout: 15000 });
-    await expect(page.getByText(/audio ready/i)).toBeVisible();
+    await expect(page.getByText(/a few words/i)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/sounds good/i)).toBeVisible();
 
     // Submitting with no title surfaces a (non-blocking) toast — and writes
     // nothing to the backend.
-    await page.getByText(/continue to sharing/i).click();
+    await page.getByText(/choose who hears it/i).click();
     await expect(page.getByText(/give your cast a title/i)).toBeVisible();
 
     // Back out without creating anything.
     await page.getByText(/^cancel$/i).click();
-    await expect(page.getByText(/new cast/i)).toBeVisible();
+    await expect(page.getByText(/start a cast/i)).toBeVisible();
   });
 
   // Full round-trip for the shareable cast detail page (#11): record a real
@@ -157,16 +157,16 @@ test.describe('signed in', () => {
     await page.getByTestId('record-start').click();
     await expect(page.getByText(/recording/i)).toBeVisible();
     await page.getByTestId('record-stop').click();
-    await expect(page.getByText(/add some details/i)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/a few words/i)).toBeVisible({ timeout: 15000 });
 
     // Title + create (uploads the audio and inserts the cast row).
     await page.getByPlaceholder(/what's this about/i).fill(title);
-    await page.getByText(/continue to sharing/i).click();
+    await page.getByText(/choose who hears it/i).click();
 
     // Sharing step → skip (no recipients) → done.
-    await expect(page.getByText(/^share with/i)).toBeVisible({ timeout: 20000 });
+    await expect(page.getByText(/who.s this for/i)).toBeVisible({ timeout: 20000 });
     await page.getByText(/skip for now/i).click();
-    await expect(page.getByText(/all set/i)).toBeVisible({ timeout: 20000 });
+    await expect(page.getByText(/it.s kept/i)).toBeVisible({ timeout: 20000 });
 
     // Back to the feed (refetches on focus); the new cast is on top. Open it.
     await page
@@ -294,18 +294,18 @@ test.describe('signed in (local fixtures)', () => {
     await page.getByTestId('record-start').click();
     await expect(page.getByText(/recording/i)).toBeVisible();
     await page.getByTestId('record-stop').click();
-    await expect(page.getByText(/add some details/i)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/a few words/i)).toBeVisible({ timeout: 15000 });
 
     // Title + tag Ben as a participant.
     await page.getByPlaceholder(/what's this about/i).fill(title);
     await page.getByText('Ben', { exact: true }).click();
-    await page.getByText(/continue to sharing/i).click();
+    await page.getByText(/choose who hears it/i).click();
 
     // Sharing step: pick Ben as a recipient and send.
-    await expect(page.getByText(/^share with/i)).toBeVisible({ timeout: 20000 });
+    await expect(page.getByText(/who.s this for/i)).toBeVisible({ timeout: 20000 });
     await page.getByText('Ben', { exact: true }).click();
     await page.getByText(/share with 1 person/i).click();
-    await expect(page.getByText(/all set/i)).toBeVisible({ timeout: 20000 });
+    await expect(page.getByText(/it.s kept/i)).toBeVisible({ timeout: 20000 });
 
     // Open it from the feed; the detail page reflects the participant + recipient.
     await page

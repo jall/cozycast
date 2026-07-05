@@ -54,7 +54,7 @@ function timeAgo(dateString) {
 function BackButton({ onPress }) {
   return (
     <TouchableOpacity style={styles.backButton} onPress={onPress} activeOpacity={0.6}>
-      <Ionicons name="arrow-back" size={20} color={colors.ember} />
+      <Ionicons name="arrow-back" size={20} color={colors.emberInk} />
       <Text style={styles.backText}>Back</Text>
     </TouchableOpacity>
   );
@@ -456,7 +456,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     marginBottom: space.md,
   },
-  backText: { ...type.label, color: colors.ember, marginLeft: space.xs },
+  backText: { ...type.label, color: colors.emberInk, marginLeft: space.xs },
   hero: { alignItems: 'center', marginTop: space.sm, marginBottom: space.xl },
   title: { ...type.h1, color: colors.ink, textAlign: 'center', marginTop: space.lg },
   bylineRow: {

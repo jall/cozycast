@@ -18,7 +18,8 @@ import { createCast, shareCast, getFriends } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { fonts } from '../theme/typography';
-import { layout } from '../theme/space';
+import { type } from '../theme/type';
+import { space, radius, elevation, layout } from '../theme/space';
 import { randomTip } from '../constants/tips';
 
 function formatElapsed(seconds) {
@@ -290,8 +291,8 @@ export default function RecordScreen() {
   function renderChoiceScreen() {
     return (
       <View style={styles.choiceContainer}>
-        <Text style={styles.screenTitle}>New Cast</Text>
-        <Text style={styles.screenSubtitle}>Record a conversation, then choose who hears it</Text>
+        <Text style={styles.screenTitle}>Start a cast</Text>
+        <Text style={styles.screenSubtitle}>say something, then choose who hears it</Text>
 
         <TouchableOpacity
           testID="record-start"
@@ -318,8 +319,8 @@ export default function RecordScreen() {
             <Ionicons name="document-outline" size={32} color={colors.emberSoft} />
           </View>
           <View style={styles.choiceTextWrap}>
-            <Text style={styles.choiceTitle}>Pick a File</Text>
-            <Text style={styles.choiceDesc}>Upload an existing audio file</Text>
+            <Text style={styles.choiceTitle}>Pick a file</Text>
+            <Text style={styles.choiceDesc}>Bring a conversation you already have</Text>
           </View>
         </TouchableOpacity>
 
@@ -337,7 +338,7 @@ export default function RecordScreen() {
   function renderRecordingScreen() {
     return (
       <View style={styles.recordingContainer}>
-        <Text style={styles.recordingLabel}>Recording...</Text>
+        <Text style={styles.recordingLabel}>recording</Text>
         <Text style={styles.elapsed}>{formatElapsed(elapsed)}</Text>
 
         <View style={styles.pulseWrap}>
@@ -407,13 +408,13 @@ export default function RecordScreen() {
         contentContainerStyle={styles.formContent}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.screenTitle}>Add some details</Text>
-        <Text style={styles.screenSubtitle}>Tell people what this conversation was</Text>
+        <Text style={styles.screenTitle}>A few words</Text>
+        <Text style={styles.screenSubtitle}>what was this conversation?</Text>
 
         <View style={styles.audioPreviewRow}>
           <Ionicons name="checkmark-circle" size={24} color={colors.success} />
           <Text style={styles.audioPreviewText}>
-            Audio ready
+            Got it — sounds good
             {elapsed || pickedDuration ? ` (${formatElapsed(elapsed || pickedDuration)})` : ''}
           </Text>
         </View>
@@ -487,9 +488,9 @@ export default function RecordScreen() {
           activeOpacity={0.8}
         >
           {submitting ? (
-            <ActivityIndicator color="#FFF" />
+            <ActivityIndicator color={colors.onEmber} />
           ) : (
-            <Text style={styles.submitText}>Continue to sharing</Text>
+            <Text style={styles.submitText}>Choose who hears it</Text>
           )}
         </TouchableOpacity>
 
@@ -508,11 +509,11 @@ export default function RecordScreen() {
         contentContainerStyle={styles.formContent}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.screenTitle}>Share with…</Text>
+        <Text style={styles.screenTitle}>Who’s this for?</Text>
         <Text style={styles.screenSubtitle}>
           {sharerIsMe
-            ? 'Pick exactly who receives this. No one else will ever see it.'
-            : "You assigned someone else to share this — they'll choose the recipients."}
+            ? 'choose the people who get to hear it. no one else, ever.'
+            : "you asked someone else to share this — they'll choose who hears it."}
         </Text>
 
         {sharerIsMe ? (
@@ -542,7 +543,7 @@ export default function RecordScreen() {
           activeOpacity={0.8}
         >
           {submitting ? (
-            <ActivityIndicator color="#FFF" />
+            <ActivityIndicator color={colors.onEmber} />
           ) : (
             <Text style={styles.submitText}>
               {sharerIsMe
@@ -563,9 +564,11 @@ export default function RecordScreen() {
     return (
       <View style={styles.doneContainer}>
         <Ionicons name="checkmark-circle" size={72} color={colors.success} />
-        <Text style={styles.doneTitle}>All set!</Text>
+        <Text style={styles.doneTitle}>It’s kept.</Text>
         <Text style={styles.doneBody}>
-          Your cast is saved{recipientIds.length > 0 ? ' and on its way to your people' : ''}.
+          {recipientIds.length > 0
+            ? 'Your cast is safe, and on its way to the people you chose.'
+            : 'Your cast is safe — share it whenever you’re ready.'}
         </Text>
         <TouchableOpacity style={styles.submitButton} onPress={resetState} activeOpacity={0.8}>
           <Text style={styles.submitText}>Record another</Text>
@@ -606,79 +609,71 @@ const styles = StyleSheet.create({
     paddingTop: 72,
   },
   screenTitle: {
-    fontSize: 28,
-    fontFamily: fonts.display,
+    ...type.h1,
     color: colors.ink,
-    marginBottom: 8,
+    marginBottom: space.sm,
   },
   screenSubtitle: {
+    ...type.bodySm,
     fontSize: 15,
-    fontFamily: fonts.regular,
     color: colors.inkMuted,
-    marginBottom: 36,
+    marginBottom: space['2xl'],
   },
   choiceCard: {
-    backgroundColor: colors.white,
-    borderRadius: 18,
-    padding: 24,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    padding: space.xl,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
+    marginBottom: space.lg,
+    ...elevation.rest,
   },
   choiceIconWrap: {
     width: 56,
     height: 56,
-    borderRadius: 16,
+    borderRadius: radius.sm,
     backgroundColor: colors.accentSurface,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 18,
+    marginRight: space.lg + 2,
   },
   choiceTextWrap: {
     flex: 1,
   },
   choiceTitle: {
+    ...type.h3,
     fontSize: 17,
-    fontFamily: fonts.bold,
     color: colors.ink,
-    marginBottom: 4,
+    marginBottom: space.xs,
   },
   choiceDesc: {
-    fontSize: 14,
-    fontFamily: fonts.regular,
+    ...type.bodySm,
     color: colors.inkMuted,
   },
 
   // Conversation prompt ("a tiny game")
   tipCard: {
     backgroundColor: colors.accentSurface,
-    borderRadius: 16,
-    padding: 18,
-    marginTop: 12,
+    borderRadius: radius.md,
+    padding: space.lg + 2,
+    marginTop: space.md,
   },
   tipHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: space.sm,
   },
   tipLabel: {
-    fontSize: 12,
-    fontFamily: fonts.bold,
-    color: colors.ember,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-    marginLeft: 6,
+    ...type.eyebrow,
+    color: colors.emberInk,
+    marginLeft: space.xs + 2,
   },
   tipText: {
+    ...type.bodySm,
     fontSize: 15,
+    lineHeight: 22,
     fontFamily: fonts.medium,
     color: colors.inkSoft,
-    lineHeight: 21,
   },
 
   // Recording screen
@@ -689,17 +684,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   recordingLabel: {
-    fontSize: 18,
-    fontFamily: fonts.medium,
-    color: colors.ember,
-    marginBottom: 12,
+    ...type.eyebrow,
+    fontSize: 14,
+    lineHeight: 18,
+    color: colors.emberInk,
+    letterSpacing: 1,
+    marginBottom: space.md,
   },
   elapsed: {
-    fontSize: 48,
-    fontFamily: fonts.regular,
+    ...type.numeric,
     color: colors.ink,
-    fontVariant: ['tabular-nums'],
-    marginBottom: 48,
+    marginBottom: space['3xl'],
   },
   pulseWrap: {
     width: 96,
@@ -712,21 +707,18 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 96,
     height: 96,
-    borderRadius: 48,
-    backgroundColor: 'rgba(232, 115, 74, 0.12)',
+    borderRadius: radius.pill,
+    // The one place ember appears as a wash: the breathing halo while you record.
+    backgroundColor: 'rgba(224, 104, 62, 0.14)',
   },
   stopButton: {
     width: 72,
     height: 72,
-    borderRadius: 36,
+    borderRadius: radius.pill,
     backgroundColor: colors.ember,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors.ember,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 6,
+    ...elevation.raised,
   },
   stopSquare: {
     width: 24,
@@ -735,7 +727,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
   },
   recordingHint: {
-    fontSize: 14,
+    ...type.bodySm,
     color: colors.inkMuted,
   },
 
@@ -752,15 +744,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.successSurface,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 28,
+    borderRadius: radius.sm,
+    padding: space.md + 2,
+    marginBottom: space.xl + 4,
   },
   audioPreviewText: {
+    ...type.label,
     fontSize: 14,
     color: colors.success,
-    fontFamily: fonts.medium,
-    marginLeft: 10,
+    marginLeft: space.sm + 2,
   },
   uploadProgressWrap: {
     marginTop: 12,
@@ -777,35 +769,36 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   uploadPct: {
-    fontSize: 12,
+    ...type.caption,
     fontFamily: fonts.medium,
     color: colors.inkMuted,
-    marginTop: 6,
+    marginTop: space.xs + 2,
     textAlign: 'center',
   },
   inputGroup: {
     marginBottom: 20,
   },
   label: {
-    fontSize: 13,
-    fontFamily: fonts.medium,
+    ...type.label,
     color: colors.inkSoft,
-    marginBottom: 6,
-    marginLeft: 4,
+    marginBottom: space.xs + 2,
+    marginLeft: space.xs,
   },
   helpText: {
+    ...type.bodySm,
     fontSize: 13,
-    color: colors.inkMuted,
-    marginBottom: 8,
-    marginLeft: 4,
     lineHeight: 19,
+    color: colors.inkMuted,
+    marginBottom: space.sm,
+    marginLeft: space.xs,
   },
   input: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    backgroundColor: colors.surface,
+    borderRadius: radius.sm,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.md + 2,
     fontSize: 16,
+    fontFamily: fonts.regular,
     color: colors.ink,
     borderWidth: 1,
     borderColor: colors.hairline,
@@ -846,11 +839,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   personName: {
+    ...type.label,
     fontSize: 15,
-    fontFamily: fonts.medium,
     color: colors.ink,
   },
   personEmail: {
+    ...type.caption,
     fontSize: 13,
     color: colors.inkMuted,
     marginTop: 2,
@@ -862,12 +856,12 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   chip: {
-    backgroundColor: colors.white,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginRight: 8,
-    marginBottom: 8,
+    backgroundColor: colors.surface,
+    borderRadius: radius.pill,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.sm + 2,
+    marginRight: space.sm,
+    marginBottom: space.sm,
     borderWidth: 1,
     borderColor: colors.hairline,
   },
@@ -876,43 +870,39 @@ const styles = StyleSheet.create({
     borderColor: colors.ember,
   },
   chipText: {
+    ...type.label,
     fontSize: 14,
-    fontFamily: fonts.medium,
     color: colors.inkSoft,
   },
   chipTextActive: {
-    color: colors.white,
+    color: colors.onEmber,
   },
 
   submitButton: {
     backgroundColor: colors.ember,
-    borderRadius: 14,
-    paddingVertical: 16,
+    borderRadius: radius.pill,
+    paddingVertical: space.lg,
     alignItems: 'center',
-    marginTop: 12,
-    shadowColor: colors.ember,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    marginTop: space.md,
+    ...elevation.raised,
   },
   submitDisabled: {
     opacity: 0.7,
   },
   submitText: {
-    color: colors.white,
+    ...type.h3,
     fontSize: 17,
-    fontFamily: fonts.bold,
+    color: colors.onEmber,
   },
   cancelButton: {
-    marginTop: 18,
+    marginTop: space.lg + 2,
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: space.md,
   },
   cancelText: {
-    color: colors.inkMuted,
+    ...type.label,
     fontSize: 15,
-    fontFamily: fonts.medium,
+    color: colors.inkMuted,
   },
 
   // Done
@@ -923,18 +913,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   doneTitle: {
-    fontSize: 24,
-    fontFamily: fonts.bold,
+    ...type.h1,
     color: colors.ink,
-    marginTop: 20,
-    marginBottom: 10,
+    marginTop: space.lg + 4,
+    marginBottom: space.sm + 2,
   },
   doneBody: {
+    ...type.body,
     fontSize: 15,
-    fontFamily: fonts.regular,
-    color: colors.inkMuted,
-    textAlign: 'center',
     lineHeight: 22,
-    marginBottom: 32,
+    color: colors.inkSoft,
+    textAlign: 'center',
+    marginBottom: space['2xl'],
   },
 });

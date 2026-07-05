@@ -13,7 +13,8 @@ import { useRouter } from 'expo-router';
 import { getNotifications } from '../src/api/client';
 import { useNotifications } from '../src/context/NotificationsContext';
 import { fonts } from '../src/theme/typography';
-import { layout } from '../src/theme/space';
+import { type } from '../src/theme/type';
+import { radius, layout, space } from '../src/theme/space';
 
 function timeAgo(dateString) {
   const diffSec = Math.floor((Date.now() - new Date(dateString).getTime()) / 1000);
@@ -64,11 +65,11 @@ export default function NotificationsScreen() {
     <View style={styles.container} testID="notifications">
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <TouchableOpacity style={styles.backButton} onPress={goBack} activeOpacity={0.6}>
-          <Ionicons name="arrow-back" size={20} color={colors.ember} />
+          <Ionicons name="arrow-back" size={20} color={colors.emberInk} />
           <Text style={styles.backText}>Back</Text>
         </TouchableOpacity>
 
-        <Text style={styles.title}>Notifications</Text>
+        <Text style={styles.title}>Lately</Text>
 
         {loading ? (
           <ActivityIndicator color={colors.ember} style={{ marginTop: 32 }} />
@@ -89,7 +90,7 @@ export default function NotificationsScreen() {
               <Ionicons
                 name={n.type === 'comment' ? 'chatbubble-outline' : 'paper-plane-outline'}
                 size={18}
-                color={colors.ember}
+                color={colors.emberInk}
                 style={styles.rowIcon}
               />
               <View style={styles.rowText}>
@@ -125,53 +126,50 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   backText: {
+    ...type.label,
     fontSize: 15,
-    fontFamily: fonts.medium,
-    color: colors.ember,
-    marginLeft: 4,
+    color: colors.emberInk,
+    marginLeft: space.xs,
   },
   title: {
-    fontSize: 24,
-    fontFamily: fonts.bold,
+    ...type.h1,
     color: colors.ink,
-    marginBottom: 16,
+    marginBottom: space.lg,
   },
   empty: {
     alignItems: 'center',
-    paddingTop: 48,
+    paddingTop: space['3xl'],
   },
   emptyText: {
-    fontSize: 14,
-    fontFamily: fonts.regular,
+    ...type.bodySm,
     color: colors.inkMuted,
-    marginTop: 10,
+    marginTop: space.sm + 2,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 8,
+    backgroundColor: colors.surface,
+    borderRadius: radius.sm,
+    padding: space.md + 2,
+    marginBottom: space.sm,
   },
   rowUnread: {
     backgroundColor: colors.accentSurface,
   },
   rowIcon: {
-    marginRight: 12,
+    marginRight: space.md,
   },
   rowText: {
     flex: 1,
   },
   rowBody: {
-    fontSize: 14,
+    ...type.bodySm,
     fontFamily: fonts.medium,
     color: colors.ink,
     lineHeight: 20,
   },
   rowTime: {
-    fontSize: 12,
-    fontFamily: fonts.regular,
+    ...type.caption,
     color: colors.inkMuted,
     marginTop: 2,
   },

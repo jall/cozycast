@@ -2,7 +2,8 @@ import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors } from '../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
-import { fonts } from '../theme/typography';
+import { type } from '../theme/type';
+import { space, radius, elevation } from '../theme/space';
 
 const STEPS = [
   {
@@ -39,9 +40,9 @@ export default function LandingScreen({ onGetStarted, onOpenManifesto }) {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.sectionLabel}>WHAT IS A COZY CAST?</Text>
+          <Text style={styles.sectionLabel}>what is a cozy cast?</Text>
           <Text style={styles.bodyText}>
-            A Cozy Cast is a private, intimate conversation you record (or upload) and pass
+            A cozy cast is a private, intimate conversation you record (or upload) and pass
             person-to-person to specific people you trust.
           </Text>
           <Text style={styles.bodyText}>
@@ -70,7 +71,7 @@ export default function LandingScreen({ onGetStarted, onOpenManifesto }) {
         <View style={styles.philosophyCard}>
           <Text style={styles.sectionHeading}>Why cozy?</Text>
           <Text style={styles.bodyText}>
-            Most of the internet rewards performance. Cozy Cast is built for the opposite —
+            Most of the internet rewards performance. cozycast is built for the opposite —
             curiosity, genuine listening, and conversation for its own sake. No clout to chase, no
             audience to play to.
           </Text>
@@ -80,7 +81,7 @@ export default function LandingScreen({ onGetStarted, onOpenManifesto }) {
             activeOpacity={0.6}
           >
             <Text style={styles.manifestoLinkText}>Read the manifesto</Text>
-            <Ionicons name="arrow-forward" size={16} color={colors.ember} />
+            <Ionicons name="arrow-forward" size={16} color={colors.emberInk} />
           </TouchableOpacity>
         </View>
 
@@ -117,54 +118,49 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   wordmark: {
+    ...type.display,
     fontSize: 48,
-    fontFamily: fonts.display,
+    lineHeight: 54,
     color: colors.ember,
     letterSpacing: -1,
   },
   tagline: {
+    ...type.body,
     fontSize: 17,
-    fontFamily: fonts.regular,
-    color: colors.inkMuted,
-    marginTop: 12,
-    textAlign: 'center',
     lineHeight: 24,
+    color: colors.inkMuted,
+    marginTop: space.md,
+    textAlign: 'center',
     maxWidth: 420,
   },
   card: {
-    backgroundColor: colors.white,
-    borderRadius: 20,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
     padding: 28,
     marginBottom: 36,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
+    ...elevation.rest,
   },
   sectionLabel: {
-    fontSize: 12,
-    fontFamily: fonts.bold,
+    ...type.eyebrow,
     color: colors.inkMuted,
-    letterSpacing: 1,
-    marginBottom: 14,
+    marginBottom: space.md + 2,
   },
   bodyText: {
-    fontSize: 16,
-    fontFamily: fonts.regular,
-    color: '#4A4036',
+    ...type.body,
     lineHeight: 25,
-    marginBottom: 12,
+    color: colors.inkSoft,
+    marginBottom: space.md,
   },
   howSection: {
     marginBottom: 36,
   },
   sectionHeading: {
-    fontSize: 24,
-    fontFamily: fonts.bold,
+    ...type.h2,
+    fontSize: 22,
+    lineHeight: 28,
     color: colors.ink,
     letterSpacing: -0.5,
-    marginBottom: 20,
+    marginBottom: space.lg + 4,
   },
   step: {
     flexDirection: 'row',
@@ -185,67 +181,57 @@ const styles = StyleSheet.create({
     paddingTop: 2,
   },
   stepTitle: {
-    fontSize: 16,
-    fontFamily: fonts.bold,
+    ...type.h3,
     color: colors.ink,
     marginBottom: 3,
   },
   stepText: {
+    ...type.bodySm,
     fontSize: 15,
-    fontFamily: fonts.regular,
-    color: colors.inkMuted,
     lineHeight: 22,
+    color: colors.inkMuted,
   },
   philosophyCard: {
-    backgroundColor: colors.white,
-    borderRadius: 20,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
     padding: 28,
     marginBottom: 40,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
+    ...elevation.rest,
   },
   manifestoLink: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 6,
+    marginTop: space.xs + 2,
   },
   manifestoLinkText: {
-    fontSize: 16,
-    fontFamily: fonts.bold,
-    color: colors.ember,
-    marginRight: 6,
+    ...type.h3,
+    color: colors.emberInk,
+    marginRight: space.xs + 2,
   },
   ctaSection: {
     alignItems: 'center',
   },
   primaryButton: {
     backgroundColor: colors.ember,
-    borderRadius: 14,
-    paddingVertical: 16,
-    paddingHorizontal: 48,
+    borderRadius: radius.pill,
+    paddingVertical: space.lg,
+    paddingHorizontal: space['3xl'],
     alignItems: 'center',
     alignSelf: 'stretch',
-    shadowColor: colors.ember,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    ...elevation.raised,
   },
   primaryButtonText: {
-    color: colors.white,
+    ...type.h3,
     fontSize: 17,
-    fontFamily: fonts.bold,
+    color: colors.onEmber,
   },
   signInLink: {
-    marginTop: 18,
+    marginTop: space.lg + 2,
     alignItems: 'center',
   },
   signInText: {
-    color: colors.ember,
+    ...type.label,
     fontSize: 14,
-    fontFamily: fonts.medium,
+    color: colors.emberInk,
   },
 });

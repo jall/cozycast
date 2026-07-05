@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import CastCover from './CastCover';
 import { usePlayer } from '../context/PlayerContext';
 import { fonts } from '../theme/typography';
+import { type } from '../theme/type';
 import { layout } from '../theme/space';
 
 // A persistent now-playing strip that sits just above the tab bar. It shows
@@ -60,7 +61,7 @@ export default function MiniPlayer() {
 
 const styles = StyleSheet.create({
   wrap: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.hairline,
   },
@@ -89,13 +90,12 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   title: {
-    fontSize: 14,
+    ...type.bodySm,
     fontFamily: fonts.bold,
     color: colors.ink,
   },
   artist: {
-    fontSize: 12,
-    fontFamily: fonts.regular,
+    ...type.caption,
     color: colors.inkMuted,
     marginTop: 1,
   },

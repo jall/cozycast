@@ -8,7 +8,7 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "backgroundColor": "#FFF8F0"
+      "backgroundColor": "#FBF3E9"
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {
@@ -21,7 +21,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#FFF8F0"
+        "backgroundColor": "#FBF3E9"
       },
       "package": "com.cozycast.app",
       "permissions": ["RECORD_AUDIO"]

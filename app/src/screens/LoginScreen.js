@@ -15,7 +15,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { fonts } from '../theme/typography';
-import { layout } from '../theme/space';
+import { type } from '../theme/type';
+import { radius, elevation, layout, space } from '../theme/space';
 
 export default function LoginScreen({ onBack }) {
   const { login, signup, requestPasswordReset } = useAuth();
@@ -219,7 +220,7 @@ export default function LoginScreen({ onBack }) {
 
           {isSignup && (
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Invite Code (optional)</Text>
+              <Text style={styles.label}>Invite code (optional)</Text>
               <TextInput
                 style={styles.input}
                 value={inviteCode}
@@ -242,7 +243,7 @@ export default function LoginScreen({ onBack }) {
               <ActivityIndicator color={colors.white} />
             ) : (
               <Text style={styles.buttonText}>
-                {resetMode ? 'Send reset link' : isSignup ? 'Sign Up' : 'Log In'}
+                {resetMode ? 'Send reset link' : isSignup ? 'Sign up' : 'Log in'}
               </Text>
             )}
           </TouchableOpacity>
@@ -299,32 +300,29 @@ const styles = StyleSheet.create({
     marginBottom: 36,
   },
   logo: {
+    ...type.display,
     fontSize: 42,
-    fontFamily: fonts.display,
+    lineHeight: 48,
     color: colors.ember,
     letterSpacing: -1,
   },
   tagline: {
+    ...type.bodySm,
     fontSize: 15,
     color: colors.inkMuted,
-    marginTop: 8,
+    marginTop: space.sm,
     textAlign: 'center',
   },
   card: {
-    backgroundColor: colors.white,
-    borderRadius: 20,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
     padding: 28,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    ...elevation.rest,
   },
   cardTitle: {
-    fontSize: 20,
-    fontFamily: fonts.bold,
+    ...type.h2,
     color: colors.ink,
-    marginBottom: 24,
+    marginBottom: space.xl,
     textAlign: 'center',
   },
   feedback: {
@@ -335,82 +333,73 @@ const styles = StyleSheet.create({
   },
   feedbackError: {
     backgroundColor: colors.dangerSurface,
-    borderWidth: 1,
-    borderColor: '#F3C9BD',
   },
   feedbackSuccess: {
     backgroundColor: colors.successSurface,
-    borderWidth: 1,
-    borderColor: '#C3E2C6',
   },
   feedbackText: {
+    ...type.label,
     fontSize: 14,
     lineHeight: 20,
-    fontFamily: fonts.medium,
   },
   feedbackTextError: {
     color: colors.emberInk,
   },
   feedbackTextSuccess: {
-    color: '#3B7A3F',
+    color: colors.success,
   },
   inputGroup: {
     marginBottom: 18,
   },
   label: {
-    fontSize: 13,
-    fontFamily: fonts.medium,
+    ...type.label,
     color: colors.inkSoft,
-    marginBottom: 6,
-    marginLeft: 4,
+    marginBottom: space.xs + 2,
+    marginLeft: space.xs,
   },
   input: {
     backgroundColor: colors.bg,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    borderRadius: radius.sm,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.md + 2,
     fontSize: 16,
+    fontFamily: fonts.regular,
     color: colors.ink,
     borderWidth: 1,
     borderColor: colors.hairline,
   },
   forgotButton: {
     alignSelf: 'flex-end',
-    marginTop: 8,
+    marginTop: space.sm,
     paddingVertical: 2,
   },
   forgotText: {
-    fontSize: 13,
-    fontFamily: fonts.medium,
-    color: colors.ember,
+    ...type.label,
+    color: colors.emberInk,
   },
   button: {
     backgroundColor: colors.ember,
-    borderRadius: 14,
-    paddingVertical: 16,
+    borderRadius: radius.pill,
+    paddingVertical: space.lg,
     alignItems: 'center',
-    marginTop: 8,
-    shadowColor: colors.ember,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    marginTop: space.sm,
+    ...elevation.raised,
   },
   buttonDisabled: {
     opacity: 0.7,
   },
   buttonText: {
-    color: colors.white,
+    ...type.h3,
     fontSize: 17,
-    fontFamily: fonts.bold,
+    color: colors.onEmber,
   },
   toggleButton: {
-    marginTop: 20,
+    marginTop: space.lg + 4,
     alignItems: 'center',
   },
   toggleText: {
-    color: colors.ember,
+    ...type.label,
     fontSize: 14,
-    fontFamily: fonts.medium,
+    color: colors.emberInk,
   },
 });
