@@ -55,10 +55,6 @@ export default function FeedScreen() {
     setRefreshing(false);
   }
 
-  const handleDeleted = useCallback((castId) => {
-    setCasts((prev) => prev.filter((c) => c.id !== castId));
-  }, []);
-
   // Casts left for you (you're a recipient, not the creator/sharer) that you
   // haven't listened to yet.
   const unheard = casts.filter((c) => c.shared_with_me && !c.can_manage && !c.played);
@@ -86,11 +82,8 @@ export default function FeedScreen() {
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Ionicons name="notifications-outline" size={22} color={colors.inkMuted} />
-            {unreadCount > 0 ? (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
-              </View>
-            ) : null}
+            {/* A quiet dot, not a number — there's nothing to count in here. */}
+            {unreadCount > 0 ? <View style={styles.badge} accessibilityLabel="Unread" /> : null}
           </TouchableOpacity>
         </View>
 
@@ -181,9 +174,7 @@ export default function FeedScreen() {
           <FlatList
             data={rest}
             keyExtractor={(item) => item.id}
-            renderItem={({ item, index }) => (
-              <CastCard cast={item} index={index} onDeleted={handleDeleted} />
-            )}
+            renderItem={({ item, index }) => <CastCard cast={item} index={index} />}
             ListHeaderComponent={header}
             ListEmptyComponent={renderEmpty}
             contentContainerStyle={styles.listContent}
@@ -241,20 +232,14 @@ const styles = StyleSheet.create({
   },
   badge: {
     position: 'absolute',
-    top: 0,
-    right: 0,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
+    top: 2,
+    right: 2,
+    width: 9,
+    height: 9,
+    borderRadius: radius.pill,
     backgroundColor: colors.ember,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-  },
-  badgeText: {
-    color: colors.onEmber,
-    fontSize: 11,
-    fontFamily: type.h3.fontFamily,
+    borderWidth: 1.5,
+    borderColor: colors.bg,
   },
   waiting: {
     flexDirection: 'row',

@@ -13,7 +13,7 @@ export const colors = {
   // Ink (text ramp)
   ink: '#2A2521', // primary text (warm near-black)
   inkSoft: '#6B5E50', // body / secondary
-  inkMuted: '#9C8B79', // captions, bylines, timestamps
+  inkMuted: '#83705C', // captions, bylines, timestamps (kept warm, but AA-readable in a dim room)
   inkFaint: '#C4B5A8', // placeholders, disabled
 
   // Accent (terracotta — rationed)

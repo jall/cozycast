@@ -12,20 +12,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { getNotifications } from '../src/api/client';
 import { useNotifications } from '../src/context/NotificationsContext';
+import { timeAgo } from '../src/utils/time';
 import { fonts } from '../src/theme/typography';
 import { type } from '../src/theme/type';
 import { radius, layout, space } from '../src/theme/space';
-
-function timeAgo(dateString) {
-  const diffSec = Math.floor((Date.now() - new Date(dateString).getTime()) / 1000);
-  const diffMin = Math.floor(diffSec / 60);
-  const diffHr = Math.floor(diffMin / 60);
-  const diffDay = Math.floor(diffHr / 24);
-  if (diffMin < 1) return 'just now';
-  if (diffMin < 60) return `${diffMin}m ago`;
-  if (diffHr < 24) return `${diffHr}h ago`;
-  return `${diffDay}d ago`;
-}
 
 function describe(n) {
   const title = `“${n.cast_title}”`;

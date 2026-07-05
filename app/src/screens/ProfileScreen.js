@@ -21,8 +21,8 @@ import {
   uploadAvatar,
 } from '../api/client';
 import { showAlert } from '../utils/alert';
-import { fonts } from '../theme/typography';
-import { layout } from '../theme/space';
+import { type } from '../theme/type';
+import { radius, elevation, layout, space } from '../theme/space';
 import Avatar from '../components/Avatar';
 
 export default function ProfileScreen() {
@@ -117,9 +117,9 @@ export default function ProfileScreen() {
   }
 
   function handleLogout() {
-    showAlert('Log Out', 'Are you sure you want to log out?', [
+    showAlert('Log out', 'Ready to step out for now?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Log Out', style: 'destructive', onPress: logout },
+      { text: 'Log out', style: 'destructive', onPress: logout },
     ]);
   }
 
@@ -150,13 +150,15 @@ export default function ProfileScreen() {
 
       {/* Friends section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Friends</Text>
+        <Text style={styles.sectionTitle}>Your people</Text>
         {loadingFriends ? (
           <ActivityIndicator color={colors.ember} style={{ marginTop: 12 }} />
         ) : friends.length === 0 ? (
           <View style={styles.emptySection}>
             <Ionicons name="people-outline" size={32} color={colors.inkFaint} />
-            <Text style={styles.emptyText}>No friends yet. Share an invite code to connect!</Text>
+            <Text style={styles.emptyText}>
+              No one here yet — share an invite and bring someone in.
+            </Text>
           </View>
         ) : (
           <View style={styles.friendsList}>
@@ -193,7 +195,7 @@ export default function ProfileScreen() {
           ) : (
             <>
               <Ionicons name="add-circle-outline" size={20} color={colors.white} />
-              <Text style={styles.generateText}>Generate Invite</Text>
+              <Text style={styles.generateText}>Share an invite</Text>
             </>
           )}
         </TouchableOpacity>
@@ -226,7 +228,7 @@ export default function ProfileScreen() {
       {/* Logout */}
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.7}>
         <Ionicons name="log-out-outline" size={20} color={colors.danger} />
-        <Text style={styles.logoutText}>Log Out</Text>
+        <Text style={styles.logoutText}>Log out</Text>
       </TouchableOpacity>
 
       <View style={styles.bottomSpacer} />
@@ -275,48 +277,50 @@ const styles = StyleSheet.create({
     borderColor: colors.bg,
   },
   userName: {
+    ...type.h1,
     fontSize: 24,
-    fontFamily: fonts.bold,
+    lineHeight: 30,
     color: colors.ink,
-    marginBottom: 4,
+    marginBottom: space.xs,
   },
   userEmail: {
-    fontSize: 14,
-    fontFamily: fonts.regular,
+    ...type.bodySm,
     color: colors.inkMuted,
   },
 
   // Sections
   section: {
-    paddingHorizontal: 24,
+    paddingHorizontal: space.xl,
     marginBottom: 28,
   },
   sectionTitle: {
+    ...type.h2,
     fontSize: 18,
-    fontFamily: fonts.bold,
+    lineHeight: 24,
     color: colors.ink,
-    marginBottom: 14,
+    marginBottom: space.md + 2,
   },
   emptySection: {
     alignItems: 'center',
-    paddingVertical: 24,
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    paddingHorizontal: 24,
+    paddingVertical: space.xl,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    paddingHorizontal: space.xl,
+    ...elevation.rest,
   },
   emptyText: {
-    fontSize: 14,
+    ...type.bodySm,
     color: colors.inkMuted,
     textAlign: 'center',
-    marginTop: 10,
-    lineHeight: 20,
+    marginTop: space.sm + 2,
   },
 
   // Friends
   friendsList: {
-    backgroundColor: colors.white,
-    borderRadius: 16,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
     overflow: 'hidden',
+    ...elevation.rest,
   },
   friendRow: {
     flexDirection: 'row',
@@ -332,11 +336,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   friendName: {
+    ...type.label,
     fontSize: 15,
-    fontFamily: fonts.medium,
     color: colors.ink,
   },
   friendEmail: {
+    ...type.caption,
     fontSize: 13,
     color: colors.inkMuted,
     marginTop: 2,
@@ -345,31 +350,27 @@ const styles = StyleSheet.create({
   // Invites
   generateButton: {
     backgroundColor: colors.ember,
-    borderRadius: 14,
-    paddingVertical: 14,
+    borderRadius: radius.pill,
+    paddingVertical: space.md + 2,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors.ember,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
+    ...elevation.raised,
   },
   generateDisabled: {
     opacity: 0.7,
   },
   generateText: {
-    color: colors.white,
-    fontSize: 16,
-    fontFamily: fonts.bold,
-    marginLeft: 8,
+    ...type.h3,
+    color: colors.onEmber,
+    marginLeft: space.sm,
   },
   invitesList: {
-    marginTop: 14,
-    backgroundColor: colors.white,
-    borderRadius: 16,
+    marginTop: space.md + 2,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
     overflow: 'hidden',
+    ...elevation.rest,
   },
   inviteRow: {
     flexDirection: 'row',
@@ -393,7 +394,7 @@ const styles = StyleSheet.create({
     textDecorationLine: 'line-through',
   },
   inviteStatus: {
-    fontSize: 12,
+    ...type.caption,
     color: colors.inkMuted,
     marginTop: 2,
   },
@@ -403,18 +404,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: 24,
-    paddingVertical: 16,
-    backgroundColor: colors.white,
-    borderRadius: 14,
+    marginHorizontal: space.xl,
+    paddingVertical: space.lg,
+    backgroundColor: colors.surface,
+    borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.hairline,
   },
   logoutText: {
-    color: colors.danger,
+    ...type.label,
     fontSize: 16,
-    fontFamily: fonts.medium,
-    marginLeft: 8,
+    color: colors.danger,
+    marginLeft: space.sm,
   },
 
   bottomSpacer: {

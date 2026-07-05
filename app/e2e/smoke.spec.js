@@ -274,7 +274,7 @@ test.describe('signed in (local fixtures)', () => {
     await signIn(page, ALICE.email, ALICE.password);
     await page.getByText(/^you$/i).first().click();
 
-    await page.getByText(/generate invite/i).click();
+    await page.getByText(/share an invite/i).click();
     // The success toast echoes the freshly-minted code.
     await expect(page.getByText(/invite [a-z0-9]+ (copied|created)/i)).toBeVisible({
       timeout: 15000,

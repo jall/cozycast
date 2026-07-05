@@ -1,40 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Animated,
-  TouchableOpacity,
-  ActivityIndicator,
-} from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Animated, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import AudioPlayer from './AudioPlayer';
 import CastCover from './CastCover';
 import Avatar from './Avatar';
-import { deleteCast } from '../api/client';
-import { usePlayer } from '../context/PlayerContext';
-import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
-import { showAlert } from '../utils/alert';
+import { timeAgo } from '../utils/time';
 import { colors } from '../theme/colors';
 import { type } from '../theme/type';
 import { space, radius, elevation } from '../theme/space';
 
-function timeAgo(dateString) {
-  const diffSec = Math.floor((Date.now() - new Date(dateString).getTime()) / 1000);
-  const diffMin = Math.floor(diffSec / 60);
-  const diffHr = Math.floor(diffMin / 60);
-  const diffDay = Math.floor(diffHr / 24);
-  const diffWeek = Math.floor(diffDay / 7);
-  if (diffMin < 1) return 'just now';
-  if (diffMin < 60) return `${diffMin}m ago`;
-  if (diffHr < 24) return `${diffHr}h ago`;
-  if (diffDay < 7) return `${diffDay}d ago`;
-  return `${diffWeek}w ago`;
-}
-
-export default function CastCard({ cast, index = 0, onDeleted }) {
+export default function CastCard({ cast, index = 0 }) {
   const {
     id,
     title,
@@ -51,11 +28,8 @@ export default function CastCard({ cast, index = 0, onDeleted }) {
     created_at,
   } = cast;
 
-  const [deleting, setDeleting] = useState(false);
-  const toast = useToast();
   const router = useRouter();
   const { user } = useAuth();
-  const { track, stop } = usePlayer();
 
   const openDetail = () => router.push(`/cast/${id}`);
 
@@ -66,30 +40,6 @@ export default function CastCard({ cast, index = 0, onDeleted }) {
   // You're the assigned sharer (not the creator) and haven't sent it yet.
   const needsSharing =
     !!user && cast.sharer_id === user.id && cast.creator_id !== user.id && recipient_count === 0;
-
-  function confirmDelete() {
-    showAlert(
-      'Delete this cast?',
-      'It’ll be removed for everyone it was shared with. This can’t be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: doDelete },
-      ],
-    );
-  }
-
-  async function doDelete() {
-    setDeleting(true);
-    try {
-      await deleteCast(id, cast.audio_path);
-      if (track?.id === id) await stop();
-      toast.success('Cast deleted.');
-      onDeleted?.(id);
-    } catch (err) {
-      toast.error(err.message || 'Could not delete that cast.');
-      setDeleting(false);
-    }
-  }
 
   // Gentle staggered fade-in-up as cards arrive.
   const enter = useRef(new Animated.Value(0)).current;
@@ -145,21 +95,6 @@ export default function CastCard({ cast, index = 0, onDeleted }) {
           </View>
         </TouchableOpacity>
         {unheard ? <View style={styles.unheardDot} accessibilityLabel="Unheard" /> : null}
-        {!shared_with_me ? (
-          <TouchableOpacity
-            onPress={confirmDelete}
-            disabled={deleting}
-            style={styles.deleteButton}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            accessibilityLabel="Delete cast"
-          >
-            {deleting ? (
-              <ActivityIndicator size="small" color={colors.danger} />
-            ) : (
-              <Ionicons name="trash-outline" size={18} color={colors.inkFaint} />
-            )}
-          </TouchableOpacity>
-        ) : null}
       </View>
 
       {body ? (
@@ -204,9 +139,7 @@ export default function CastCard({ cast, index = 0, onDeleted }) {
           <Text style={styles.nudgeText}>You’re the sharer — choose who hears this</Text>
         </TouchableOpacity>
       ) : !shared_with_me && recipient_count > 0 ? (
-        <Text style={styles.sharedNote}>
-          Shared with {recipient_count} {recipient_count === 1 ? 'person' : 'people'}
-        </Text>
+        <Text style={styles.sharedNote}>Shared — only with the people you chose</Text>
       ) : null}
     </Animated.View>
   );
@@ -244,13 +177,6 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: colors.ember,
     marginLeft: space.sm,
-  },
-  deleteButton: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: space.xs,
   },
   title: {
     ...type.h3,
