@@ -16,7 +16,6 @@ import MiniPlayer from '../../src/components/MiniPlayer';
 import Avatar from '../../src/components/Avatar';
 import {
   getCast,
-  getAudioUrl,
   getRecipients,
   getFriends,
   shareCast,
@@ -67,7 +66,6 @@ export default function CastDetailScreen() {
   const { track, stop } = usePlayer();
 
   const [cast, setCast] = useState(null);
-  const [audioUrl, setAudioUrl] = useState(null);
   const [recipients, setRecipients] = useState([]);
   const [friends, setFriends] = useState([]);
   const [managing, setManaging] = useState(false);
@@ -91,7 +89,6 @@ export default function CastDetailScreen() {
       .then((c) => {
         if (!active) return;
         setCast(c);
-        if (c?.audio_path) getAudioUrl(c.audio_path).then((u) => active && setAudioUrl(u));
         // Recipients + the address book are only needed by a manager (creator
         // or assigned sharer), who can add/remove who the cast is shared with.
         if (c?.can_manage) {
@@ -243,9 +240,10 @@ export default function CastDetailScreen() {
           </View>
         </View>
 
-        {audioUrl ? (
+        {cast.audio_path ? (
           <AudioPlayer
-            uri={audioUrl}
+            audioPath={cast.audio_path}
+            variant="hero"
             style={styles.player}
             castId={cast.id}
             title={cast.title}

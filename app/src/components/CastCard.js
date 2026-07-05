@@ -12,7 +12,7 @@ import { useRouter } from 'expo-router';
 import AudioPlayer from './AudioPlayer';
 import CastCover from './CastCover';
 import Avatar from './Avatar';
-import { getAudioUrl, deleteCast } from '../api/client';
+import { deleteCast } from '../api/client';
 import { usePlayer } from '../context/PlayerContext';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
@@ -51,7 +51,6 @@ export default function CastCard({ cast, index = 0, onDeleted }) {
     created_at,
   } = cast;
 
-  const [audioUrl, setAudioUrl] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const toast = useToast();
   const router = useRouter();
@@ -102,10 +101,6 @@ export default function CastCard({ cast, index = 0, onDeleted }) {
       useNativeDriver: true,
     }).start();
   }, [enter, index]);
-
-  useEffect(() => {
-    if (cast.audio_path) getAudioUrl(cast.audio_path).then(setAudioUrl);
-  }, [cast.audio_path]);
 
   const body = summary || description;
   const participantList = Array.isArray(participants) ? participants : [];
@@ -191,9 +186,9 @@ export default function CastCard({ cast, index = 0, onDeleted }) {
         </View>
       )}
 
-      {audioUrl && (
+      {cast.audio_path && (
         <AudioPlayer
-          uri={audioUrl}
+          audioPath={cast.audio_path}
           style={styles.player}
           castId={id}
           title={title}

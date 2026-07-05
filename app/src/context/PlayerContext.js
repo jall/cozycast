@@ -2,14 +2,18 @@ import React, { createContext, useContext, useState, useRef, useEffect, useCallb
 import { Platform } from 'react-native';
 import { Audio } from 'expo-av';
 import { castArtworkDataUrl } from '../utils/castArtwork';
+import { getAudioUrl } from '../api/client';
 
 // One audio session for the whole app. Playback used to live inside each
 // CastCard's AudioPlayer, so it died the moment you scrolled away or switched
 // tabs. Lifting it here lets a single track keep playing while you browse, and
 // gives the persistent MiniPlayer something to drive.
 //
-// A "track" is { id, uri, title, artist, seed, durationSeconds } — id is the
-// cast id, used to tell which card is the one currently playing.
+// A "track" is { id, uri, audioPath, title, artist, seed, durationSeconds } —
+// id is the cast id, used to tell which card is the one currently playing.
+// `uri` may be absent: signed URLs are minted lazily on first play (from
+// `audioPath`) so a feed of thirty casts doesn't fire thirty storage calls
+// just to render play buttons.
 const PlayerContext = createContext(null);
 
 export function PlayerProvider({ children }) {
@@ -67,6 +71,17 @@ export function PlayerProvider({ children }) {
         await soundRef.current.unloadAsync();
         soundRef.current = null;
       }
+
+      // Mint the signed URL on demand if the caller only had a storage path.
+      if (!next.uri && next.audioPath) {
+        try {
+          next = { ...next, uri: await getAudioUrl(next.audioPath) };
+        } catch {
+          next = { ...next, uri: null };
+        }
+      }
+      if (!next.uri) return;
+
       setTrack(next);
       setPosition(0);
       setDuration(next.durationSeconds ? next.durationSeconds * 1000 : 0);
