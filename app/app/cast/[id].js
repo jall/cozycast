@@ -32,7 +32,7 @@ import { useToast } from '../../src/context/ToastContext';
 import { showAlert } from '../../src/utils/alert';
 import { colors } from '../../src/theme/colors';
 import { type } from '../../src/theme/type';
-import { space, radius } from '../../src/theme/space';
+import { space, radius, layout } from '../../src/theme/space';
 
 function formatDate(dateString) {
   if (!dateString) return '';
@@ -446,6 +446,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.xl,
     paddingTop: 56,
     paddingBottom: space['2xl'],
+    width: '100%',
+    maxWidth: layout.column,
+    alignSelf: 'center',
   },
   backButton: {
     flexDirection: 'row',

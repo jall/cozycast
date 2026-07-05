@@ -7,7 +7,7 @@ import ProfileScreen from '../src/screens/ProfileScreen';
 import MiniPlayer from '../src/components/MiniPlayer';
 import { colors } from '../src/theme/colors';
 import { type } from '../src/theme/type';
-import { space } from '../src/theme/space';
+import { space, layout } from '../src/theme/space';
 
 function TabBar({ active, onNavigate }) {
   const tabs = [
@@ -17,19 +17,21 @@ function TabBar({ active, onNavigate }) {
   ];
   return (
     <View style={styles.tabBar}>
-      {tabs.map((tab) => {
-        const on = active === tab.key;
-        return (
-          <TouchableOpacity key={tab.key} style={styles.tab} onPress={() => onNavigate(tab.key)}>
-            <Ionicons
-              name={on ? tab.icon : `${tab.icon}-outline`}
-              size={24}
-              color={on ? colors.ember : colors.inkMuted}
-            />
-            <Text style={[styles.tabLabel, on && styles.tabLabelActive]}>{tab.label}</Text>
-          </TouchableOpacity>
-        );
-      })}
+      <View style={styles.tabRow}>
+        {tabs.map((tab) => {
+          const on = active === tab.key;
+          return (
+            <TouchableOpacity key={tab.key} style={styles.tab} onPress={() => onNavigate(tab.key)}>
+              <Ionicons
+                name={on ? tab.icon : `${tab.icon}-outline`}
+                size={24}
+                color={on ? colors.ember : colors.inkMuted}
+              />
+              <Text style={[styles.tabLabel, on && styles.tabLabelActive]}>{tab.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
     </View>
   );
 }
@@ -70,6 +72,15 @@ const styles = StyleSheet.create({
     height: 88,
     paddingTop: space.sm,
     paddingBottom: 28,
+  },
+  // Keep the tabs together in the reading column on wide viewports rather than
+  // flinging Home and You to opposite corners of the window.
+  tabRow: {
+    flex: 1,
+    flexDirection: 'row',
+    width: '100%',
+    maxWidth: layout.column,
+    alignSelf: 'center',
   },
   tab: {
     flex: 1,

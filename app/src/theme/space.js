@@ -11,6 +11,14 @@ export const space = {
   '3xl': 48,
 };
 
+// Web is the primary target: on wide viewports every surface reads inside a
+// centered column of at most `layout.column`, like a page in a book — a
+// lamp-lit room, not a widescreen dashboard.
+export const layout = {
+  column: 640,
+  form: 480, // lone form cards (login, reset) read best a little narrower
+};
+
 export const radius = {
   sm: 12, // fields, chips, comments
   md: 18, // cards

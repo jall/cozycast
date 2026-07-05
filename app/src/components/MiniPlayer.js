@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import CastCover from './CastCover';
 import { usePlayer } from '../context/PlayerContext';
 import { fonts } from '../theme/typography';
+import { layout } from '../theme/space';
 
 // A persistent now-playing strip that sits just above the tab bar. It shows
 // whatever the app-wide player (PlayerContext) is playing, so audio keeps going
@@ -19,37 +20,39 @@ export default function MiniPlayer() {
 
   return (
     <View style={styles.wrap}>
-      <View style={styles.progressTrack}>
-        <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
-      </View>
-      <View style={styles.row}>
-        <CastCover seed={track.seed} title={track.title} size={40} />
-        <View style={styles.meta}>
-          <Text style={styles.title} numberOfLines={1}>
-            {track.title}
-          </Text>
-          {track.artist ? (
-            <Text style={styles.artist} numberOfLines={1}>
-              {track.artist}
-            </Text>
-          ) : null}
+      <View style={styles.column}>
+        <View style={styles.progressTrack}>
+          <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
         </View>
-        <TouchableOpacity
-          onPress={() => toggle(track)}
-          style={styles.playButton}
-          activeOpacity={0.7}
-          accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
-        >
-          <Ionicons name={isPlaying ? 'pause' : 'play'} size={20} color={colors.white} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={stop}
-          style={styles.closeButton}
-          activeOpacity={0.7}
-          accessibilityLabel="Close player"
-        >
-          <Ionicons name="close" size={20} color={colors.inkMuted} />
-        </TouchableOpacity>
+        <View style={styles.row}>
+          <CastCover seed={track.seed} title={track.title} size={40} />
+          <View style={styles.meta}>
+            <Text style={styles.title} numberOfLines={1}>
+              {track.title}
+            </Text>
+            {track.artist ? (
+              <Text style={styles.artist} numberOfLines={1}>
+                {track.artist}
+              </Text>
+            ) : null}
+          </View>
+          <TouchableOpacity
+            onPress={() => toggle(track)}
+            style={styles.playButton}
+            activeOpacity={0.7}
+            accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
+          >
+            <Ionicons name={isPlaying ? 'pause' : 'play'} size={20} color={colors.white} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={stop}
+            style={styles.closeButton}
+            activeOpacity={0.7}
+            accessibilityLabel="Close player"
+          >
+            <Ionicons name="close" size={20} color={colors.inkMuted} />
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -60,6 +63,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderTopWidth: 1,
     borderTopColor: colors.hairline,
+  },
+  column: {
+    width: '100%',
+    maxWidth: layout.column,
+    alignSelf: 'center',
   },
   progressTrack: {
     height: 3,

@@ -22,6 +22,7 @@ import {
 } from '../api/client';
 import { showAlert } from '../utils/alert';
 import { fonts } from '../theme/typography';
+import { layout } from '../theme/space';
 import Avatar from '../components/Avatar';
 
 export default function ProfileScreen() {
@@ -241,6 +242,9 @@ const styles = StyleSheet.create({
   content: {
     paddingTop: 64,
     paddingBottom: 32,
+    width: '100%',
+    maxWidth: layout.column,
+    alignSelf: 'center',
   },
 
   // Profile header

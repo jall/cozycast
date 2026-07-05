@@ -18,6 +18,7 @@ import { createCast, shareCast, getFriends } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { fonts } from '../theme/typography';
+import { layout } from '../theme/space';
 import { randomTip } from '../constants/tips';
 
 function formatElapsed(seconds) {
@@ -575,11 +576,13 @@ export default function RecordScreen() {
 
   return (
     <View style={styles.container}>
-      {mode === null && renderChoiceScreen()}
-      {mode === 'recording' && renderRecordingScreen()}
-      {mode === 'form' && renderForm()}
-      {mode === 'recipients' && renderRecipients()}
-      {mode === 'done' && renderDone()}
+      <View style={styles.column}>
+        {mode === null && renderChoiceScreen()}
+        {mode === 'recording' && renderRecordingScreen()}
+        {mode === 'form' && renderForm()}
+        {mode === 'recipients' && renderRecipients()}
+        {mode === 'done' && renderDone()}
+      </View>
     </View>
   );
 }
@@ -588,6 +591,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bg,
+  },
+  column: {
+    flex: 1,
+    width: '100%',
+    maxWidth: layout.column,
+    alignSelf: 'center',
   },
 
   // Choice screen

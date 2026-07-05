@@ -13,6 +13,7 @@ import { useRouter } from 'expo-router';
 import { getNotifications } from '../src/api/client';
 import { useNotifications } from '../src/context/NotificationsContext';
 import { fonts } from '../src/theme/typography';
+import { layout } from '../src/theme/space';
 
 function timeAgo(dateString) {
   const diffSec = Math.floor((Date.now() - new Date(dateString).getTime()) / 1000);
@@ -113,6 +114,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 56,
     paddingBottom: 32,
+    width: '100%',
+    maxWidth: layout.column,
+    alignSelf: 'center',
   },
   backButton: {
     flexDirection: 'row',

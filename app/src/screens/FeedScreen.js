@@ -10,7 +10,7 @@ import Avatar from '../components/Avatar';
 import { useNotifications } from '../context/NotificationsContext';
 import { colors } from '../theme/colors';
 import { type } from '../theme/type';
-import { space, radius, elevation } from '../theme/space';
+import { space, radius, elevation, layout } from '../theme/space';
 
 function greeting() {
   const h = new Date().getHours();
@@ -152,10 +152,11 @@ export default function FeedScreen() {
   if (loading) {
     return (
       <View style={styles.container}>
-        <View style={styles.skeletonList}>
+        <View style={[styles.column, styles.skeletonList]}>
           <View style={styles.header}>
             <View style={styles.headerText}>
               <Text style={styles.greeting}>{greeting()}</Text>
+              <Text style={styles.subline}>gathering your casts…</Text>
             </View>
           </View>
           {[0, 1, 2].map((i) => (
@@ -176,25 +177,27 @@ export default function FeedScreen() {
           </TouchableOpacity>
         </View>
       ) : (
-        <FlatList
-          data={rest}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item, index }) => (
-            <CastCard cast={item} index={index} onDeleted={handleDeleted} />
-          )}
-          ListHeaderComponent={header}
-          ListEmptyComponent={renderEmpty}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor={colors.ember}
-              colors={[colors.ember]}
-            />
-          }
-          showsVerticalScrollIndicator={false}
-        />
+        <View style={styles.column}>
+          <FlatList
+            data={rest}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item, index }) => (
+              <CastCard cast={item} index={index} onDeleted={handleDeleted} />
+            )}
+            ListHeaderComponent={header}
+            ListEmptyComponent={renderEmpty}
+            contentContainerStyle={styles.listContent}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                tintColor={colors.ember}
+                colors={[colors.ember]}
+              />
+            }
+            showsVerticalScrollIndicator={false}
+          />
+        </View>
       )}
     </View>
   );
@@ -204,6 +207,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bg,
+  },
+  // The whole home reads inside a centered column on wide (web) viewports.
+  column: {
+    flex: 1,
+    width: '100%',
+    maxWidth: layout.column,
+    alignSelf: 'center',
   },
   header: {
     flexDirection: 'row',

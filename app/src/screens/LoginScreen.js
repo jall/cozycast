@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { fonts } from '../theme/typography';
+import { layout } from '../theme/space';
 
 export default function LoginScreen({ onBack }) {
   const { login, signup, requestPasswordReset } = useAuth();
@@ -277,6 +278,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 24,
     paddingVertical: 48,
+    width: '100%',
+    maxWidth: layout.form,
+    alignSelf: 'center',
   },
   backButton: {
     flexDirection: 'row',

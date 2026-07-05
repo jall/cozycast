@@ -14,6 +14,7 @@ import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { fonts } from '../theme/typography';
+import { layout } from '../theme/space';
 
 export default function ResetPasswordScreen() {
   const { updatePassword, logout } = useAuth();
@@ -121,6 +122,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 24,
     paddingVertical: 48,
+    width: '100%',
+    maxWidth: layout.form,
+    alignSelf: 'center',
   },
   header: {
     alignItems: 'center',
