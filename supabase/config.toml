@@ -7,3 +7,11 @@ project_id = "yhaswqvewhigrpoduhyr"
 public = false
 file_size_limit = "200MB"
 allowed_mime_types = ["audio/*"]
+
+# Profile pictures. Public-read (an avatar is low-sensitivity and shows widely;
+# a public bucket avoids signed-URL expiry on a long-lived UI element). Writes
+# are owner-only via the storage.objects policies in the avatars migration.
+[storage.buckets.avatars]
+public = true
+file_size_limit = "5MB"
+allowed_mime_types = ["image/png", "image/jpeg", "image/webp"]

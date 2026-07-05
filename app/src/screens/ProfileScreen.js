@@ -10,20 +10,28 @@ import {
 } from 'react-native';
 import { colors } from '../theme/colors';
 import * as Clipboard from 'expo-clipboard';
+import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { getFriends, generateInvite as genInvite, getPendingInvites } from '../api/client';
+import {
+  getFriends,
+  generateInvite as genInvite,
+  getPendingInvites,
+  uploadAvatar,
+} from '../api/client';
 import { showAlert } from '../utils/alert';
 import { fonts } from '../theme/typography';
+import Avatar from '../components/Avatar';
 
 export default function ProfileScreen() {
-  const { user, logout } = useAuth();
+  const { user, logout, refreshProfile } = useAuth();
   const toast = useToast();
   const [friends, setFriends] = useState([]);
   const [invites, setInvites] = useState([]);
   const [loadingFriends, setLoadingFriends] = useState(true);
   const [generatingInvite, setGeneratingInvite] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -80,6 +88,33 @@ export default function ProfileScreen() {
     toast.success('Copied to clipboard');
   }
 
+  async function handlePickAvatar() {
+    if (uploadingAvatar) return;
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        toast.error('Photo access is needed to set a picture.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      });
+      if (result.canceled || !result.assets?.length) return;
+      const asset = result.assets[0];
+      setUploadingAvatar(true);
+      await uploadAvatar(asset.uri, asset.mimeType);
+      await refreshProfile();
+      toast.success('Picture updated ✨');
+    } catch (err) {
+      toast.error(err.message || 'Could not update your picture.');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  }
+
   function handleLogout() {
     showAlert('Log Out', 'Are you sure you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
@@ -87,18 +122,27 @@ export default function ProfileScreen() {
     ]);
   }
 
-  function getInitial(name) {
-    if (!name) return '?';
-    return name.charAt(0).toUpperCase();
-  }
-
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* Profile header */}
       <View style={styles.profileHeader}>
-        <View style={styles.avatarLarge}>
-          <Text style={styles.avatarLargeText}>{getInitial(user?.name)}</Text>
-        </View>
+        <TouchableOpacity
+          style={styles.avatarWrap}
+          onPress={handlePickAvatar}
+          activeOpacity={0.8}
+          disabled={uploadingAvatar}
+          accessibilityLabel="Change your profile picture"
+          testID="change-avatar"
+        >
+          <Avatar name={user?.name} path={user?.avatar_path} size={88} />
+          <View style={styles.avatarBadge}>
+            {uploadingAvatar ? (
+              <ActivityIndicator color={colors.white} size="small" />
+            ) : (
+              <Ionicons name="camera" size={15} color={colors.white} />
+            )}
+          </View>
+        </TouchableOpacity>
         <Text style={styles.userName}>{user?.name || 'You'}</Text>
         <Text style={styles.userEmail}>{user?.email || ''}</Text>
       </View>
@@ -117,9 +161,12 @@ export default function ProfileScreen() {
           <View style={styles.friendsList}>
             {friends.map((friend, index) => (
               <View key={friend._id || friend.id || index} style={styles.friendRow}>
-                <View style={styles.friendAvatar}>
-                  <Text style={styles.friendAvatarText}>{getInitial(friend.name)}</Text>
-                </View>
+                <Avatar
+                  name={friend.name}
+                  path={friend.avatar_path}
+                  size={40}
+                  style={styles.friendAvatar}
+                />
                 <View style={styles.friendInfo}>
                   <Text style={styles.friendName}>{friend.name}</Text>
                   {friend.email && <Text style={styles.friendEmail}>{friend.email}</Text>}
@@ -202,13 +249,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     marginBottom: 32,
   },
-  avatarLarge: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.emberSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
+  avatarWrap: {
     marginBottom: 16,
     shadowColor: colors.emberSoft,
     shadowOffset: { width: 0, height: 4 },
@@ -216,10 +257,18 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  avatarLargeText: {
-    color: colors.white,
-    fontSize: 32,
-    fontFamily: fonts.bold,
+  avatarBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.ember,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.bg,
   },
   userName: {
     fontSize: 24,
@@ -273,18 +322,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.hairline,
   },
   friendAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.ember,
-    alignItems: 'center',
-    justifyContent: 'center',
     marginRight: 14,
-  },
-  friendAvatarText: {
-    color: colors.white,
-    fontSize: 16,
-    fontFamily: fonts.bold,
   },
   friendInfo: {
     flex: 1,

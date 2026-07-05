@@ -33,6 +33,13 @@ function extFromMime(mime) {
   return MIME_EXT[mime] || 'm4a';
 }
 
+const IMAGE_EXT = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/jpg': 'jpg',
+  'image/webp': 'webp',
+};
+
 async function storageHeaders(contentType) {
   const {
     data: { session },
@@ -121,10 +128,30 @@ async function fetchPlayedIds() {
   return new Set((data || []).map((r) => r.cast_id));
 }
 
+// Avatar paths for a set of users, as a Map(id -> avatar_path). Fetched
+// separately (not embedded in the joins) for the same reason as fetchPlayedIds:
+// so the feed/detail/comments still load if the profiles.avatar_path column
+// isn't there yet — e.g. a deploy preview pointing at a prod DB before this
+// migration lands. Degrades to "no avatars" (initials) rather than erroring.
+async function fetchAvatars(ids) {
+  const unique = [...new Set((ids || []).filter(Boolean))];
+  if (unique.length === 0) return new Map();
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, avatar_path')
+      .in('id', unique);
+    if (error) return new Map();
+    return new Map((data || []).map((r) => [r.id, r.avatar_path || null]));
+  } catch {
+    return new Map();
+  }
+}
+
 // Flatten a joined cast row into the shape the UI consumes. `uid` is the
 // current user, used to decide whether the cast was shared *with* them and
-// whether they may manage it.
-function mapCast(cast, uid, played = false) {
+// whether they may manage it. `avatars` maps user id -> avatar_path.
+function mapCast(cast, uid, played = false, avatars = new Map()) {
   const creatorId = cast.creator?.id || cast.creator_id;
   const sharerId = cast.sharer_id || creatorId;
   return {
@@ -132,8 +159,10 @@ function mapCast(cast, uid, played = false) {
     creator_id: creatorId,
     creator_name: cast.creator?.name || 'Someone',
     creator_email: cast.creator?.email || '',
+    creator_avatar: avatars.get(creatorId) || null,
     sharer_name: cast.sharer?.name || cast.creator?.name || 'Someone',
     sharer_id: sharerId,
+    sharer_avatar: avatars.get(sharerId) || avatars.get(creatorId) || null,
     participants: (cast.cast_participants || []).map((p) => p.name),
     recipient_count: (cast.cast_recipients || []).length,
     // Did this land in my feed because someone shared it with me (vs. mine)?
@@ -157,7 +186,9 @@ export async function getFeed() {
 
   const uid = await currentUserId();
   const playedIds = await fetchPlayedIds();
-  return (data || []).map((cast) => mapCast(cast, uid, playedIds.has(cast.id)));
+  const rows = data || [];
+  const avatars = await fetchAvatars(rows.flatMap((c) => [c.creator?.id, c.sharer?.id]));
+  return rows.map((cast) => mapCast(cast, uid, playedIds.has(cast.id), avatars));
 }
 
 // A single cast by id, for the detail page / deep links. Returns null when the
@@ -175,7 +206,8 @@ export async function getCast(castId) {
 
   const uid = await currentUserId();
   const playedIds = await fetchPlayedIds();
-  return mapCast(data, uid, playedIds.has(data.id));
+  const avatars = await fetchAvatars([data.creator?.id, data.sharer?.id]);
+  return mapCast(data, uid, playedIds.has(data.id), avatars);
 }
 
 // Mark a cast as listened-to by the current user (first play wins). Used by the
@@ -264,7 +296,7 @@ export async function getRecipients(castId) {
     .select('profiles!cast_recipients_recipient_id_fkey(id, name, email)')
     .eq('cast_id', castId);
   if (error) throw error;
-  return (data || []).map((r) => r.profiles).filter(Boolean);
+  return withAvatars((data || []).map((r) => r.profiles));
 }
 
 // Stop sharing a cast with someone. Only the creator/sharer may do this (RLS
@@ -306,17 +338,73 @@ export async function getAudioUrl(audioPath) {
   return data?.signedUrl;
 }
 
+// ---- Avatars (profile pictures; public bucket) -----------------------------
+
+// Public URL for an avatar object path, or null when the user has no avatar.
+// The bucket is public, so this URL is stable and needs no signing; each upload
+// uses a fresh filename, so the URL changes when the avatar does (no stale cache).
+export function avatarUrl(path) {
+  if (!path) return null;
+  const { data } = supabase.storage.from('avatars').getPublicUrl(path);
+  return data?.publicUrl || null;
+}
+
+// Upload a new profile picture and point the user's profile at it. Uses a
+// unique filename per change ("<uid>/<timestamp>.<ext>") for cache-busting, then
+// removes the previous object best-effort (an orphan is harmless). Returns the
+// new path so the caller can update local state without a refetch.
+export async function uploadAvatar(uri, mimeType) {
+  const userId = await currentUserId();
+  if (!userId) throw new Error('You need to be signed in to set a picture.');
+
+  // Read the blob first so we can trust its real mime type (the picker's
+  // reported type is unreliable on web).
+  const blob = await (await fetch(uri)).blob();
+  const contentType = mimeType || blob.type || 'image/jpeg';
+  const ext = IMAGE_EXT[contentType] || 'jpg';
+  const path = `${userId}/${Date.now()}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('avatars')
+    .upload(path, blob, { contentType });
+  if (uploadError) throw uploadError;
+
+  // Read the old path before we overwrite it, so we can clean it up after.
+  const { data: prev } = await supabase
+    .from('profiles')
+    .select('avatar_path')
+    .eq('id', userId)
+    .single();
+
+  const { error: updateError } = await supabase
+    .from('profiles')
+    .update({ avatar_path: path })
+    .eq('id', userId);
+  if (updateError) throw updateError;
+
+  if (prev?.avatar_path && prev.avatar_path !== path) {
+    await supabase.storage
+      .from('avatars')
+      .remove([prev.avatar_path])
+      .catch(() => {});
+  }
+
+  return path;
+}
+
 // ---- Comments (RLS: anyone with cast access can read/post; author or cast
 // manager can delete) -------------------------------------------------------
 
-function mapComment(row, uid) {
+function mapComment(row, uid, avatars = new Map()) {
+  const authorId = row.author?.id || null;
   return {
     id: row.id,
     body: row.body,
     created_at: row.created_at,
-    author_id: row.author?.id || null,
+    author_id: authorId,
     author_name: row.author?.name || 'Someone',
-    mine: !!uid && row.author?.id === uid,
+    author_avatar: avatars.get(authorId) || null,
+    mine: !!uid && authorId === uid,
   };
 }
 
@@ -328,7 +416,9 @@ export async function getComments(castId) {
     .order('created_at', { ascending: true });
   if (error) throw error;
   const uid = await currentUserId();
-  return (data || []).map((row) => mapComment(row, uid));
+  const rows = data || [];
+  const avatars = await fetchAvatars(rows.map((r) => r.author?.id));
+  return rows.map((row) => mapComment(row, uid, avatars));
 }
 
 export async function addComment(castId, body) {
@@ -339,7 +429,8 @@ export async function addComment(castId, body) {
     .select('id, body, created_at, author:profiles!cast_comments_author_id_fkey(id, name)')
     .single();
   if (error) throw error;
-  return mapComment(data, userId);
+  const avatars = await fetchAvatars([userId]);
+  return mapComment(data, userId, avatars);
 }
 
 export async function deleteComment(commentId) {
@@ -391,6 +482,15 @@ export async function markNotificationsRead() {
   if (error) throw error;
 }
 
+// Attach avatar_path to a list of profile objects via the tolerant lookup, so a
+// missing column degrades to initials instead of failing the list.
+async function withAvatars(profiles) {
+  const list = (profiles || []).filter(Boolean);
+  if (list.length === 0) return list;
+  const avatars = await fetchAvatars(list.map((p) => p.id));
+  return list.map((p) => ({ ...p, avatar_path: avatars.get(p.id) || null }));
+}
+
 // Your address book: the people you can choose to share with.
 export async function getFriends() {
   const userId = await currentUserId();
@@ -400,7 +500,7 @@ export async function getFriends() {
     .eq('user_id', userId);
 
   if (error) throw error;
-  return (data || []).map((f) => f.profiles).filter(Boolean);
+  return withAvatars((data || []).map((f) => f.profiles));
 }
 
 export async function generateInvite() {

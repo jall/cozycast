@@ -51,6 +51,12 @@ export function AuthProvider({ children }) {
     setProfile(data);
   }
 
+  // Re-fetch the signed-in user's profile (e.g. after they change their avatar)
+  // so consumers of `user` see the update without a full reload.
+  async function refreshProfile() {
+    if (user?.id) await loadProfile(user.id);
+  }
+
   async function login(email, password) {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
@@ -124,6 +130,7 @@ export function AuthProvider({ children }) {
         logout,
         requestPasswordReset,
         updatePassword,
+        refreshProfile,
       }}
     >
       {children}

@@ -6,6 +6,7 @@ import { getFeed } from '../api/client';
 import CastCard from '../components/CastCard';
 import CastCover from '../components/CastCover';
 import CastCardSkeleton from '../components/CastCardSkeleton';
+import Avatar from '../components/Avatar';
 import { useNotifications } from '../context/NotificationsContext';
 import { colors } from '../theme/colors';
 import { type } from '../theme/type';
@@ -102,9 +103,17 @@ export default function FeedScreen() {
           >
             <CastCover seed={waiting.id} title={waiting.title} size={64} />
             <View style={styles.waitingText}>
-              <Text style={styles.waitingFrom}>
-                left for you by {waiting.sharer_name || waiting.creator_name}
-              </Text>
+              <View style={styles.waitingFromRow}>
+                <Avatar
+                  name={waiting.sharer_name || waiting.creator_name}
+                  path={waiting.sharer_avatar || waiting.creator_avatar}
+                  size={16}
+                  style={styles.waitingAvatar}
+                />
+                <Text style={styles.waitingFrom}>
+                  left for you by {waiting.sharer_name || waiting.creator_name}
+                </Text>
+              </View>
               <Text style={styles.waitingTitle} numberOfLines={2}>
                 {waiting.title}
               </Text>
@@ -250,10 +259,17 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: space.md,
   },
+  waitingFromRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: space.xs,
+  },
+  waitingAvatar: {
+    marginRight: space.xs + 2,
+  },
   waitingFrom: {
     ...type.eyebrow,
     color: colors.emberInk,
-    marginBottom: space.xs,
   },
   waitingTitle: {
     ...type.h2,

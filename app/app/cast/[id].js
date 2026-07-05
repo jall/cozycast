@@ -13,6 +13,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import CastCover from '../../src/components/CastCover';
 import AudioPlayer from '../../src/components/AudioPlayer';
 import MiniPlayer from '../../src/components/MiniPlayer';
+import Avatar from '../../src/components/Avatar';
 import {
   getCast,
   getAudioUrl,
@@ -225,9 +226,21 @@ export default function CastDetailScreen() {
         <View style={styles.hero}>
           <CastCover seed={cast.id} title={cast.title} size={96} />
           <Text style={styles.title}>{cast.title}</Text>
-          <Text style={styles.byline}>
-            {byline} · {formatDate(cast.created_at)}
-          </Text>
+          <View style={styles.bylineRow}>
+            <Avatar
+              name={cast.shared_with_me ? cast.sharer_name || cast.creator_name : cast.creator_name}
+              path={
+                cast.shared_with_me
+                  ? cast.sharer_avatar || cast.creator_avatar
+                  : cast.creator_avatar
+              }
+              size={20}
+              style={styles.bylineAvatar}
+            />
+            <Text style={styles.byline}>
+              {byline} · {formatDate(cast.created_at)}
+            </Text>
+          </View>
         </View>
 
         {audioUrl ? (
@@ -297,6 +310,12 @@ export default function CastDetailScreen() {
                       activeOpacity={0.7}
                       testID="recipient-row"
                     >
+                      <Avatar
+                        name={f.name}
+                        path={f.avatar_path}
+                        size={36}
+                        style={styles.recipientAvatar}
+                      />
                       <View style={styles.recipientInfo}>
                         <Text style={styles.recipientName}>{f.name}</Text>
                         {f.email ? <Text style={styles.recipientEmail}>{f.email}</Text> : null}
@@ -334,24 +353,32 @@ export default function CastDetailScreen() {
           ) : (
             comments.map((c) => (
               <View key={c.id} style={styles.comment} testID="comment-row">
-                <View style={styles.commentHeader}>
-                  <Text style={styles.commentAuthor}>{c.author_name}</Text>
-                  <Text style={styles.commentTime}>{timeAgo(c.created_at)}</Text>
-                  {/* Author or a cast manager may delete (matches the RLS
-                      cast_comments_delete_author_or_manager policy). */}
-                  {c.mine || cast.can_manage ? (
-                    <TouchableOpacity
-                      onPress={() => handleDeleteComment(c.id)}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      accessibilityLabel="Delete comment"
-                      testID="comment-delete"
-                      style={styles.commentDelete}
-                    >
-                      <Ionicons name="close" size={15} color={colors.inkFaint} />
-                    </TouchableOpacity>
-                  ) : null}
+                <Avatar
+                  name={c.author_name}
+                  path={c.author_avatar}
+                  size={32}
+                  style={styles.commentAvatar}
+                />
+                <View style={styles.commentMain}>
+                  <View style={styles.commentHeader}>
+                    <Text style={styles.commentAuthor}>{c.author_name}</Text>
+                    <Text style={styles.commentTime}>{timeAgo(c.created_at)}</Text>
+                    {/* Author or a cast manager may delete (matches the RLS
+                        cast_comments_delete_author_or_manager policy). */}
+                    {c.mine || cast.can_manage ? (
+                      <TouchableOpacity
+                        onPress={() => handleDeleteComment(c.id)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        accessibilityLabel="Delete comment"
+                        testID="comment-delete"
+                        style={styles.commentDelete}
+                      >
+                        <Ionicons name="close" size={15} color={colors.inkFaint} />
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                  <Text style={styles.commentBody}>{c.body}</Text>
                 </View>
-                <Text style={styles.commentBody}>{c.body}</Text>
               </View>
             ))
           )}
@@ -429,7 +456,13 @@ const styles = StyleSheet.create({
   backText: { ...type.label, color: colors.ember, marginLeft: space.xs },
   hero: { alignItems: 'center', marginTop: space.sm, marginBottom: space.xl },
   title: { ...type.h1, color: colors.ink, textAlign: 'center', marginTop: space.lg },
-  byline: { ...type.bodySm, color: colors.inkMuted, marginTop: space.xs + 2, textAlign: 'center' },
+  bylineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: space.xs + 2,
+  },
+  bylineAvatar: { marginRight: space.xs + 2 },
+  byline: { ...type.bodySm, color: colors.inkMuted, textAlign: 'center' },
   player: { marginBottom: space.md },
   section: { marginTop: space.xl },
   sectionHeading: { ...type.eyebrow, color: colors.inkMuted, marginBottom: space.sm },
@@ -459,16 +492,20 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.hairline,
   },
+  recipientAvatar: { marginRight: space.md },
   recipientInfo: { flex: 1, marginRight: space.md },
   recipientName: { ...type.label, fontSize: 15, color: colors.ink },
   recipientEmail: { ...type.caption, color: colors.inkMuted, marginTop: 2 },
   commentsEmpty: { ...type.bodySm, color: colors.inkMuted, marginBottom: space.md },
   comment: {
+    flexDirection: 'row',
     backgroundColor: colors.surface,
     borderRadius: radius.sm,
     padding: space.md,
     marginBottom: space.sm,
   },
+  commentAvatar: { marginRight: space.sm },
+  commentMain: { flex: 1 },
   commentHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: space.xs },
   commentAuthor: { ...type.caption, fontFamily: type.h3.fontFamily, color: colors.ink },
   commentTime: { ...type.caption, color: colors.inkMuted, marginLeft: space.sm, flex: 1 },
