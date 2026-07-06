@@ -24,6 +24,7 @@ import { showAlert } from '../utils/alert';
 import { type } from '../theme/type';
 import { radius, elevation, layout, space } from '../theme/space';
 import Avatar from '../components/Avatar';
+import PressableScale from '../components/PressableScale';
 
 export default function ProfileScreen() {
   const { user, logout, refreshProfile } = useAuth();
@@ -184,11 +185,10 @@ export default function ProfileScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Invites</Text>
 
-        <TouchableOpacity
+        <PressableScale
           style={[styles.generateButton, generatingInvite && styles.generateDisabled]}
           onPress={handleGenerateInvite}
           disabled={generatingInvite}
-          activeOpacity={0.8}
         >
           {generatingInvite ? (
             <ActivityIndicator color={colors.white} size="small" />
@@ -198,7 +198,7 @@ export default function ProfileScreen() {
               <Text style={styles.generateText}>Share an invite</Text>
             </>
           )}
-        </TouchableOpacity>
+        </PressableScale>
 
         {invites.length > 0 && (
           <View style={styles.invitesList}>

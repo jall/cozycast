@@ -15,6 +15,7 @@ import { Audio } from 'expo-av';
 import * as DocumentPicker from 'expo-document-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { createCast, shareCast, getFriends } from '../api/client';
+import PressableScale from '../components/PressableScale';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { fonts } from '../theme/typography';
@@ -114,6 +115,13 @@ export default function RecordScreen() {
 
   const timerRef = useRef(null);
   const pulse = useRef(new Animated.Value(0)).current;
+
+  // Crossfade, never cut: each step of the flow breathes in over ~280ms.
+  const fade = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    fade.setValue(0);
+    Animated.timing(fade, { toValue: 1, duration: 280, useNativeDriver: true }).start();
+  }, [mode, fade]);
 
   useEffect(() => {
     getFriends()
@@ -294,11 +302,11 @@ export default function RecordScreen() {
         <Text style={styles.screenTitle}>Start a cast</Text>
         <Text style={styles.screenSubtitle}>say something, then choose who hears it</Text>
 
-        <TouchableOpacity
+        <PressableScale
           testID="record-start"
           style={styles.choiceCard}
+          hoverStyle={styles.choiceCardHover}
           onPress={startRecording}
-          activeOpacity={0.8}
         >
           <View style={styles.choiceIconWrap}>
             <Ionicons name="mic" size={32} color={colors.ember} />
@@ -307,13 +315,13 @@ export default function RecordScreen() {
             <Text style={styles.choiceTitle}>Record</Text>
             <Text style={styles.choiceDesc}>Record something right now</Text>
           </View>
-        </TouchableOpacity>
+        </PressableScale>
 
-        <TouchableOpacity
+        <PressableScale
           testID="record-pick"
           style={styles.choiceCard}
+          hoverStyle={styles.choiceCardHover}
           onPress={handlePickFile}
-          activeOpacity={0.8}
         >
           <View style={styles.choiceIconWrap}>
             <Ionicons name="document-outline" size={32} color={colors.emberSoft} />
@@ -322,7 +330,7 @@ export default function RecordScreen() {
             <Text style={styles.choiceTitle}>Pick a file</Text>
             <Text style={styles.choiceDesc}>Bring a conversation you already have</Text>
           </View>
-        </TouchableOpacity>
+        </PressableScale>
 
         <View style={styles.tipCard} testID="conversation-tip">
           <View style={styles.tipHeader}>
@@ -481,18 +489,17 @@ export default function RecordScreen() {
           </View>
         ) : null}
 
-        <TouchableOpacity
+        <PressableScale
           style={[styles.submitButton, submitting && styles.submitDisabled]}
           onPress={handleCreate}
           disabled={submitting}
-          activeOpacity={0.8}
         >
           {submitting ? (
             <ActivityIndicator color={colors.onEmber} />
           ) : (
             <Text style={styles.submitText}>Choose who hears it</Text>
           )}
-        </TouchableOpacity>
+        </PressableScale>
 
         <TouchableOpacity style={styles.cancelButton} onPress={resetState} activeOpacity={0.6}>
           <Text style={styles.cancelText}>Cancel</Text>
@@ -536,11 +543,10 @@ export default function RecordScreen() {
           )
         ) : null}
 
-        <TouchableOpacity
+        <PressableScale
           style={[styles.submitButton, submitting && styles.submitDisabled]}
           onPress={sharerIsMe ? handleShare : () => setMode('done')}
           disabled={submitting}
-          activeOpacity={0.8}
         >
           {submitting ? (
             <ActivityIndicator color={colors.onEmber} />
@@ -555,7 +561,7 @@ export default function RecordScreen() {
                 : 'Done'}
             </Text>
           )}
-        </TouchableOpacity>
+        </PressableScale>
       </ScrollView>
     );
   }
@@ -570,22 +576,22 @@ export default function RecordScreen() {
             ? 'Your cast is safe, and on its way to the people you chose.'
             : 'Your cast is safe — share it whenever you’re ready.'}
         </Text>
-        <TouchableOpacity style={styles.submitButton} onPress={resetState} activeOpacity={0.8}>
+        <PressableScale style={styles.submitButton} onPress={resetState}>
           <Text style={styles.submitText}>Record another</Text>
-        </TouchableOpacity>
+        </PressableScale>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <View style={styles.column}>
+      <Animated.View style={[styles.column, { opacity: fade }]}>
         {mode === null && renderChoiceScreen()}
         {mode === 'recording' && renderRecordingScreen()}
         {mode === 'form' && renderForm()}
         {mode === 'recipients' && renderRecipients()}
         {mode === 'done' && renderDone()}
-      </View>
+      </Animated.View>
     </View>
   );
 }
@@ -627,6 +633,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: space.lg,
     ...elevation.rest,
+  },
+  choiceCardHover: {
+    ...elevation.raised,
   },
   choiceIconWrap: {
     width: 56,

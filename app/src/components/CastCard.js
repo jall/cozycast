@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import AudioPlayer from './AudioPlayer';
 import CastCover from './CastCover';
 import Avatar from './Avatar';
+import PressableScale from './PressableScale';
 import { useAuth } from '../context/AuthContext';
 import { timeAgo } from '../utils/time';
 import { colors } from '../theme/colors';
@@ -58,8 +59,7 @@ export default function CastCard({ cast, index = 0 }) {
   return (
     <Animated.View
       style={[
-        styles.card,
-        unheard && styles.cardUnheard,
+        styles.cardOuter,
         {
           opacity: enter,
           transform: [
@@ -68,94 +68,101 @@ export default function CastCard({ cast, index = 0 }) {
         },
       ]}
     >
-      <View style={styles.topRow}>
-        <TouchableOpacity
-          style={styles.headerPress}
-          onPress={openDetail}
-          activeOpacity={0.7}
-          accessibilityLabel={`Open ${title}`}
-        >
-          <CastCover seed={id} title={title} size={56} />
-          <View style={styles.headerText}>
-            <Text style={styles.title} numberOfLines={2}>
-              {title}
-            </Text>
-            <View style={styles.bylineRow}>
-              <Avatar
-                name={shared_with_me ? sharer_name || creator_name : creator_name}
-                path={shared_with_me ? sharer_avatar || creator_avatar : creator_avatar}
-                size={18}
-                style={styles.bylineAvatar}
-              />
-              <Text style={styles.byline} numberOfLines={1}>
-                {shared_with_me ? `Shared by ${sharer_name || creator_name}` : creator_name} ·{' '}
-                {timeAgo(created_at)}
+      {/* The whole card is one gentle press target (detail), with a soft
+          hover lift on web; the play button inside claims its own presses. */}
+      <PressableScale
+        style={[styles.card, unheard && styles.cardUnheard]}
+        hoverStyle={styles.cardHover}
+        onPress={openDetail}
+        accessibilityLabel={`Open ${title}`}
+      >
+        <View style={styles.topRow}>
+          <View style={styles.headerPress}>
+            <CastCover seed={id} title={title} size={56} />
+            <View style={styles.headerText}>
+              <Text style={styles.title} numberOfLines={2}>
+                {title}
               </Text>
+              <View style={styles.bylineRow}>
+                <Avatar
+                  name={shared_with_me ? sharer_name || creator_name : creator_name}
+                  path={shared_with_me ? sharer_avatar || creator_avatar : creator_avatar}
+                  size={18}
+                  style={styles.bylineAvatar}
+                />
+                <Text style={styles.byline} numberOfLines={1}>
+                  {shared_with_me ? `Shared by ${sharer_name || creator_name}` : creator_name} ·{' '}
+                  {timeAgo(created_at)}
+                </Text>
+              </View>
             </View>
           </View>
-        </TouchableOpacity>
-        {unheard ? <View style={styles.unheardDot} accessibilityLabel="Unheard" /> : null}
-      </View>
+          {unheard ? <View style={styles.unheardDot} accessibilityLabel="Unheard" /> : null}
+        </View>
 
-      {body ? (
-        <TouchableOpacity onPress={openDetail} activeOpacity={0.7}>
+        {body ? (
           <Text style={styles.summary} numberOfLines={4}>
             {body}
           </Text>
-        </TouchableOpacity>
-      ) : null}
+        ) : null}
 
-      {participantList.length > 0 && (
-        <View style={styles.participantsRow}>
-          <Ionicons
-            name="people-outline"
-            size={14}
-            color={colors.inkMuted}
-            style={styles.participantsIcon}
+        {participantList.length > 0 && (
+          <View style={styles.participantsRow}>
+            <Ionicons
+              name="people-outline"
+              size={14}
+              color={colors.inkMuted}
+              style={styles.participantsIcon}
+            />
+            {participantList.map((name, i) => (
+              <View key={i} style={styles.participantTag}>
+                <Text style={styles.participantText}>{name}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {cast.audio_path && (
+          <AudioPlayer
+            audioPath={cast.audio_path}
+            style={styles.player}
+            castId={id}
+            title={title}
+            seed={id}
+            artist={shared_with_me ? sharer_name || creator_name : creator_name}
+            durationSeconds={cast.duration}
           />
-          {participantList.map((name, i) => (
-            <View key={i} style={styles.participantTag}>
-              <Text style={styles.participantText}>{name}</Text>
-            </View>
-          ))}
-        </View>
-      )}
+        )}
 
-      {cast.audio_path && (
-        <AudioPlayer
-          audioPath={cast.audio_path}
-          style={styles.player}
-          castId={id}
-          title={title}
-          seed={id}
-          artist={shared_with_me ? sharer_name || creator_name : creator_name}
-          durationSeconds={cast.duration}
-        />
-      )}
-
-      {needsSharing ? (
-        <TouchableOpacity style={styles.nudge} onPress={openDetail} activeOpacity={0.7}>
-          <Ionicons name="megaphone-outline" size={15} color={colors.emberInk} />
-          <Text style={styles.nudgeText}>You’re the sharer — choose who hears this</Text>
-        </TouchableOpacity>
-      ) : !shared_with_me && recipient_count > 0 ? (
-        <Text style={styles.sharedNote}>Shared — only with the people you chose</Text>
-      ) : null}
+        {needsSharing ? (
+          <TouchableOpacity style={styles.nudge} onPress={openDetail} activeOpacity={0.7}>
+            <Ionicons name="megaphone-outline" size={15} color={colors.emberInk} />
+            <Text style={styles.nudgeText}>You’re the sharer — choose who hears this</Text>
+          </TouchableOpacity>
+        ) : !shared_with_me && recipient_count > 0 ? (
+          <Text style={styles.sharedNote}>Shared — only with the people you chose</Text>
+        ) : null}
+      </PressableScale>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
+  cardOuter: {
+    marginHorizontal: space.lg,
+    marginBottom: space.md + 2,
+  },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.md,
     padding: space.lg + 4,
-    marginHorizontal: space.lg,
-    marginBottom: space.md + 2,
     ...elevation.rest,
   },
   cardUnheard: {
     backgroundColor: colors.accentSurface,
+  },
+  cardHover: {
+    ...elevation.raised,
   },
   topRow: {
     flexDirection: 'row',

@@ -17,6 +17,7 @@ import { useToast } from '../context/ToastContext';
 import { fonts } from '../theme/typography';
 import { type } from '../theme/type';
 import { radius, elevation, layout, space } from '../theme/space';
+import PressableScale from '../components/PressableScale';
 
 export default function LoginScreen({ onBack }) {
   const { login, signup, requestPasswordReset } = useAuth();
@@ -233,11 +234,10 @@ export default function LoginScreen({ onBack }) {
             </View>
           )}
 
-          <TouchableOpacity
+          <PressableScale
             style={[styles.button, submitting && styles.buttonDisabled]}
             onPress={handleSubmit}
             disabled={submitting}
-            activeOpacity={0.8}
           >
             {submitting ? (
               <ActivityIndicator color={colors.white} />
@@ -246,7 +246,7 @@ export default function LoginScreen({ onBack }) {
                 {resetMode ? 'Send reset link' : isSignup ? 'Sign up' : 'Log in'}
               </Text>
             )}
-          </TouchableOpacity>
+          </PressableScale>
 
           {resetMode ? (
             <TouchableOpacity

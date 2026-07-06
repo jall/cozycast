@@ -4,6 +4,7 @@ import { colors } from '../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
 import { type } from '../theme/type';
 import { space, radius, elevation } from '../theme/space';
+import PressableScale from '../components/PressableScale';
 
 const STEPS = [
   {
@@ -86,9 +87,9 @@ export default function LandingScreen({ onGetStarted, onOpenManifesto }) {
         </View>
 
         <View style={styles.ctaSection}>
-          <TouchableOpacity style={styles.primaryButton} onPress={onGetStarted} activeOpacity={0.8}>
+          <PressableScale style={styles.primaryButton} onPress={onGetStarted}>
             <Text style={styles.primaryButtonText}>Get started</Text>
-          </TouchableOpacity>
+          </PressableScale>
           <TouchableOpacity style={styles.signInLink} onPress={onGetStarted} activeOpacity={0.6}>
             <Text style={styles.signInText}>Already have an account? Sign in</Text>
           </TouchableOpacity>
