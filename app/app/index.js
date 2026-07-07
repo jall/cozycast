@@ -60,8 +60,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
+  // NB: must stay a column — tabRow centers itself horizontally via alignSelf,
+  // which only works on the cross axis (a row parent pins it to the left edge
+  // on wide viewports).
   tabBar: {
-    flexDirection: 'row',
     backgroundColor: colors.surface,
     borderTopWidth: 0,
     shadowColor: '#7A5A3A',
