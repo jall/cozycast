@@ -50,6 +50,16 @@ jobs:
             exit 1
           fi
 
+          # A value pasted into the secrets box keeps whatever came with it —
+          # most often a trailing newline. That makes the header "apikey: <key>\n"
+          # and Supabase rejects it as an invalid key, which reads like a wrong
+          # key rather than a whitespace problem. Strip it, and re-mask: the
+          # trimmed value no longer matches the registered secret, so GitHub's
+          # automatic masking no longer covers it.
+          SUPABASE_URL=$(printf '%s' "$SUPABASE_URL" | tr -d '[:space:]' | sed 's#/*$##')
+          SUPABASE_ANON_KEY=$(printf '%s' "$SUPABASE_ANON_KEY" | tr -d '[:space:]')
+          echo "::add-mask::$SUPABASE_ANON_KEY"
+
           # "Typically a few user requests to the database each day" is the
           # documented bar, so send three — which doubles as cover for a
           # transient blip.
@@ -78,7 +88,29 @@ jobs:
           echo "Keepalive $(date -u '+%Y-%m-%d %H:%M UTC') — $ok/3 queries answered" >> "$GITHUB_STEP_SUMMARY"
 
           if [ "$ok" -eq 0 ]; then
-            echo "::error::No queries answered — the project may be paused or unreachable. See the HTTP statuses above."
+            # Only on total failure — keeps the happy path quiet. None of this
+            # prints the key: just its length, and the JWT's public claims
+            # (issuer, project ref, role), which is what actually tells you
+            # whether the wrong project's key ended up in the secret. The
+            # signature is never decoded or shown.
+            echo "::group::Diagnostics"
+            echo "URL: $(printf '%s' "$SUPABASE_URL" | sed -E 's#^(https?://[^/]+).*#\1#')"
+            echo "Key length: ${#SUPABASE_ANON_KEY} characters"
+            case "$SUPABASE_ANON_KEY" in
+              eyJ*)
+                payload=$(printf '%s' "$SUPABASE_ANON_KEY" | cut -d. -f2 | tr '_-' '/+')
+                while [ $(( ${#payload} % 4 )) -ne 0 ]; do payload="${payload}="; done
+                echo "Key claims: $(printf '%s' "$payload" | base64 -d 2>/dev/null || echo '(could not decode)')"
+                ;;
+              sb_publishable_*)
+                echo "Key shape: modern publishable key"
+                ;;
+              *)
+                echo "Key shape: UNRECOGNISED — expected a JWT (eyJ...) or sb_publishable_..."
+                ;;
+            esac
+            echo "::endgroup::"
+            echo "::error::No queries answered — see the HTTP statuses and diagnostics above."
             exit 1
           fi
           if [ "$ok" -lt 3 ]; then
