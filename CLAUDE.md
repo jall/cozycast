@@ -278,31 +278,32 @@ poking prod by hand.
 Free plan projects are paused after a 7-day window of too little **user
 database activity**, and a paused project is only restorable for 90 days
 before a downloadable backup is all that's left. `.github/workflows/keepalive.yml`
-runs daily and makes three real queries against each project so neither ever
-gets that quiet. It covers **retreat-eats** as well as cozycast — one cron to
-maintain rather than one per repo.
+runs daily and makes three real queries so the project never gets that quiet.
 
-- Targets come from the `SUPABASE_KEEPALIVE_TARGETS` repo **secret**, a JSON
-  array of `{name, url, key, path, method?}` (the workflow header has the
-  exact shape). `key` is the project's publishable (anon) key — a keepalive
-  needs no privileges at all, so never give it the service-role key.
-- The ping has to actually reach Postgres. `/rest/v1/` and `/auth/v1/health`
-  answer without touching the database and don't count; an RPC or a select
-  against a table `anon` may read does.
-- cozycast grants `anon` nothing (by design — see the sharing model), so its
-  ping calls `public.keepalive()`, a function added by
-  `supabase/migrations/20260913120000_keepalive.sql` that reads no data and
-  just returns `now()`. retreat-eats' `profiles` is already anon-selectable,
-  so it pings that directly and needs no schema change.
+- Config: the `SUPABASE_URL` repo **variable** and the `SUPABASE_ANON_KEY`
+  repo **secret**. Publishable (anon) key only — a keepalive needs no
+  privileges at all, so never give it the service-role key.
+- The ping has to genuinely reach Postgres. `/rest/v1/` (401s for anon) and
+  `/auth/v1/health` (answers without a query) don't count — most of the
+  keepalive templates floating around ping one of those and quietly do
+  nothing while showing green. cozycast grants `anon` nothing on any table by
+  design, so the ping calls `public.keepalive()`
+  (`supabase/migrations/20260913120000_keepalive.sql`), a function that reads
+  no data and just returns `now()`, leaving the sharing model untouched.
 - **`pg_cron` can't do this job.** The heuristic counts *user* requests, and
   in-database cron doesn't run on a project that's already paused — the
   traffic has to come from outside.
+- **One workflow per repo.** This one covers cozycast only; each project repo
+  carries its own copy so each owns its own liveness and nothing breaks if
+  another repo is archived. There is no pre-built Marketplace action worth
+  adopting — the popular ones are fork-this-template repos, and a scheduled
+  job holding your keys isn't the place for a third-party dependency.
 - The workflow also commits a dated marker to `.github/last-heartbeat` if the
   repo has been quiet for 50 days: GitHub disables scheduled workflows in
   public repos after 60 days of inactivity, which is exactly when this one
   matters most. The commit is tagged `[skip ci]` so it doesn't trigger CI or
   a Netlify build.
-- A failed run means a project didn't answer — possibly already paused.
+- A failed run means the project didn't answer — possibly already paused.
   GitHub emails the repo owner when a scheduled workflow fails.
 
 ## Test account (pre-v1 only — remove before launch)

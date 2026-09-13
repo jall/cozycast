@@ -3,28 +3,23 @@ name: Keepalive
 # Supabase pauses Free plan projects that show too little *user database
 # activity* over a 7-day window, and a paused project is only restorable for
 # 90 days before a downloadable backup is all that's left. This job makes a
-# few real queries against each project every day so neither ever gets that
-# quiet. It covers retreat-eats as well as cozycast — one cron to maintain
-# rather than one per repo.
+# few real queries every day so the project never gets that quiet.
 #
-# Targets live in the SUPABASE_KEEPALIVE_TARGETS repo secret, a JSON array:
+# Configure with the SUPABASE_URL repo variable and the SUPABASE_ANON_KEY
+# repo secret (Settings -> Secrets and variables -> Actions). The anon key is
+# the publishable one already inlined in the web bundle — a keepalive needs no
+# privileges, so never give this the service-role key.
 #
-#   [
-#     {"name": "cozycast", "url": "https://<ref>.supabase.co", "key": "<anon key>",
-#      "method": "POST", "path": "/rest/v1/rpc/keepalive"},
-#     {"name": "retreat-eats", "url": "https://<ref>.supabase.co", "key": "<anon key>",
-#      "path": "/rest/v1/profiles?select=user_id&limit=1"}
-#   ]
-#
-# `key` is the project's publishable (anon) key — never the service-role key;
-# keeping a project warm needs no privileges at all. `path` must be something
-# that genuinely reaches Postgres: an RPC, or a select against a table anon
-# may read. /rest/v1/ and /auth/v1/health answer without touching the
-# database, so they don't count as activity.
+# The ping must genuinely reach Postgres. /rest/v1/ and /auth/v1/health answer
+# without touching the database and don't count as activity — which is why
+# this calls public.keepalive() (see supabase/migrations/), a function that
+# reads no data and just returns now(). cozycast grants anon nothing on any
+# table by design, so an RPC is the way in that doesn't widen the sharing
+# model.
 
 on:
   schedule:
-    # Daily, and deliberately not on the hour — GitHub delays or drops runs
+    # Daily, deliberately not on the hour — GitHub delays or drops runs
     # clustered at :00 under load, and the pause window is only 7 days wide.
     - cron: '17 7 * * *'
   workflow_dispatch:
@@ -34,88 +29,56 @@ permissions:
 
 jobs:
   ping:
-    name: Ping Supabase projects
+    name: Query the database
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
-      - name: Query each project
+      - name: Call public.keepalive()
         env:
-          TARGETS: ${{ secrets.SUPABASE_KEEPALIVE_TARGETS }}
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
           set -euo pipefail
 
-          if [ -z "${TARGETS:-}" ]; then
-            echo "::error::SUPABASE_KEEPALIVE_TARGETS is unset — see CLAUDE.md, 'Keeping the free-tier projects awake'."
-            exit 1
-          fi
-          if ! jq -e 'type == "array" and length > 0' >/dev/null 2>&1 <<<"$TARGETS"; then
-            echo "::error::SUPABASE_KEEPALIVE_TARGETS must be a non-empty JSON array."
+          if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_ANON_KEY:-}" ]; then
+            echo "::error::Set the SUPABASE_URL repo variable and the SUPABASE_ANON_KEY repo secret."
             exit 1
           fi
 
-          echo "### Keepalive — $(date -u '+%Y-%m-%d %H:%M UTC')" >> "$GITHUB_STEP_SUMMARY"
-
-          failed=0
-          count=$(jq 'length' <<<"$TARGETS")
-
-          for i in $(seq 0 $((count - 1))); do
-            name=$(jq -r ".[$i].name // \"target-$i\"" <<<"$TARGETS")
-            url=$(jq -r ".[$i].url // empty" <<<"$TARGETS")
-            key=$(jq -r ".[$i].key // empty" <<<"$TARGETS")
-            req_path=$(jq -r ".[$i].path // empty" <<<"$TARGETS")
-            method=$(jq -r ".[$i].method // \"GET\"" <<<"$TARGETS")
-
-            # Values pulled out of the secret aren't covered by its own log
-            # masking — GitHub only masks the exact secret string.
-            if [ -n "$key" ]; then echo "::add-mask::$key"; fi
-
-            if [ -z "$url" ] || [ -z "$key" ] || [ -z "$req_path" ]; then
-              echo "::error::$name: each target needs url, key and path."
-              echo "- :x: \`$name\` — misconfigured" >> "$GITHUB_STEP_SUMMARY"
-              failed=1
-              continue
-            fi
-
-            args=(-sS -o /tmp/keepalive-body -w '%{http_code}' --max-time 30
-                  -X "$method"
-                  -H "apikey: $key" -H "Authorization: Bearer $key")
-            if [ "$method" = "POST" ]; then
-              args+=(-H 'Content-Type: application/json' -d '{}')
-            fi
-
-            # "Typically a few user requests to the database each day" is the
-            # documented bar, so send three — which doubles as cover for a
-            # transient blip.
-            ok=0
-            for attempt in 1 2 3; do
-              status=$(curl "${args[@]}" "$url$req_path" 2>/tmp/keepalive-err) || status=""
-              case "$status" in
-                2??)
-                  ok=$((ok + 1))
-                  echo "  $name [$attempt/3]: HTTP $status"
-                  ;;
-                *)
-                  echo "  $name [$attempt/3]: HTTP ${status:-no response}" \
-                       "— $(head -c 200 /tmp/keepalive-body 2>/dev/null || true)" \
-                       "$(head -c 200 /tmp/keepalive-err 2>/dev/null || true)"
-                  ;;
-              esac
-              if [ "$attempt" -lt 3 ]; then sleep 3; fi
-            done
-
-            if [ "$ok" -eq 3 ]; then
-              echo "- :white_check_mark: \`$name\` — 3/3 queries answered" >> "$GITHUB_STEP_SUMMARY"
-            elif [ "$ok" -gt 0 ]; then
-              echo "::warning::$name: only $ok/3 queries answered."
-              echo "- :warning: \`$name\` — $ok/3 queries answered" >> "$GITHUB_STEP_SUMMARY"
-            else
-              echo "::error::$name: no queries answered — the project may be paused or unreachable, or the path may be wrong. See the HTTP statuses above."
-              echo "- :x: \`$name\` — no queries answered" >> "$GITHUB_STEP_SUMMARY"
-              failed=1
-            fi
+          # "Typically a few user requests to the database each day" is the
+          # documented bar, so send three — which doubles as cover for a
+          # transient blip.
+          ok=0
+          for attempt in 1 2 3; do
+            status=$(curl -sS -o /tmp/keepalive-body -w '%{http_code}' --max-time 30 \
+              -X POST \
+              -H "apikey: $SUPABASE_ANON_KEY" \
+              -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+              -H 'Content-Type: application/json' -d '{}' \
+              "$SUPABASE_URL/rest/v1/rpc/keepalive" 2>/tmp/keepalive-err) || status=""
+            case "$status" in
+              2??)
+                ok=$((ok + 1))
+                echo "[$attempt/3] HTTP $status"
+                ;;
+              *)
+                echo "[$attempt/3] HTTP ${status:-no response}" \
+                     "— $(head -c 200 /tmp/keepalive-body 2>/dev/null || true)" \
+                     "$(head -c 200 /tmp/keepalive-err 2>/dev/null || true)"
+                ;;
+            esac
+            if [ "$attempt" -lt 3 ]; then sleep 3; fi
           done
 
-          exit "$failed"
+          echo "Keepalive $(date -u '+%Y-%m-%d %H:%M UTC') — $ok/3 queries answered" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$ok" -eq 0 ]; then
+            echo "::error::No queries answered — the project may be paused or unreachable. See the HTTP statuses above."
+            exit 1
+          fi
+          if [ "$ok" -lt 3 ]; then
+            echo "::warning::Only $ok/3 queries answered."
+          fi
 
   heartbeat:
     name: Keep this workflow enabled
