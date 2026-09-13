@@ -280,9 +280,13 @@ database activity**, and a paused project is only restorable for 90 days
 before a downloadable backup is all that's left. `.github/workflows/keepalive.yml`
 runs daily and makes three real queries so the project never gets that quiet.
 
-- Config: the `SUPABASE_URL` repo **variable** and the `SUPABASE_ANON_KEY`
-  repo **secret**. Publishable (anon) key only — a keepalive needs no
-  privileges at all, so never give it the service-role key.
+- Config: `SUPABASE_URL` and `SUPABASE_ANON_KEY` under Settings → Secrets and
+  variables → Actions. The URL is read as
+  `vars.SUPABASE_URL || secrets.SUPABASE_URL`, so it works from either tab —
+  the earlier variable-only version silently resolved to an empty string when
+  it was added as a secret. The key is secret-only, so it stays masked in
+  logs. Publishable (anon) key only — a keepalive needs no privileges at all,
+  so never give it the service-role key.
 - The ping has to genuinely reach Postgres. `/rest/v1/` (401s for anon) and
   `/auth/v1/health` (answers without a query) don't count — most of the
   keepalive templates floating around ping one of those and quietly do

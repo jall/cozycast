@@ -5,8 +5,9 @@ name: Keepalive
 # 90 days before a downloadable backup is all that's left. This job makes a
 # few real queries every day so the project never gets that quiet.
 #
-# Configure with the SUPABASE_URL repo variable and the SUPABASE_ANON_KEY
-# repo secret (Settings -> Secrets and variables -> Actions). The anon key is
+# Configure with SUPABASE_URL — a repo variable *or* a repo secret, either
+# works — and the SUPABASE_ANON_KEY repo secret (Settings -> Secrets and
+# variables -> Actions). The anon key is
 # the publishable one already inlined in the web bundle — a keepalive needs no
 # privileges, so never give this the service-role key.
 #
@@ -35,13 +36,17 @@ jobs:
     steps:
       - name: Call public.keepalive()
         env:
-          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_URL: ${{ vars.SUPABASE_URL || secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
           set -euo pipefail
 
-          if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_ANON_KEY:-}" ]; then
-            echo "::error::Set the SUPABASE_URL repo variable and the SUPABASE_ANON_KEY repo secret."
+          if [ -z "${SUPABASE_URL:-}" ]; then
+            echo "::error::SUPABASE_URL is not set. Add it under Settings -> Secrets and variables -> Actions, as either a variable or a secret."
+            exit 1
+          fi
+          if [ -z "${SUPABASE_ANON_KEY:-}" ]; then
+            echo "::error::SUPABASE_ANON_KEY is not set. Add it as a repo secret under Settings -> Secrets and variables -> Actions."
             exit 1
           fi
 
