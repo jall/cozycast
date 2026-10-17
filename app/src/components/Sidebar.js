@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, usePathname } from 'expo-router';
 import FlameMark from './FlameMark';
 import Faces from './Faces';
+import Sheet from './Sheet';
+import InvitePanel from './InvitePanel';
 import { getFriends } from '../api/client';
 import { useNotifications } from '../context/NotificationsContext';
+import { useShell } from '../context/ShellContext';
 import { colors } from '../theme/colors';
 import { type } from '../theme/type';
 import { space, radius, layout, elevation } from '../theme/space';
@@ -37,13 +40,18 @@ function NavItem({ icon, label, active, onPress, count, testID }) {
   );
 }
 
-// The laptop/tablet rail: wordmark, the three places, the one loud action
-// ("Pull up a log" → Record), and the faces around your fire. Replaces the
-// phone's bottom tab bar from `layout.wide` up.
-export default function Sidebar({ active, onNavigate }) {
+// The laptop/tablet rail, rendered by the root layout so it stays put on every
+// route: wordmark, the places (Fireside · Notifications · You), the one loud
+// action (Record a cast), and the faces around your fire. Replaces the phone's
+// bottom tab bar from `layout.wide` up.
+export default function Sidebar() {
   const router = useRouter();
+  const pathname = usePathname();
+  const { tab, setTab, friendsVersion } = useShell();
   const { unreadCount } = useNotifications();
   const [friends, setFriends] = useState([]);
+  const [inviting, setInviting] = useState(false);
+  const home = pathname === '/';
 
   useEffect(() => {
     let live = true;
@@ -53,51 +61,55 @@ export default function Sidebar({ active, onNavigate }) {
     return () => {
       live = false;
     };
-  }, []);
+  }, [friendsVersion]);
+
+  function goTab(next) {
+    setTab(next);
+    if (home) return;
+    // Back to the one home screen at the bottom of the stack — not a second
+    // copy pushed on top.
+    if (router.canDismiss()) router.dismissAll();
+    else router.replace('/');
+  }
 
   return (
     <View style={styles.rail}>
-      <View style={styles.brand}>
+      <TouchableOpacity style={styles.brand} onPress={() => goTab('feed')} activeOpacity={0.8}>
         <FlameMark size={30} />
         <Text style={styles.wordmark}>cozycast</Text>
-      </View>
+      </TouchableOpacity>
 
       <View style={styles.nav}>
         <NavItem
           icon="flame"
           label="Fireside"
-          active={active === 'feed'}
-          onPress={() => onNavigate('feed')}
-        />
-        <NavItem
-          icon="mic"
-          label="Record"
-          active={active === 'record'}
-          onPress={() => onNavigate('record')}
+          active={home && tab === 'feed'}
+          onPress={() => goTab('feed')}
         />
         <NavItem
           icon="notifications"
           label="Notifications"
           count={unreadCount}
-          onPress={() => router.push('/notifications')}
+          active={pathname === '/notifications'}
+          onPress={() => router.navigate('/notifications')}
           testID="notifications-bell"
         />
         <NavItem
           icon="person"
           label="You"
-          active={active === 'profile'}
-          onPress={() => onNavigate('profile')}
+          active={home && tab === 'profile'}
+          onPress={() => goTab('profile')}
         />
       </View>
 
       <TouchableOpacity
-        style={styles.cta}
-        onPress={() => onNavigate('record')}
+        style={[styles.cta, home && tab === 'record' && styles.ctaOn]}
+        onPress={() => goTab('record')}
         activeOpacity={0.85}
-        accessibilityLabel="Pull up a log — record a cast"
+        testID="nav-record"
       >
         <Ionicons name="mic" size={19} color={colors.onEmber} />
-        <Text style={styles.ctaText}>Pull up a log</Text>
+        <Text style={styles.ctaText}>Record a cast</Text>
       </TouchableOpacity>
 
       <View style={styles.circle}>
@@ -117,10 +129,19 @@ export default function Sidebar({ active, onNavigate }) {
         ) : (
           <Text style={styles.circleNote}>Nobody yet — invite the people you’d talk to late.</Text>
         )}
-        <TouchableOpacity onPress={() => onNavigate('profile')} activeOpacity={0.7}>
+        <TouchableOpacity onPress={() => setInviting(true)} activeOpacity={0.7}>
           <Text style={styles.invite}>+ Invite someone</Text>
         </TouchableOpacity>
       </View>
+
+      <Sheet
+        visible={inviting}
+        onClose={() => setInviting(false)}
+        title="Invite someone"
+        subtitle="Bring someone around your fire."
+      >
+        <InvitePanel />
+      </Sheet>
     </View>
   );
 }
@@ -197,6 +218,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     ...elevation.glow,
     shadowOpacity: 0.35,
+  },
+  ctaOn: {
+    backgroundColor: colors.emberSoft,
   },
   ctaText: {
     ...type.h3,

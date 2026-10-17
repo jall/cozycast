@@ -33,6 +33,7 @@ export default function TabBar({ active, onNavigate }) {
       <TouchableOpacity
         style={styles.tab}
         onPress={() => onNavigate('record')}
+        testID="nav-record"
         accessibilityRole="tab"
         accessibilityState={{ selected: active === 'record' }}
       >

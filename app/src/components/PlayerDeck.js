@@ -1,5 +1,12 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Platform,
+  ActivityIndicator,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Waveform from './Waveform';
 import SkipIcon from './SkipIcon';
@@ -19,8 +26,19 @@ import { space, radius, elevation } from '../theme/space';
 // `cast` is a track: { id, audioPath, title, seed, artist, durationSeconds, peaks }.
 // `notes` are comments; those with `at_ms` become markers.
 export default function PlayerDeck({ cast, notes = [], onNote, compact = false, style }) {
-  const { track, isPlaying, position, duration, rate, toggle, play, seek, skip, cycleRate } =
-    usePlayer();
+  const {
+    track,
+    isPlaying,
+    position,
+    duration,
+    rate,
+    loading,
+    toggle,
+    play,
+    seek,
+    skip,
+    cycleRate,
+  } = usePlayer();
 
   const isCurrent = track?.id === cast.id;
   const playing = isCurrent && isPlaying;
@@ -97,12 +115,16 @@ export default function PlayerDeck({ cast, notes = [], onNote, compact = false, 
           activeOpacity={0.85}
           testID="deck-play"
         >
-          <Ionicons
-            name={playing ? 'pause' : 'play'}
-            size={compact ? 26 : 30}
-            color={colors.onEmber}
-            style={playing ? null : styles.playNudge}
-          />
+          {isCurrent && loading ? (
+            <ActivityIndicator color={colors.onEmber} />
+          ) : (
+            <Ionicons
+              name={playing ? 'pause' : 'play'}
+              size={compact ? 26 : 30}
+              color={colors.onEmber}
+              style={playing ? null : styles.playNudge}
+            />
+          )}
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => (isCurrent ? skip(30000) : null)}

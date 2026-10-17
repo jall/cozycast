@@ -33,6 +33,12 @@ export function PlayerProvider({ children }) {
   const [position, setPosition] = useState(0);
   const [duration, setDuration] = useState(0);
   const [rate, setRateState] = useState(1);
+  // True from pressing play on a new track until its audio is ready: the UI
+  // shows the track (and accepts scrubs) straight away rather than waiting.
+  const [loading, setLoading] = useState(false);
+  const durationRef = useRef(0);
+  const pendingStartRef = useRef(null);
+  const loadSeqRef = useRef(0);
   const [progress, setProgress] = useState({});
   const soundRef = useRef(null);
   const rateRef = useRef(1);
@@ -104,9 +110,15 @@ export function PlayerProvider({ children }) {
     (status) => {
       if (!status.isLoaded) return;
       const pos = status.positionMillis || 0;
-      const dur = status.durationMillis || 0;
+      // Browser recordings (WebM) report an Infinity duration until fully
+      // read; keep the length we already know (from the cast) until a real one.
+      const raw = status.durationMillis;
+      if (Number.isFinite(raw) && raw > 0) {
+        durationRef.current = raw;
+        setDuration(raw);
+      }
+      const dur = durationRef.current;
       setPosition(pos);
-      if (dur) setDuration(dur);
       setIsPlaying(status.isPlaying);
       setMediaPlaybackState(status.isPlaying ? 'playing' : 'paused');
       if (status.didJustFinish) {
@@ -134,10 +146,25 @@ export function PlayerProvider({ children }) {
         const saved = progressRef.current[next.id];
         startMillis = saved && !saved.done && saved.pos < saved.dur - 3000 ? saved.pos : 0;
       }
+      const seq = (loadSeqRef.current += 1);
       if (soundRef.current) {
-        await soundRef.current.unloadAsync();
+        const old = soundRef.current;
         soundRef.current = null;
+        await old.unloadAsync().catch(() => {});
       }
+
+      // Show the track right away — the panel, card and scrubber respond while
+      // the signed URL is minted and the audio loads.
+      const known = next.durationSeconds ? next.durationSeconds * 1000 : 0;
+      setTrack(next);
+      trackIdRef.current = next.id;
+      lastSavedRef.current = startMillis;
+      pendingStartRef.current = null;
+      durationRef.current = known;
+      setPosition(startMillis);
+      setDuration(known);
+      setIsPlaying(false);
+      setLoading(true);
 
       // Mint the signed URL on demand if the caller only had a storage path.
       if (!next.uri && next.audioPath) {
@@ -147,14 +174,13 @@ export function PlayerProvider({ children }) {
           next = { ...next, uri: null };
         }
       }
-      if (!next.uri) return;
-
+      if (seq !== loadSeqRef.current) return; // superseded by another play
+      if (!next.uri) {
+        setLoading(false);
+        setTrack(null);
+        return;
+      }
       setTrack(next);
-      trackIdRef.current = next.id;
-      lastSavedRef.current = startMillis;
-      setPosition(startMillis);
-      setDuration(next.durationSeconds ? next.durationSeconds * 1000 : 0);
-      setIsPlaying(false);
 
       // Native: keep audio going when the screen locks / app backgrounds (web
       // gets the same via the browser). Guarded so a missing background-mode
@@ -177,11 +203,23 @@ export function PlayerProvider({ children }) {
           },
           onStatus,
         );
+        if (seq !== loadSeqRef.current) {
+          await sound.unloadAsync().catch(() => {});
+          return;
+        }
         soundRef.current = sound;
+        setLoading(false);
         setIsPlaying(true);
         setupMediaSession(next);
+        // Someone scrubbed while it was loading: honour where they let go.
+        if (pendingStartRef.current != null) {
+          await sound.setPositionAsync(pendingStartRef.current).catch(() => {});
+          pendingStartRef.current = null;
+        }
       } catch {
         // Bad/expired URL — leave the player idle rather than crashing.
+        if (seq !== loadSeqRef.current) return;
+        setLoading(false);
         setTrack(null);
         setIsPlaying(false);
       }
@@ -193,6 +231,7 @@ export function PlayerProvider({ children }) {
   // switch to a different one. `next` is a full track object.
   const toggle = useCallback(
     async (next) => {
+      if (track && next?.id === track.id && loading) return; // already on its way
       const isCurrent = track && next?.id === track.id && soundRef.current;
       if (!isCurrent) {
         await play(next);
@@ -206,13 +245,14 @@ export function PlayerProvider({ children }) {
         await soundRef.current.playAsync();
       }
     },
-    [track, isPlaying, position, duration, play, remember],
+    [track, isPlaying, position, duration, play, remember, loading],
   );
 
   const seek = useCallback(async (millis) => {
     const to = Math.max(0, millis);
     setPosition(to); // reflect the scrub immediately; status catches up
-    await soundRef.current?.setPositionAsync(to);
+    if (soundRef.current) await soundRef.current.setPositionAsync(to);
+    else pendingStartRef.current = to; // still loading: applied once it's ready
   }, []);
 
   // Jump back/forward by `deltaMillis` within the current track.
@@ -235,6 +275,8 @@ export function PlayerProvider({ children }) {
 
   // Dismiss the player entirely (the mini-player's close button).
   const stop = useCallback(async () => {
+    loadSeqRef.current += 1;
+    setLoading(false);
     if (soundRef.current) {
       await soundRef.current.unloadAsync();
       soundRef.current = null;
@@ -263,6 +305,7 @@ export function PlayerProvider({ children }) {
     cycleRate,
     stop,
     progress,
+    loading,
   };
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
 }

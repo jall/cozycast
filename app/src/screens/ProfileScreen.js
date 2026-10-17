@@ -6,7 +6,6 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
-  Platform,
 } from 'react-native';
 import { colors } from '../theme/colors';
 import * as Clipboard from 'expo-clipboard';
@@ -14,17 +13,14 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import {
-  getFriends,
-  generateInvite as genInvite,
-  getPendingInvites,
-  uploadAvatar,
-} from '../api/client';
+import { getFriends, getPendingInvites, uploadAvatar } from '../api/client';
 import { showAlert } from '../utils/alert';
 import { type } from '../theme/type';
 import { radius, elevation, layout, space } from '../theme/space';
 import Avatar from '../components/Avatar';
-import PressableScale from '../components/PressableScale';
+import InvitePanel from '../components/InvitePanel';
+import { useShell } from '../context/ShellContext';
+import { inviteLink } from '../utils/invites';
 
 export default function ProfileScreen() {
   const { user, logout, refreshProfile } = useAuth();
@@ -32,12 +28,12 @@ export default function ProfileScreen() {
   const [friends, setFriends] = useState([]);
   const [invites, setInvites] = useState([]);
   const [loadingFriends, setLoadingFriends] = useState(true);
-  const [generatingInvite, setGeneratingInvite] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
+  const { friendsVersion } = useShell();
   useEffect(() => {
     loadData();
-  }, []);
+  }, [friendsVersion]);
 
   async function loadData() {
     setLoadingFriends(true);
@@ -55,39 +51,13 @@ export default function ProfileScreen() {
     }
   }
 
-  async function handleGenerateInvite() {
-    setGeneratingInvite(true);
+  async function handleCopyLink(code) {
     try {
-      const code = await genInvite();
-      if (code) {
-        // Show the new code first — it's saved regardless of whether the
-        // clipboard copy works (it can reject in some browsers/contexts), so
-        // never let a failed copy hide a successfully-created invite.
-        const newInvites = await getPendingInvites();
-        setInvites(newInvites);
-        let copied = false;
-        try {
-          await Clipboard.setStringAsync(code);
-          copied = true;
-        } catch {
-          // Non-fatal — the code is listed above and tappable to copy.
-        }
-        toast.success(
-          copied
-            ? `Invite ${code} copied — share it with someone special 🌱`
-            : `Invite ${code} created — tap it to copy 🌱`,
-        );
-      }
-    } catch (err) {
-      toast.error(err.message || 'Could not generate an invite code.');
-    } finally {
-      setGeneratingInvite(false);
+      await Clipboard.setStringAsync(inviteLink(code));
+      toast.success('Invite link copied');
+    } catch {
+      toast.error('Could not copy that link.');
     }
-  }
-
-  async function handleCopyCode(code) {
-    await Clipboard.setStringAsync(code);
-    toast.success('Copied to clipboard');
   }
 
   async function handlePickAvatar() {
@@ -158,7 +128,7 @@ export default function ProfileScreen() {
           <View style={styles.emptySection}>
             <Ionicons name="people-outline" size={32} color={colors.inkFaint} />
             <Text style={styles.emptyText}>
-              No one here yet — share an invite and bring someone in.
+              No one here yet — send an invite link and bring someone in.
             </Text>
           </View>
         ) : (
@@ -183,44 +153,34 @@ export default function ProfileScreen() {
 
       {/* Invites section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Invites</Text>
-
-        <PressableScale
-          style={[styles.generateButton, generatingInvite && styles.generateDisabled]}
-          onPress={handleGenerateInvite}
-          disabled={generatingInvite}
-        >
-          {generatingInvite ? (
-            <ActivityIndicator color={colors.onEmber} size="small" />
-          ) : (
-            <>
-              <Ionicons name="add-circle-outline" size={20} color={colors.onEmber} />
-              <Text style={styles.generateText}>Share an invite</Text>
-            </>
-          )}
-        </PressableScale>
+        <Text style={styles.sectionTitle}>Invite someone</Text>
+        <InvitePanel
+          onCreated={() =>
+            getPendingInvites()
+              .then(setInvites)
+              .catch(() => {})
+          }
+        />
 
         {invites.length > 0 && (
           <View style={styles.invitesList}>
-            {invites.map((invite, index) => {
-              const code =
-                typeof invite === 'string' ? invite : invite.code || invite.inviteCode || '';
-              const used = typeof invite === 'object' ? invite.used || invite.redeemed : false;
-              return (
-                <TouchableOpacity
-                  key={index}
-                  style={styles.inviteRow}
-                  onPress={() => handleCopyCode(code)}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.inviteInfo}>
-                    <Text style={[styles.inviteCode, used && styles.inviteUsed]}>{code}</Text>
-                    <Text style={styles.inviteStatus}>{used ? 'Used' : 'Pending'}</Text>
-                  </View>
-                  <Ionicons name="copy-outline" size={18} color={colors.inkMuted} />
-                </TouchableOpacity>
-              );
-            })}
+            <Text style={styles.invitesHeading}>Links not used yet</Text>
+            {invites.map((invite) => (
+              <TouchableOpacity
+                key={invite.code}
+                style={styles.inviteRow}
+                onPress={() => handleCopyLink(invite.code)}
+                activeOpacity={0.7}
+                accessibilityLabel="Copy invite link"
+              >
+                <View style={styles.inviteInfo}>
+                  <Text style={styles.inviteCode} numberOfLines={1}>
+                    {inviteLink(invite.code)}
+                  </Text>
+                </View>
+                <Ionicons name="copy-outline" size={18} color={colors.inkMuted} />
+              </TouchableOpacity>
+            ))}
           </View>
         )}
       </View>
@@ -386,9 +346,14 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   inviteCode: {
-    fontSize: 15,
-    color: colors.ink,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    ...type.time,
+    color: colors.emberInk,
+  },
+  invitesHeading: {
+    ...type.eyebrow,
+    color: colors.inkMuted,
+    paddingHorizontal: space.lg,
+    paddingTop: space.md,
   },
   inviteUsed: {
     color: colors.inkMuted,

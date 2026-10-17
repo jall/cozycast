@@ -31,7 +31,7 @@ const STEPS = [
   },
 ];
 
-export default function LandingScreen({ onGetStarted, onOpenManifesto }) {
+export default function LandingScreen({ onGetStarted, onOpenManifesto, invited }) {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
       <View style={styles.content}>
@@ -44,6 +44,19 @@ export default function LandingScreen({ onGetStarted, onOpenManifesto }) {
           </View>
           <Campfire width={170} style={styles.fire} />
         </NightSky>
+
+        {invited ? (
+          <View style={styles.invite}>
+            <Text style={styles.inviteTitle}>Someone saved you a seat by the fire.</Text>
+            <Text style={styles.inviteBody}>
+              Join and you’ll be connected with them. Nothing is shared until someone chooses to
+              share it with you.
+            </Text>
+            <PressableScale style={styles.inviteButton} onPress={onGetStarted}>
+              <Text style={styles.inviteButtonText}>Accept the invite</Text>
+            </PressableScale>
+          </View>
+        ) : null}
 
         <View style={styles.card}>
           <Text style={styles.sectionLabel}>what is a cozy cast?</Text>
@@ -118,6 +131,41 @@ const styles = StyleSheet.create({
   content: {
     width: '100%',
     maxWidth: 640,
+  },
+  invite: {
+    backgroundColor: colors.accentSurface,
+    borderWidth: 1,
+    borderColor: '#6B3A28',
+    borderRadius: radius.md,
+    padding: space.xl,
+    marginTop: -16,
+    marginBottom: 40,
+    alignItems: 'center',
+  },
+  inviteTitle: {
+    fontFamily: type.moment.fontFamily,
+    fontSize: 22,
+    lineHeight: 28,
+    color: colors.ink,
+    textAlign: 'center',
+  },
+  inviteBody: {
+    ...type.bodySm,
+    color: colors.inkSoft,
+    textAlign: 'center',
+    marginTop: space.sm,
+    maxWidth: 420,
+  },
+  inviteButton: {
+    marginTop: space.lg,
+    backgroundColor: colors.ember,
+    borderRadius: radius.pill,
+    paddingHorizontal: space.xl,
+    paddingVertical: space.md,
+  },
+  inviteButtonText: {
+    ...type.h3,
+    color: colors.onEmber,
   },
   sky: {
     marginBottom: 40,

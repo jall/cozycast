@@ -1,9 +1,9 @@
 import { renderHook, waitFor, act } from '@testing-library/react-native';
 import { supabase } from '../../api/supabase';
-import { redeemInvite } from '../../api/client';
+import { savePendingInvite } from '../../utils/invites';
 import { AuthProvider, useAuth } from '../AuthContext';
 
-// Mock the Supabase client and the invite RPC so signup logic can be tested
+// Mock the Supabase client and invite storage so signup logic can be tested
 // without any network access.
 jest.mock('../../api/supabase', () => ({
   supabase: {
@@ -19,7 +19,7 @@ jest.mock('../../api/supabase', () => ({
     from: jest.fn(),
   },
 }));
-jest.mock('../../api/client', () => ({ redeemInvite: jest.fn() }));
+jest.mock('../../utils/invites', () => ({ savePendingInvite: jest.fn() }));
 
 async function setupAuth() {
   const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
@@ -46,10 +46,10 @@ describe('AuthContext signup', () => {
 
     const res = await result.current.signup('a@b.com', 'pw', 'Ada');
 
-    expect(res).toEqual({ needsConfirmation: true, inviteError: null });
+    expect(res).toEqual({ needsConfirmation: true });
   });
 
-  it('flags an already-registered email (empty identities) and skips invite redemption', async () => {
+  it('flags an already-registered email (empty identities) and keeps no invite', async () => {
     supabase.auth.signUp.mockResolvedValue({
       data: { user: { id: 'u1', identities: [] }, session: null },
       error: null,
@@ -59,7 +59,7 @@ describe('AuthContext signup', () => {
     const res = await result.current.signup('taken@b.com', 'pw', 'Ada', 'CODE12');
 
     expect(res).toEqual({ alreadyRegistered: true });
-    expect(redeemInvite).not.toHaveBeenCalled();
+    expect(savePendingInvite).not.toHaveBeenCalled();
   });
 
   it('reports no confirmation needed when a session is returned', async () => {
@@ -71,7 +71,7 @@ describe('AuthContext signup', () => {
 
     const res = await result.current.signup('a@b.com', 'pw', 'Ada');
 
-    expect(res).toEqual({ needsConfirmation: false, inviteError: null });
+    expect(res).toEqual({ needsConfirmation: false });
   });
 
   it('passes the configured site URL as the email redirect', async () => {
@@ -93,33 +93,17 @@ describe('AuthContext signup', () => {
     );
   });
 
-  it('redeems an invite code after a successful signup', async () => {
+  it('keeps an invite code to redeem once signed in', async () => {
     supabase.auth.signUp.mockResolvedValue({
       data: { user: { id: 'u1' }, session: null },
       error: null,
     });
-    redeemInvite.mockResolvedValue(undefined);
     const result = await setupAuth();
 
-    await result.current.signup('a@b.com', 'pw', 'Ada', 'CODE12');
-
-    expect(redeemInvite).toHaveBeenCalledWith('CODE12');
-  });
-
-  it('still succeeds but reports the invite error if redemption fails', async () => {
-    supabase.auth.signUp.mockResolvedValue({
-      data: { user: { id: 'u1' }, session: null },
-      error: null,
-    });
-    redeemInvite.mockRejectedValue(new Error('bad code'));
-    // signup logs a warning when redemption fails; keep test output clean.
-    jest.spyOn(console, 'warn').mockImplementation(() => {});
-    const result = await setupAuth();
-
-    await expect(result.current.signup('a@b.com', 'pw', 'Ada', 'NOPE')).resolves.toEqual({
+    await expect(result.current.signup('a@b.com', 'pw', 'Ada', 'CODE12')).resolves.toEqual({
       needsConfirmation: true,
-      inviteError: 'bad code',
     });
+    expect(savePendingInvite).toHaveBeenCalledWith('CODE12');
   });
 
   it('throws when signUp returns an error', async () => {

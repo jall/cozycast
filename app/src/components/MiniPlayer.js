@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import CastCover from './CastCover';
 import SkipIcon from './SkipIcon';
 import { usePlayer } from '../context/PlayerContext';
+import useLayout from '../hooks/useLayout';
 import { formatClock } from '../utils/waveform';
 import { colors } from '../theme/colors';
 import { fonts } from '../theme/typography';
@@ -19,8 +20,9 @@ import { layout, space, radius, elevation } from '../theme/space';
 export default function MiniPlayer({ hideFor }) {
   const { track, isPlaying, position, duration, toggle, skip, stop } = usePlayer();
   const router = useRouter();
+  const { panel } = useLayout();
 
-  if (!track || track.id === hideFor) return null;
+  if (!track || track.id === hideFor || panel) return null;
 
   const progress = duration > 0 ? Math.min(1, position / duration) : 0;
 

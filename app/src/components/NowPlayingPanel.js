@@ -82,7 +82,7 @@ function Equalizer({ on }) {
 // along the way (tap a timestamp to jump there, or leave one at this moment).
 // Shown from `layout.panelAt` up; below that the MiniPlayer does this job.
 export default function NowPlayingPanel() {
-  const { track, isPlaying, position, seek } = usePlayer();
+  const { track, isPlaying, position, seek, loading } = usePlayer();
   const router = useRouter();
   const toast = useToast();
   const [notes, setNotes] = useState([]);
@@ -145,13 +145,15 @@ export default function NowPlayingPanel() {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.statusRow}>
           <Equalizer on={isPlaying} />
-          <Text style={styles.status}>{isPlaying ? 'By the fire now' : 'Paused'}</Text>
+          <Text style={styles.status}>
+            {loading ? 'Pulling up a log…' : isPlaying ? 'By the fire now' : 'Paused'}
+          </Text>
           <TouchableOpacity
             onPress={() => router.push(`/cast/${track.id}`)}
             style={styles.open}
-            accessibilityLabel="Open this cast"
+            accessibilityLabel="Open the full cast page"
           >
-            <Ionicons name="open-outline" size={18} color={colors.inkMuted} />
+            <Ionicons name="expand-outline" size={18} color={colors.inkMuted} />
           </TouchableOpacity>
         </View>
 

@@ -24,7 +24,8 @@ export function waveformFor(seed, count = 48) {
 
 // m:ss (or h:mm:ss) from milliseconds, for positions and durations.
 export function formatClock(millis) {
-  const total = Math.max(0, Math.floor((millis || 0) / 1000));
+  if (!Number.isFinite(millis)) return '0:00';
+  const total = Math.max(0, Math.floor(millis / 1000));
   const h = Math.floor(total / 3600);
   const m = Math.floor((total % 3600) / 60);
   const s = total % 60;

@@ -1,13 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../api/supabase';
-import { redeemInvite } from '../api/client';
+import { SITE_URL } from '../config';
+import { savePendingInvite } from '../utils/invites';
 
 const AuthContext = createContext(null);
-
-// Where Supabase should send users after they click the email confirmation
-// link. Must also be allow-listed in the Supabase dashboard (Authentication →
-// URL Configuration). Overridable per-environment via EXPO_PUBLIC_SITE_URL.
-const SITE_URL = process.env.EXPO_PUBLIC_SITE_URL || 'https://cozycast.jall.me';
 
 export function useAuth() {
   const ctx = useContext(AuthContext);
@@ -81,22 +77,14 @@ export function AuthProvider({ children }) {
       return { alreadyRegistered: true };
     }
 
-    // If invite code provided, redeem it after signup. Don't fail signup if it
-    // doesn't take — but do report it back so the caller can tell the user
-    // (otherwise they'd silently land in an empty app, unconnected).
-    let inviteError = null;
-    if (inviteCode && data.user) {
-      try {
-        await redeemInvite(inviteCode);
-      } catch (e) {
-        inviteError = e.message || 'That invite code could not be applied.';
-        console.warn('Invite redemption failed:', e.message);
-      }
-    }
+    // An invite can't be redeemed yet — with email confirmation on there's no
+    // session until they click the link — so keep it on this device; it's
+    // redeemed the moment they're signed in (usePendingInvite).
+    if (inviteCode) await savePendingInvite(inviteCode);
 
     // When email confirmation is enabled, signUp succeeds but no session is
     // created until the user clicks the link. Let the caller tell them so.
-    return { needsConfirmation: !data.session, inviteError };
+    return { needsConfirmation: !data.session };
   }
 
   async function logout() {

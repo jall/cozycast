@@ -112,7 +112,7 @@ export default function RecordScreen() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [createdCast, setCreatedCast] = useState(null);
   // A gentle conversation prompt, picked once per visit to this screen.
-  const [tip] = useState(randomTip);
+  const [tip, setTip] = useState(randomTip);
 
   const timerRef = useRef(null);
   const pulse = useRef(new Animated.Value(0)).current;
@@ -335,8 +335,16 @@ export default function RecordScreen() {
 
         <View style={styles.tipCard} testID="conversation-tip">
           <View style={styles.tipHeader}>
-            <Ionicons name="sparkles-outline" size={15} color={colors.ember} />
-            <Text style={styles.tipLabel}>a tiny game</Text>
+            <Ionicons name="chatbubbles-outline" size={15} color={colors.emberSoft} />
+            <Text style={styles.tipLabel}>Recording with someone? Try this:</Text>
+            <TouchableOpacity
+              onPress={() => setTip((t) => randomTip(t))}
+              style={styles.tipShuffle}
+              accessibilityLabel="Another tip"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="shuffle" size={16} color={colors.inkMuted} />
+            </TouchableOpacity>
           </View>
           <Text style={styles.tipText}>{tip}</Text>
         </View>
@@ -694,13 +702,16 @@ const styles = StyleSheet.create({
     ...type.eyebrow,
     color: colors.emberInk,
     marginLeft: space.xs + 2,
+    flex: 1,
+  },
+  tipShuffle: {
+    padding: 2,
   },
   tipText: {
-    ...type.bodySm,
-    fontSize: 15,
-    lineHeight: 22,
-    fontFamily: fonts.medium,
-    color: colors.inkSoft,
+    fontFamily: type.moment.fontFamily,
+    fontSize: 19,
+    lineHeight: 26,
+    color: colors.ink,
   },
 
   // Recording screen

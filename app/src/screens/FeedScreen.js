@@ -21,6 +21,8 @@ import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
 import { usePlayer } from '../context/PlayerContext';
 import { trackFor } from '../utils/track';
+import { shareState } from '../utils/sharing';
+import { rememberCasts } from '../utils/castCache';
 import { colors } from '../theme/colors';
 import { type } from '../theme/type';
 import { space, radius, elevation, layout } from '../theme/space';
@@ -63,7 +65,9 @@ export default function FeedScreen() {
   const fetchCasts = useCallback(async () => {
     try {
       setError(null);
-      setCasts(await getFeed());
+      const feed = await getFeed();
+      rememberCasts(feed);
+      setCasts(feed);
     } catch (err) {
       setError(err.message || 'Could not load your casts.');
     }
@@ -87,8 +91,8 @@ export default function FeedScreen() {
   }
 
   const isUnheard = (c) => c.shared_with_me && !c.can_manage && !c.played;
-  const needsSharing = (c) =>
-    !!user && c.sharer_id === user.id && c.creator_id !== user.id && c.recipient_count === 0;
+  // Casts that are yours to share and still unshared (see utils/sharing).
+  const needsSharing = (c) => shareState(c, user?.id) === 'yours';
 
   // Casts left for you (you're a recipient, not the creator/sharer) that you
   // haven't listened to yet.
@@ -270,7 +274,7 @@ export default function FeedScreen() {
             keyExtractor={(item) => item.id}
             renderItem={({ item, index }) => (
               <View style={[styles.item, roomy && styles.itemRoomy]}>
-                <CastCard cast={item} index={index} />
+                <CastCard cast={item} index={index} onShared={fetchCasts} />
               </View>
             )}
             ListHeaderComponent={header}

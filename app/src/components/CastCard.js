@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   Animated,
   TouchableOpacity,
   useWindowDimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -13,12 +14,14 @@ import CastCover from './CastCover';
 import Faces from './Faces';
 import Waveform from './Waveform';
 import PressableScale from './PressableScale';
+import ShareSheet from './ShareSheet';
 import { useAuth } from '../context/AuthContext';
 import { usePlayer } from '../context/PlayerContext';
 import { timeAgo } from '../utils/time';
 import { formatClock } from '../utils/waveform';
 import { castBy, trackFor } from '../utils/track';
 import { castProgress } from '../utils/progress';
+import { shareState } from '../utils/sharing';
 import { colors } from '../theme/colors';
 import { type } from '../theme/type';
 import { space, radius, elevation } from '../theme/space';
@@ -28,9 +31,8 @@ import { space, radius, elevation } from '../theme/space';
 // what you've heard banked in ember, and how long it is (or how long is left).
 // The playing card glows. Tap anywhere for the detail page; the play button
 // claims its own presses.
-export default function CastCard({ cast, index = 0 }) {
-  const { id, title, summary, description, participants, recipient_count, shared_with_me, played } =
-    cast;
+export default function CastCard({ cast, index = 0, onShared }) {
+  const { id, title, summary, description, participants, shared_with_me, played } = cast;
 
   const router = useRouter();
   const { user } = useAuth();
@@ -44,11 +46,13 @@ export default function CastCard({ cast, index = 0 }) {
   // haven't listened to yet.
   const unheard = shared_with_me && !cast.can_manage && !played;
 
-  // You're the assigned sharer (not the creator) and haven't sent it yet.
-  const needsSharing =
-    !!user && cast.sharer_id === user.id && cast.creator_id !== user.id && recipient_count === 0;
-  // Yours, and still only yours.
-  const onlyYou = !shared_with_me && !needsSharing && cast.can_manage && recipient_count === 0;
+  // Sharing happens right here in a sheet; the count updates as you choose.
+  const [recipientCount, setRecipientCount] = useState(cast.recipient_count);
+  const [sharing, setSharing] = useState(false);
+  const sharingChanged = useRef(false);
+  useEffect(() => setRecipientCount(cast.recipient_count), [cast.recipient_count]);
+  const share = shareState({ ...cast, recipient_count: recipientCount }, user?.id);
+  const madeIt = cast.creator_id === user?.id;
 
   const { isCurrent, total, at, done } = castProgress(cast, player);
   const playing = isCurrent && player.isPlaying;
@@ -86,12 +90,16 @@ export default function CastCard({ cast, index = 0 }) {
       activeOpacity={0.8}
       accessibilityLabel={`${playing ? 'Pause' : 'Play'} ${title}`}
     >
-      <Ionicons
-        name={playing ? 'pause' : 'play'}
-        size={compact ? 18 : 22}
-        color={isCurrent ? colors.onEmber : colors.ink}
-        style={playing ? null : styles.playNudge}
-      />
+      {isCurrent && player.loading ? (
+        <ActivityIndicator color={colors.onEmber} />
+      ) : (
+        <Ionicons
+          name={playing ? 'pause' : 'play'}
+          size={compact ? 18 : 22}
+          color={isCurrent ? colors.onEmber : colors.ink}
+          style={playing ? null : styles.playNudge}
+        />
+      )}
     </TouchableOpacity>
   ) : null;
 
@@ -192,25 +200,47 @@ export default function CastCard({ cast, index = 0 }) {
           </View>
         )}
 
-        {needsSharing || onlyYou ? (
-          <TouchableOpacity style={styles.nudge} onPress={openDetail} activeOpacity={0.75}>
+        {share === 'yours' ? (
+          <TouchableOpacity
+            style={styles.nudge}
+            onPress={() => setSharing(true)}
+            activeOpacity={0.75}
+            testID="choose-people"
+          >
             <Ionicons name="lock-closed-outline" size={16} color={colors.emberInk} />
             <Text style={styles.nudgeText}>
-              {needsSharing
-                ? 'You’re the sharer — choose who gathers round.'
-                : 'Only you can hear this so far.'}
+              {madeIt
+                ? 'Only you can hear this so far.'
+                : `You’re the sharer — ${cast.creator_name} asked you to choose who hears it.`}
             </Text>
             <View style={styles.nudgeButton}>
               <Text style={styles.nudgeButtonText}>Choose people</Text>
             </View>
           </TouchableOpacity>
-        ) : !shared_with_me && recipient_count > 0 ? (
+        ) : share === 'waiting' ? (
+          <Text style={styles.sharedNote}>Waiting for {cast.sharer_name} to share it</Text>
+        ) : !shared_with_me && recipientCount > 0 ? (
           <Text style={styles.sharedNote}>
-            Shared with {recipient_count} {recipient_count === 1 ? 'person' : 'people'} — only the
+            Shared with {recipientCount} {recipientCount === 1 ? 'person' : 'people'} — only the
             ones you chose
           </Text>
         ) : null}
       </PressableScale>
+      {share === 'yours' || sharing ? (
+        <ShareSheet
+          cast={cast}
+          visible={sharing}
+          onChange={(n) => {
+            sharingChanged.current = true;
+            setRecipientCount(n);
+          }}
+          onClose={() => {
+            setSharing(false);
+            if (sharingChanged.current) onShared?.();
+            sharingChanged.current = false;
+          }}
+        />
+      ) : null}
     </Animated.View>
   );
 }

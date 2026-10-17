@@ -6,10 +6,15 @@ auto-broadcast: the interviewee controls who receives a recording.
 
 ## Sharing model (the core idea)
 
+(Invites: a single-use code handed out as a link, `https://cozycast.jall.me/invite/CODE`.
+`utils/invites` stashes the code when the page loads; `usePendingInvite`
+redeems it once there's a session — straight away, or after signup/confirm/login
+— and `redeem_invite` returns the inviter's name for the "connected" toast.)
+
 A cast is visible only to its **creator**, its **sharer** (the one person made
 responsible for distributing it), the **participants** tagged on it, and the
 explicit **recipients** it's been shared with. Friends/invites are just your
-*address book* of who you *can* share with — connecting via an invite does **not**
+_address book_ of who you _can_ share with — connecting via an invite does **not**
 grant access to anyone's casts.
 
 This is enforced in Postgres (see `supabase/migrations/`): `cast_participants`
@@ -37,11 +42,13 @@ derived deterministically from the cast id in `components/CastCover.js`).
 - **Routing is Expo Router** (`"main": "expo-router/entry"`). Routes live in
   `app/app/`: `_layout.js` (the root — fonts, Sentry, providers, and the
   signed-in/out gate; signed-out renders `src/screens/PublicRoot.js`, signed-in
-  renders the `<Stack>`), `index.js` (the tab home: Fireside/Record/You — tabs
-  are local state, not routes; a slim bottom `TabBar` on phones, a left
-  `Sidebar` rail from `layout.wide` up, plus a docked `NowPlayingPanel` from
-  `layout.panelAt`), and `cast/[id].js` (the shareable cast detail page, two
-  columns on a laptop). Reusable UI/logic stays in `app/src/`
+  renders the `<Stack>` — on a laptop wrapped in the persistent `Sidebar` rail
+  and, from `layout.panelAt`, the `NowPlayingPanel`, so they stay put on every
+  route), `index.js` (the tab home: Fireside/Record/You — tabs are local state
+  in `ShellContext`, not routes; a slim bottom `TabBar` on phones),
+  `cast/[id].js` (the shareable cast detail page; paints instantly from the
+  feed's cached data), `notifications.js`, and `invite/[code].js` (just
+  redirects home — see invites below). Reusable UI/logic stays in `app/src/`
   (`components/`, `screens/`, `context/`, `api/`). Web build is a single-page SPA
   (`web.output: "single"` in `app.json`); the `netlify.toml` `/* → /index.html`
   redirect serves deep links like `/cast/:id`. Because the URL is untouched while
@@ -78,12 +85,12 @@ offline; run `test:e2e` on its own.
   to the binary so nothing downloads. `playwright.config.js` disables QUIC/ECH for
   reliability behind proxies (harmless elsewhere).
 - **Three tiers of signed-in coverage:**
-  - *Public* checks need no credentials and always run.
-  - *Prod-safe signed-in* tests run when `E2E_EMAIL` / `E2E_PASSWORD` are set
+  - _Public_ checks need no credentials and always run.
+  - _Prod-safe signed-in_ tests run when `E2E_EMAIL` / `E2E_PASSWORD` are set
     (the pre-v1 test account). These never depend on pre-existing data: the
     cast-detail round-trip **records → creates → opens → deletes** its own cast,
     so it's self-cleaning and safe against prod.
-  - *Fixture-dependent* tests (`signed in (local fixtures)`) assert against the
+  - _Fixture-dependent_ tests (`signed in (local fixtures)`) assert against the
     seeded Alice/Ben/Cleo data and run only with `E2E_FIXTURES=1` against a local
     seeded stack (see "Local fixtures" below). This is where comprehensive
     signed-in coverage should grow — deterministic data, no prod writes.
@@ -122,16 +129,16 @@ up, including in constrained/CI sandboxes:
 - **CLI:** ships as a dev dependency (`supabase` in `app/package.json`), so a
   plain `npm install` provides it — the `db:reset` / `fixtures` / `dev:seed`
   scripts find it on the local `.bin`, and you can call it directly with `npx
-  supabase …`. The npm package is a tiny shim that fetches the platform binary
+supabase …`. The npm package is a tiny shim that fetches the platform binary
   lazily on first run (no install-time/CI download), which also sidesteps proxies
   that block GitHub release assets.
 - **Unprivileged containers:** the `edge-runtime` (and some extras) can't set
   rlimits and abort the start. Bring up just what the app/tests need with
   `supabase start -x edge-runtime,studio,imgproxy,realtime,vector,logflare,supavisor,postgres-meta,mailpit`
   (leaves db, auth, rest, storage, kong). Get keys with `supabase status -o env`.
-- **`EXPO_PUBLIC_*` are inlined into a *cached* Metro transform.** After changing
+- **`EXPO_PUBLIC_*` are inlined into a _cached_ Metro transform.** After changing
   which Supabase a build points at, rebuild with `npx expo export --platform web
-  --clear` (or `expo start --clear`) or you'll keep hitting the old project.
+--clear` (or `expo start --clear`) or you'll keep hitting the old project.
 - **Ephemeral sandboxes tear the stack down between idle periods** (a manually
   started `dockerd` and its containers don't persist) — it's not OOM (plenty of
   RAM, no cgroup limit), just lifecycle, so re-run the bring-up after a gap. A
@@ -150,7 +157,7 @@ pull requests, and on manual dispatch:
 - **check** — `npm run check` (lint + format + Jest). Fast, offline; the bar for
   every change.
 - **e2e** — Playwright smoke tests (`needs: check`). To avoid racing the deploy,
-  it tests the Netlify deploy of *this* commit: the web build inlines the commit
+  it tests the Netlify deploy of _this_ commit: the web build inlines the commit
   SHA (`EXPO_PUBLIC_COMMIT_REF`), so when a fresh deploy is expected the job polls
   the deploy URL until the served bundle reports that SHA. Netlify's base dir is
   `app/`, so it only builds when `app/` changes — the job mirrors that: it waits
@@ -258,7 +265,7 @@ poking prod by hand.
   `react-native-svg`; every ambient loop holds still under reduce-motion
   (`hooks/useReducedMotion`). See `docs/design-vision.md`.
 - **Typography:** three faces (`src/theme/typography.js`): Fraunces (serif) for
-  titles and its italic for *moments* (`type.moment`), Nunito for body/UI, DM
+  titles and its italic for _moments_ (`type.moment`), Nunito for body/UI, DM
   Mono for time (`type.time`, `type.monoLabel`). Loaded once in
   `app/_layout.js` via `useFonts` (render is gated until it resolves). Set
   `fontFamily: fonts.*` — the weight is baked into the family, so don't rely on
@@ -321,7 +328,7 @@ runs daily and makes three real queries so the project never gets that quiet.
   design, so the ping calls `public.keepalive()`
   (`supabase/migrations/20260913120000_keepalive.sql`), a function that reads
   no data and just returns `now()`, leaving the sharing model untouched.
-- **`pg_cron` can't do this job.** The heuristic counts *user* requests, and
+- **`pg_cron` can't do this job.** The heuristic counts _user_ requests, and
   in-database cron doesn't run on a project that's already paused — the
   traffic has to come from outside.
 - **One workflow per repo.** This one covers cozycast only; each project repo

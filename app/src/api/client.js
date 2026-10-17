@@ -561,7 +561,10 @@ export async function getPendingInvites() {
   return data || [];
 }
 
+// Redeem an invite; resolves the inviter's name (or null on an older database
+// whose RPC returns nothing).
 export async function redeemInvite(code) {
-  const { error } = await supabase.rpc('redeem_invite', { invite_code: code });
+  const { data, error } = await supabase.rpc('redeem_invite', { invite_code: code });
   if (error) throw error;
+  return typeof data === 'string' ? data : null;
 }

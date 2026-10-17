@@ -1,14 +1,15 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
-  useWindowDimensions,
   TextInput,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
   Platform,
+  Animated,
+  Easing,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -18,6 +19,10 @@ import PlayerDeck from '../../src/components/PlayerDeck';
 import MiniPlayer from '../../src/components/MiniPlayer';
 import Avatar from '../../src/components/Avatar';
 import Faces from '../../src/components/Faces';
+import InvitePanel from '../../src/components/InvitePanel';
+import Waveform from '../../src/components/Waveform';
+import useLayout from '../../src/hooks/useLayout';
+import { cachedCast } from '../../src/utils/castCache';
 import {
   getCast,
   getRecipients,
@@ -68,12 +73,14 @@ export default function CastDetailScreen() {
   const router = useRouter();
   const toast = useToast();
   const { track, position, seek, play, stop } = usePlayer();
-  const { width } = useWindowDimensions();
+  const { content } = useLayout();
   // On a laptop the cast reads as two columns: the cover and player on the
   // left, everything said about it on the right.
-  const twoCol = width >= 1080;
+  const twoCol = content >= 1000;
 
-  const [cast, setCast] = useState(null);
+  // Opened from the feed? Paint straight away from what it already loaded;
+  // the full detail refreshes behind it.
+  const [cast, setCast] = useState(() => cachedCast(id));
   const [recipients, setRecipients] = useState([]);
   const [friends, setFriends] = useState([]);
   const [managing, setManaging] = useState(false);
@@ -82,7 +89,18 @@ export default function CastDetailScreen() {
   const [posting, setPosting] = useState(false);
   // The moment (ms) a new comment will be pinned to, or null for a general one.
   const [pinAt, setPinAt] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !cachedCast(id));
+  const enter = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    enter.setValue(0);
+    Animated.timing(enter, {
+      toValue: 1,
+      duration: 260,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [id, enter]);
   const [deleting, setDeleting] = useState(false);
 
   const recipientIds = new Set(recipients.map((r) => r.id));
@@ -94,7 +112,9 @@ export default function CastDetailScreen() {
 
   useEffect(() => {
     let active = true;
-    setLoading(true);
+    const cached = cachedCast(id);
+    if (cached) setCast((c) => (c?.id === id ? c : cached));
+    setLoading(!cached);
     getCast(id)
       .then((c) => {
         if (!active) return;
@@ -207,9 +227,21 @@ export default function CastDetailScreen() {
   }
 
   if (loading) {
+    // Arrived cold (a shared link): a quiet silhouette of the page, not a spinner.
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={colors.ember} />
+      <View style={styles.container}>
+        <View style={[styles.scrollContent, styles.skeleton]} accessibilityLabel="Loading cast">
+          <View style={styles.skeletonCover} />
+          <View style={styles.skeletonTitle} />
+          <View style={styles.skeletonLine} />
+          <Waveform
+            seed={id}
+            bars={64}
+            height={56}
+            idleColor={colors.hairline}
+            style={styles.skeletonWave}
+          />
+        </View>
       </View>
     );
   }
@@ -251,7 +283,18 @@ export default function CastDetailScreen() {
   }
 
   return (
-    <View style={styles.container} testID="cast-detail">
+    <Animated.View
+      style={[
+        styles.container,
+        {
+          opacity: enter,
+          transform: [
+            { translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) },
+          ],
+        },
+      ]}
+      testID="cast-detail"
+    >
       <ScrollView
         contentContainerStyle={[styles.scrollContent, twoCol && styles.scrollWide]}
         showsVerticalScrollIndicator={false}
@@ -334,9 +377,13 @@ export default function CastDetailScreen() {
 
                 {managing ? (
                   friends.length === 0 ? (
-                    <Text style={styles.commentsEmpty}>
-                      Add friends from your Profile to share with them.
-                    </Text>
+                    <View style={styles.inviteBox}>
+                      <Text style={styles.commentsEmpty}>
+                        Nobody’s around your fire yet. Invite someone — once they’ve joined, you can
+                        share this with them.
+                      </Text>
+                      <InvitePanel compact />
+                    </View>
                   ) : (
                     friends.map((f) => {
                       const selected = recipientIds.has(f.id);
@@ -509,7 +556,7 @@ export default function CastDetailScreen() {
       </ScrollView>
 
       <MiniPlayer hideFor={cast.id} />
-    </View>
+    </Animated.View>
   );
 }
 
@@ -687,6 +734,31 @@ const styles = StyleSheet.create({
     marginLeft: space.sm,
   },
   commentPostOff: { opacity: 0.45 },
+  inviteBox: { marginTop: space.xs },
+  skeleton: { alignItems: 'center' },
+  skeletonWave: { alignSelf: 'stretch' },
+  skeletonCover: {
+    width: 220,
+    height: 220,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+    marginTop: 56,
+  },
+  skeletonTitle: {
+    width: 260,
+    height: 26,
+    borderRadius: 8,
+    backgroundColor: colors.surface,
+    marginTop: space.xl,
+  },
+  skeletonLine: {
+    width: 180,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: colors.surface,
+    marginTop: space.md,
+    marginBottom: space['2xl'],
+  },
   deleteRow: {
     flexDirection: 'row',
     alignItems: 'center',

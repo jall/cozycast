@@ -13,3 +13,12 @@ describe('conversation tips', () => {
     }
   });
 });
+
+describe('shuffling tips', () => {
+  it('never repeats the tip you just saw', () => {
+    for (let i = 0; i < 25; i++) {
+      const shown = CONVERSATION_TIPS[i % CONVERSATION_TIPS.length];
+      expect(randomTip(shown)).not.toBe(shown);
+    }
+  });
+});

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -13,15 +13,13 @@ import {
 import { colors } from '../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
-import { useToast } from '../context/ToastContext';
 import { fonts } from '../theme/typography';
 import { type } from '../theme/type';
 import { radius, elevation, layout, space } from '../theme/space';
 import PressableScale from '../components/PressableScale';
 
-export default function LoginScreen({ onBack }) {
+export default function LoginScreen({ onBack, invite }) {
   const { login, signup, requestPasswordReset } = useAuth();
-  const toast = useToast();
   const [isSignup, setIsSignup] = useState(false);
   const [resetMode, setResetMode] = useState(false);
   const [email, setEmail] = useState('');
@@ -32,6 +30,13 @@ export default function LoginScreen({ onBack }) {
   // { type: 'error' | 'success', text } — shown inline since RN's Alert is a
   // no-op on web, where this app primarily runs.
   const [feedback, setFeedback] = useState(null);
+
+  // Arrived from an invite link: start on sign-up with the code filled in.
+  useEffect(() => {
+    if (!invite) return;
+    setIsSignup(true);
+    setInviteCode(invite);
+  }, [invite]);
 
   async function handleSubmit() {
     setFeedback(null);
@@ -90,11 +95,6 @@ export default function LoginScreen({ onBack }) {
             text: `We've sent a confirmation link to ${email.trim()}. Check your inbox to finish signing up.`,
           });
         }
-        // Signup succeeded, but the invite code didn't take — say so rather
-        // than leaving them quietly unconnected.
-        if (result?.inviteError) {
-          toast.error("You're signed up, but that invite code didn't work — ask for a new one.");
-        }
       } else {
         await login(email.trim(), password);
       }
@@ -142,6 +142,16 @@ export default function LoginScreen({ onBack }) {
           <Text style={styles.logo}>cozycast</Text>
           <Text style={styles.tagline}>for the conversations worth keeping</Text>
         </View>
+
+        {invite ? (
+          <View style={styles.invited}>
+            <Ionicons name="flame" size={18} color={colors.emberSoft} />
+            <Text style={styles.invitedText}>
+              You’ve been invited. Create an account (or log in) and you’ll be connected — no casts
+              are shared until someone chooses to.
+            </Text>
+          </View>
+        ) : null}
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>
@@ -312,6 +322,22 @@ const styles = StyleSheet.create({
     color: colors.inkMuted,
     marginTop: space.sm,
     textAlign: 'center',
+  },
+  invited: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: colors.accentSurface,
+    borderWidth: 1,
+    borderColor: '#6B3A28',
+    borderRadius: radius.sm + 2,
+    padding: space.md,
+    marginBottom: space.lg,
+  },
+  invitedText: {
+    ...type.bodySm,
+    color: colors.ink,
+    flex: 1,
+    marginLeft: space.sm,
   },
   card: {
     backgroundColor: colors.surface,

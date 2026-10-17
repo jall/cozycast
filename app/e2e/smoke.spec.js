@@ -84,7 +84,7 @@ async function signIn(page, userEmail = email, userPassword = password) {
   // The submit can hit a transient network blip ("Failed to fetch" through a
   // proxy) while the auth endpoint itself is healthy, so re-submit from the
   // still-present login screen until the shell appears rather than failing once.
-  const recordTab = page.getByText(/^record$/i).first();
+  const recordTab = page.getByTestId('nav-record');
   const loginButton = page.getByText(/^log in$/i).first();
   for (let attempt = 1; attempt <= 3; attempt++) {
     await loginButton.click();
@@ -113,10 +113,7 @@ test.describe('signed in', () => {
   test('can record a cast and reach the details step', async ({ page }) => {
     await signIn(page);
 
-    await page
-      .getByText(/^record$/i)
-      .first()
-      .click();
+    await page.getByTestId('nav-record').click();
     await expect(page.getByText(/start a cast/i)).toBeVisible();
     // The "soft game" conversation prompt is shown on the record screen.
     await expect(page.getByTestId('conversation-tip')).toBeVisible();
@@ -150,10 +147,7 @@ test.describe('signed in', () => {
     // A unique title so we can find exactly this cast and assert it's gone.
     const title = `E2E detail ${Date.now()}`;
 
-    await page
-      .getByText(/^record$/i)
-      .first()
-      .click();
+    await page.getByTestId('nav-record').click();
     await page.getByTestId('record-start').click();
     await expect(page.getByText(/recording/i)).toBeVisible();
     await page.getByTestId('record-stop').click();
@@ -274,9 +268,10 @@ test.describe('signed in (local fixtures)', () => {
     await signIn(page, ALICE.email, ALICE.password);
     await page.getByText(/^you$/i).first().click();
 
-    await page.getByText(/share an invite/i).click();
-    // The success toast echoes the freshly-minted code.
-    await expect(page.getByText(/invite [a-z0-9]+ (copied|created)/i)).toBeVisible({
+    await page.getByTestId('create-invite').click();
+    // The link is shown, and copied to the clipboard.
+    await expect(page.getByText(/\/invite\/[A-Z0-9]{6}/).first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/invite link (copied|created)/i)).toBeVisible({
       timeout: 15000,
     });
   });
@@ -287,10 +282,7 @@ test.describe('signed in (local fixtures)', () => {
     await signIn(page, ALICE.email, ALICE.password);
     const title = `E2E shared ${Date.now()}`;
 
-    await page
-      .getByText(/^record$/i)
-      .first()
-      .click();
+    await page.getByTestId('nav-record').click();
     await page.getByTestId('record-start').click();
     await expect(page.getByText(/recording/i)).toBeVisible();
     await page.getByTestId('record-stop').click();

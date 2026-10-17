@@ -29,9 +29,20 @@ import { AuthProvider, useAuth } from '../src/context/AuthContext';
 import { ToastProvider } from '../src/context/ToastContext';
 import { PlayerProvider } from '../src/context/PlayerContext';
 import { NotificationsProvider } from '../src/context/NotificationsContext';
+import { ShellProvider } from '../src/context/ShellContext';
+import Sidebar from '../src/components/Sidebar';
+import NowPlayingPanel from '../src/components/NowPlayingPanel';
+import usePendingInvite from '../src/hooks/usePendingInvite';
+import useLayout from '../src/hooks/useLayout';
+import { captureInviteFromLocation } from '../src/utils/invites';
+
 import PublicRoot from '../src/screens/PublicRoot';
 import ResetPasswordScreen from '../src/screens/ResetPasswordScreen';
 import FlameMark from '../src/components/FlameMark';
+
+// Opened from an invite link (/invite/CODE)? Stash the code and tidy the URL
+// before the router reads it; it's redeemed once there's a session.
+captureInviteFromLocation();
 
 // Error tracking. 12-factor: the DSN comes from the environment, never the
 // repo. Set EXPO_PUBLIC_SENTRY_DSN (Netlify build env / local .env); without
@@ -75,10 +86,20 @@ function RootNav() {
   if (passwordRecovery) return <ResetPasswordScreen />;
   if (!user) return <PublicRoot />;
 
-  // The MiniPlayer is rendered per-screen (it sits above the tab bar on the
-  // home route, and at the bottom of the cast detail route). Audio lives in
-  // PlayerContext, so it keeps playing seamlessly across navigations.
-  return (
+  return <SignedIn />;
+}
+
+// The signed-in app. On a phone it's just the router (each screen brings its
+// own tab bar / mini player). From `layout.wide` up it's a three-part room that
+// stays put across every route — the rail on the left, the routed screen in the
+// middle, and (from `layout.panelAt`) the now-playing panel on the right — so
+// opening notifications or a cast never drops you out of it. Audio lives in
+// PlayerContext, so it keeps playing seamlessly across navigations.
+function SignedIn() {
+  const { wide, panel } = useLayout();
+  usePendingInvite();
+
+  const stack = (
     <Stack
       screenOptions={{
         headerShown: false,
@@ -86,6 +107,15 @@ function RootNav() {
         animation: 'fade',
       }}
     />
+  );
+
+  if (!wide) return stack;
+  return (
+    <View style={styles.room}>
+      <Sidebar />
+      <View style={styles.main}>{stack}</View>
+      {panel ? <NowPlayingPanel /> : null}
+    </View>
   );
 }
 
@@ -114,7 +144,9 @@ function RootLayout() {
           <AuthProvider>
             <NotificationsProvider>
               <PlayerProvider>
-                <RootNav />
+                <ShellProvider>
+                  <RootNav />
+                </ShellProvider>
               </PlayerProvider>
             </NotificationsProvider>
           </AuthProvider>
@@ -148,6 +180,15 @@ function ErrorFallback() {
 export default sentryDsn ? Sentry.wrap(RootLayout) : RootLayout;
 
 const styles = StyleSheet.create({
+  room: {
+    flex: 1,
+    flexDirection: 'row',
+    backgroundColor: colors.bg,
+  },
+  main: {
+    flex: 1,
+    minWidth: 0,
+  },
   loading: {
     flex: 1,
     backgroundColor: colors.bg,
