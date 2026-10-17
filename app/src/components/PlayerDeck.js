@@ -16,7 +16,7 @@ import { space, radius, elevation } from '../theme/space';
 // player, so it works whether or not this cast is the one currently loaded —
 // scrubbing a cast that isn't playing starts it from that point.
 //
-// `cast` is a track: { id, audioPath, title, seed, artist, durationSeconds }.
+// `cast` is a track: { id, audioPath, title, seed, artist, durationSeconds, peaks }.
 // `notes` are comments; those with `at_ms` become markers.
 export default function PlayerDeck({ cast, notes = [], onNote, compact = false, style }) {
   const { track, isPlaying, position, duration, rate, toggle, play, seek, skip, cycleRate } =
@@ -55,6 +55,7 @@ export default function PlayerDeck({ cast, notes = [], onNote, compact = false, 
 
       <Waveform
         seed={cast.id}
+        peaks={cast.peaks}
         bars={compact ? 48 : 64}
         height={compact ? 44 : 56}
         progress={progress}

@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import { supabase } from './supabase';
+import { computePeaks } from '../utils/peaks';
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -243,6 +244,10 @@ export async function createCast({
   const contentType = mimeType || 'audio/m4a';
   const fileName = `${userId}/${Date.now()}.${extFromMime(mimeType)}`;
 
+  // Measure the waveform alongside the upload (a CPU-bound decode, off the main
+  // thread, vs. a network-bound upload). Resolves null where it can't be done.
+  const peaksPromise = computePeaks(audioUri);
+
   await uploadAudio(fileName, audioUri, contentType, onProgress);
 
   const { data: cast, error } = await supabase
@@ -260,6 +265,12 @@ export async function createCast({
 
   if (error) throw error;
 
+  // Attach the waveform whenever the decode finishes — never hold up saving
+  // the cast for it (a long cast can take several seconds to decode on a slow
+  // device). If it's lost (tab closed, a database without the column yet), the
+  // cast page backfills it the next time someone who manages the cast opens it.
+  peaksPromise.then((peaks) => peaks && savePeaks(cast.id, peaks)).catch(() => {});
+
   // Tag participants (those who are cozycast users carry a profile_id, which is
   // what grants them access to the cast).
   if (participants.length > 0) {
@@ -273,6 +284,13 @@ export async function createCast({
   }
 
   return cast;
+}
+
+// Store a cast's measured waveform (creator/sharer only, via RLS): right after
+// create, and to backfill casts uploaded before peaks existed.
+export async function savePeaks(castId, peaks) {
+  const { error } = await supabase.from('casts').update({ peaks }).eq('id', castId);
+  if (error) throw error;
 }
 
 // Share a cast with specific people. Only the creator/sharer may do this.

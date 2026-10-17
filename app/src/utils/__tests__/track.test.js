@@ -38,6 +38,7 @@ describe('trackFor', () => {
       seed: 'c1',
       artist: 'Alice',
       durationSeconds: 90,
+      peaks: null,
     });
   });
 });

@@ -10,8 +10,9 @@ import { getAudioUrl } from '../api/client';
 // tabs. Lifting it here lets a single track keep playing while you browse, and
 // gives the persistent MiniPlayer something to drive.
 //
-// A "track" is { id, uri, audioPath, title, artist, seed, durationSeconds } —
-// id is the cast id, used to tell which card is the one currently playing.
+// A "track" is { id, uri, audioPath, title, artist, seed, durationSeconds,
+// peaks } — id is the cast id, used to tell which card is the one currently
+// playing.
 // `uri` may be absent: signed URLs are minted lazily on first play (from
 // `audioPath`) so a feed of thirty casts doesn't fire thirty storage calls
 // just to render play buttons.

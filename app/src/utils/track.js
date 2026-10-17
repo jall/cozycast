@@ -6,7 +6,8 @@ export function castBy(cast) {
   return cast.creator_name;
 }
 
-// The player's track object for a cast (see PlayerContext).
+// The player's track object for a cast (see PlayerContext); carries the
+// cast's measured waveform so the player can draw it.
 export function trackFor(cast) {
   return {
     id: cast.id,
@@ -15,5 +16,6 @@ export function trackFor(cast) {
     seed: cast.id,
     artist: castBy(cast),
     durationSeconds: cast.duration,
+    peaks: cast.peaks || null,
   };
 }

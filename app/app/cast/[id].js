@@ -29,6 +29,8 @@ import {
   addComment,
   deleteComment,
   markPlayed,
+  getAudioUrl,
+  savePeaks,
 } from '../../src/api/client';
 import { usePlayer } from '../../src/context/PlayerContext';
 import { useToast } from '../../src/context/ToastContext';
@@ -37,6 +39,7 @@ import { timeAgo } from '../../src/utils/time';
 import { formatClock } from '../../src/utils/waveform';
 import { castBy, trackFor } from '../../src/utils/track';
 import { coverFor } from '../../src/utils/castCover';
+import { computePeaks } from '../../src/utils/peaks';
 import { colors } from '../../src/theme/colors';
 import { type } from '../../src/theme/type';
 import { space, radius, layout } from '../../src/theme/space';
@@ -46,6 +49,10 @@ function formatDate(dateString) {
   const d = new Date(dateString);
   return d.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
 }
+
+// Casts we've already tried to backfill peaks for this session, so a decode
+// that fails doesn't re-download the audio every time the page opens.
+const peaksTried = new Set();
 
 function BackButton({ onPress }) {
   return (
@@ -105,6 +112,19 @@ export default function CastDetailScreen() {
         // Opening a cast shared with you counts as hearing it (clears it from
         // the calm home's "waiting for you"). Best-effort, fire-and-forget.
         if (c?.shared_with_me) markPlayed(id).catch(() => {});
+        // Casts uploaded before real waveforms existed: when someone who manages
+        // it opens it (on web), measure its peaks once and store them, so every
+        // card shows its true shape from then on. Quiet and best-effort.
+        if (c?.can_manage && !c.peaks && c.audio_path && !peaksTried.has(id)) {
+          peaksTried.add(id);
+          getAudioUrl(c.audio_path)
+            .then(computePeaks)
+            .then((peaks) => {
+              if (!peaks) return;
+              return savePeaks(id, peaks).then(() => active && setCast((p) => ({ ...p, peaks })));
+            })
+            .catch(() => {});
+        }
       })
       .catch(() => active && setCast(null))
       .finally(() => active && setLoading(false));

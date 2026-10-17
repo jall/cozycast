@@ -212,10 +212,15 @@ poking prod by hand.
   resumes), driven by `components/PlayerDeck.js` (the waveform scrubber +
   controls, used by the cast page and the now-playing panel) and the
   `MiniPlayer`; recording in `screens/RecordScreen.js`.
-- **Waveforms** are a deterministic *portrait* of each cast from its id
-  (`utils/waveform.js`), not decoded peaks — the feed shows a shape before you
-  press play without extra storage reads. Seeking needs the audio host to
-  honour HTTP range requests (Supabase storage does).
+- **Waveforms** are real: at create time the uploader's browser decodes the
+  audio (Web Audio, resampled to 8 kHz, off the main thread) into ~200 RMS
+  values, 0–100 (`utils/peaks.js`), stored in `casts.peaks`. It runs alongside
+  the upload and is attached with a follow-up update, so it never delays saving
+  a cast. Casts without peaks (older ones, native uploads, decode failures) fall
+  back to a deterministic portrait from the cast id (`utils/waveform.js`), and
+  the cast page backfills them when someone who manages the cast opens it on
+  web. Seeking needs the audio host to honour HTTP range requests (Supabase
+  storage does).
 - **Notes along the way:** a comment can be pinned to a moment
   (`cast_comments.at_ms`). Pinned notes become dots on the scrubber and "at
   2:31" chips that jump there. The client retries without the column if a

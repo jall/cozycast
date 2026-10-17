@@ -1,15 +1,17 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
-import { waveformFor } from '../utils/waveform';
+import { waveformShape } from '../utils/peaks';
 import { colors } from '../theme/colors';
 
-// A cast's shape as a row of soft bars, with what you've heard so far lit in
+// A cast's shape as a row of soft bars (its measured `peaks` when it has them,
+// else the id-seeded portrait), with what you've heard so far lit in
 // ember. Purely decorative unless `onSeek` is given — then it's the scrubber:
 // press or drag anywhere to move the playhead (committed on release so we
 // don't flood the audio engine), and arrow keys / screen-reader adjust call
 // `onStep(±1)`. (PlayerDeck draws timestamped notes as dots above it.)
 export default function Waveform({
   seed,
+  peaks,
   bars = 48,
   height = 28,
   progress = 0,
@@ -21,7 +23,7 @@ export default function Waveform({
   accessibilityValueText,
   style,
 }) {
-  const shape = useMemo(() => waveformFor(seed, bars), [seed, bars]);
+  const shape = useMemo(() => waveformShape(peaks, seed, bars), [peaks, seed, bars]);
   const box = useRef({ x: 0, width: 0 });
   const viewRef = useRef(null);
   const [drag, setDrag] = useState(null);

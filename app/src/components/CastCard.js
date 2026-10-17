@@ -116,6 +116,7 @@ export default function CastCard({ cast, index = 0 }) {
     <View style={styles.shapeRow}>
       <Waveform
         seed={id}
+        peaks={cast.peaks}
         bars={compact ? 36 : 56}
         height={compact ? 24 : 30}
         progress={total ? at / total : 0}
