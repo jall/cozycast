@@ -35,13 +35,15 @@ import {
   deleteComment,
   markPlayed,
   updateCast,
-  setCastSharer,
+  finishTogetherCast,
   getAudioUrl,
   savePeaks,
 } from '../../src/api/client';
 import { usePlayer } from '../../src/context/PlayerContext';
 import { useToast } from '../../src/context/ToastContext';
 import { useAuth } from '../../src/context/AuthContext';
+import { useShell } from '../../src/context/ShellContext';
+import { makersOf, turnState, togetherShape } from '../../src/utils/turns';
 import { showAlert } from '../../src/utils/alert';
 import { timeAgo } from '../../src/utils/time';
 import { formatClock } from '../../src/utils/waveform';
@@ -78,6 +80,8 @@ export default function CastDetailScreen() {
   const toast = useToast();
   const { user } = useAuth();
   const { track, position, seek, play, stop } = usePlayer();
+  const { setTab, setTurnFor } = useShell();
+  const [finishing, setFinishing] = useState(false);
   const { content } = useLayout();
   // On a laptop the cast reads as two columns: the cover and player on the
   // left, everything said about it on the right.
@@ -97,7 +101,6 @@ export default function CastDetailScreen() {
   const [draftTitle, setDraftTitle] = useState('');
   const [draftSummary, setDraftSummary] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
-  const [draftSharer, setDraftSharer] = useState(null);
   // The moment (ms) a new comment will be pinned to, or null for a general one.
   const [pinAt, setPinAt] = useState(null);
   const [loading, setLoading] = useState(() => !cachedCast(id));
@@ -146,7 +149,7 @@ export default function CastDetailScreen() {
         // Casts uploaded before real waveforms existed: when someone who manages
         // it opens it (on web), measure its peaks once and store them, so every
         // card shows its true shape from then on. Quiet and best-effort.
-        if (c?.can_manage && !c.peaks && c.audio_path && !peaksTried.has(id)) {
+        if (c?.owns && !c.together && !c.peaks && c.audio_path && !peaksTried.has(id)) {
           peaksTried.add(id);
           getAudioUrl(c.audio_path)
             .then(computePeaks)
@@ -216,7 +219,6 @@ export default function CastDetailScreen() {
   function startEdit() {
     setDraftTitle(cast.title || '');
     setDraftSummary(cast.summary || cast.description || '');
-    setDraftSharer(cast.sharer_id);
     setEditing(true);
   }
 
@@ -228,14 +230,7 @@ export default function CastDetailScreen() {
     setSavingEdit(true);
     try {
       await updateCast(id, { title: draftTitle, summary: draftSummary });
-      let next = { ...cast, title: draftTitle.trim(), summary: draftSummary.trim() || null };
-      if (cast.can_manage && draftSharer && draftSharer !== cast.sharer_id) {
-        await setCastSharer(id, draftSharer);
-        const holder = sharerOptions.find((o) => o.id === draftSharer);
-        next = { ...next, sharer_id: draftSharer, sharer_name: holder?.name || next.sharer_name };
-        // Handing it over means you may no longer manage it.
-        if (draftSharer !== user?.id && cast.creator_id !== user?.id) next.can_manage = false;
-      }
+      const next = { ...cast, title: draftTitle.trim(), summary: draftSummary.trim() || null };
       setCast(next);
       rememberCasts([next]);
       setEditing(false);
@@ -244,6 +239,38 @@ export default function CastDetailScreen() {
       toast.error(err.message || 'Could not save your changes.');
     } finally {
       setSavingEdit(false);
+    }
+  }
+
+  // Your turn on a cast made in turns: over to the record tab.
+  function takeTurn() {
+    setTurnFor(cast);
+    setTab('record');
+    if (router.canDismiss()) router.dismissAll();
+    else router.replace('/');
+  }
+
+  function confirmFinish() {
+    showAlert(
+      'Finish it here?',
+      'Nobody can add another turn after this. Then anyone in it can choose who hears it.',
+      [
+        { text: 'Not yet', style: 'cancel' },
+        { text: 'We’re done', onPress: doFinish },
+      ],
+    );
+  }
+
+  async function doFinish() {
+    setFinishing(true);
+    try {
+      await finishTogetherCast(id);
+      setCast((c) => ({ ...c, finished_at: new Date().toISOString(), turn_with: null }));
+      toast.success('Finished together — choose who hears it whenever you’re ready.');
+    } catch (err) {
+      toast.error(err.message || 'Could not finish it.');
+    } finally {
+      setFinishing(false);
     }
   }
 
@@ -314,16 +341,19 @@ export default function CastDetailScreen() {
   // Everyone in it, not just whoever pressed record: "Jon & Ben".
   const makers = [
     cast.creator_id === user?.id ? 'You' : cast.creator_name,
-    ...(cast.participant_people || []).map((p) => p.name).filter((n) => n !== cast.creator_name),
+    ...(cast.participant_people || [])
+      .filter((p) => p.name !== cast.creator_name)
+      .map((p) => (p.id && p.id === user?.id ? 'You' : p.name)),
   ];
-  const byline = cast.shared_with_me ? `Shared by ${castBy(cast)}` : makers.join(' & ');
-  // Anyone in the cast can fix its words; the creator or sharer can also hand
-  // the "who hears it" decision to someone else in it.
-  const canEdit = cast.can_manage || (cast.participant_ids || []).includes(user?.id);
-  const sharerOptions = [
-    { id: cast.creator_id, name: cast.creator_id === user?.id ? 'You' : cast.creator_name },
-    ...(cast.participant_people || []).filter((p) => p.id && p.id !== cast.creator_id),
-  ];
+  const byline = cast.can_manage ? makers.join(' & ') : `Shared by ${castBy(cast)}`;
+  // A cast belongs to everyone in it: any of them can fix its words and
+  // choose who hears it.
+  const canEdit = cast.can_manage;
+  // Made in turns ("pass the mic").
+  const turns = turnState(cast, user?.id);
+  const shape = cast.together ? togetherShape(cast) : null;
+  const turnMakers = cast.together ? makersOf(cast) : [];
+  const holderName = cast.turn_with && turnMakers.find((m) => m.id === cast.turn_with)?.name;
   const participantList = Array.isArray(cast.participants) ? cast.participants : [];
   const castTrack = trackFor(cast);
   const isCurrent = track?.id === cast.id;
@@ -401,27 +431,6 @@ export default function CastDetailScreen() {
                   {byline} · {formatDate(cast.created_at)}
                 </Text>
               </TouchableOpacity>
-              {editing && cast.can_manage && sharerOptions.length > 1 ? (
-                <View style={styles.sharerEdit}>
-                  <Text style={styles.sectionHeading}>Who decides who hears it?</Text>
-                  <View style={styles.tagRow}>
-                    {sharerOptions.map((o) => {
-                      const on = draftSharer === o.id;
-                      return (
-                        <TouchableOpacity
-                          key={o.id}
-                          onPress={() => setDraftSharer(o.id)}
-                          style={[styles.tag, on && styles.tagOn]}
-                          accessibilityRole="radio"
-                          accessibilityState={{ checked: on }}
-                        >
-                          <Text style={[styles.tagText, on && styles.tagTextOn]}>{o.name}</Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                </View>
-              ) : null}
               {canEdit && !editing ? (
                 <TouchableOpacity
                   onPress={startEdit}
@@ -437,6 +446,66 @@ export default function CastDetailScreen() {
 
             {cast.audio_path ? (
               <PlayerDeck cast={castTrack} notes={comments} onNote={noteAt} style={styles.player} />
+            ) : null}
+
+            {turns ? (
+              <View style={styles.turnsBox} testID="turns">
+                <Text style={styles.turnsEyebrow}>
+                  {turns === 'finished'
+                    ? `Made together · ${cast.turns.length} ${cast.turns.length === 1 ? 'turn' : 'turns'}`
+                    : turns === 'yours'
+                      ? 'The mic’s with you'
+                      : `The mic’s with ${holderName || 'them'}`}
+                </Text>
+                {(shape?.bands || []).map((b, i) => (
+                  <TouchableOpacity
+                    key={b.turn.id || i}
+                    style={[styles.turnRow, { borderLeftColor: b.color }]}
+                    onPress={() => jumpTo(b.startMs)}
+                    activeOpacity={0.75}
+                    accessibilityLabel={`Play ${b.name}'s turn`}
+                    testID="turn-row"
+                  >
+                    <View style={styles.turnRowHead}>
+                      <Text style={[styles.turnWho, { color: b.color }]}>
+                        {b.authorId === user?.id ? 'You' : b.name}
+                      </Text>
+                      <Text style={styles.turnLen}>
+                        {formatClock(b.startMs)} · {formatClock(b.durMs)}
+                      </Text>
+                    </View>
+                    {b.turn.question ? (
+                      <Text style={styles.turnQuestion}>“{b.turn.question}”</Text>
+                    ) : null}
+                  </TouchableOpacity>
+                ))}
+                {turns === 'yours' ? (
+                  <TouchableOpacity
+                    style={styles.turnGo}
+                    onPress={takeTurn}
+                    activeOpacity={0.85}
+                    testID="take-turn"
+                  >
+                    <Ionicons name="mic" size={17} color={colors.onEmber} />
+                    <Text style={styles.turnGoText}>Record your turn</Text>
+                  </TouchableOpacity>
+                ) : null}
+                {turns !== 'finished' ? (
+                  <TouchableOpacity
+                    style={styles.turnDone}
+                    onPress={confirmFinish}
+                    disabled={finishing}
+                    activeOpacity={0.7}
+                    testID="finish-cast"
+                  >
+                    {finishing ? (
+                      <ActivityIndicator size="small" color={colors.ink} />
+                    ) : (
+                      <Text style={styles.turnDoneText}>We’re done — finish it</Text>
+                    )}
+                  </TouchableOpacity>
+                ) : null}
+              </View>
             ) : null}
           </View>
           <View style={twoCol ? styles.rightCol : null}>
@@ -508,7 +577,17 @@ export default function CastDetailScreen() {
               </View>
             ) : null}
 
-            {cast.can_manage ? (
+            {cast.can_manage && turns && turns !== 'finished' ? (
+              <View style={styles.section}>
+                <View style={styles.privateNote}>
+                  <Ionicons name="lock-closed-outline" size={16} color={colors.emberInk} />
+                  <Text style={styles.privateText}>
+                    Only the people in it can hear it while you’re making it. Once it’s finished,
+                    any of you can choose who else hears it.
+                  </Text>
+                </View>
+              </View>
+            ) : cast.can_manage ? (
               <View style={styles.section}>
                 <View style={styles.manageHeader}>
                   <Text style={styles.sectionHeading}>
@@ -578,7 +657,9 @@ export default function CastDetailScreen() {
                   <View style={styles.privateNote}>
                     <Ionicons name="lock-closed-outline" size={16} color={colors.emberInk} />
                     <Text style={styles.privateText}>
-                      Only you can hear this. Tap Manage to choose who gathers round.
+                      {participantList.length > 0
+                        ? 'Only the people in it can hear this. Tap Manage to choose who gathers round.'
+                        : 'Only you can hear this. Tap Manage to choose who gathers round.'}
                     </Text>
                   </View>
                 )}
@@ -894,9 +975,47 @@ const styles = StyleSheet.create({
     paddingVertical: space.xs,
     ...Platform.select({ web: { outlineStyle: 'none' }, default: {} }),
   },
-  sharerEdit: { alignSelf: 'stretch', marginTop: space.lg },
-  tagOn: { backgroundColor: colors.ink },
-  tagTextOn: { color: colors.onEmber },
+  turnsBox: { marginBottom: space.lg },
+  turnsEyebrow: { ...type.monoLabel, color: colors.emberSoft, marginBottom: space.md },
+  turnRow: {
+    borderLeftWidth: 3,
+    paddingLeft: space.md,
+    paddingVertical: space.sm,
+    marginBottom: space.sm,
+    ...Platform.select({ web: { cursor: 'pointer' }, default: {} }),
+  },
+  turnRowHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+  turnWho: { ...type.h3 },
+  turnLen: { ...type.time, color: colors.inkMuted },
+  turnQuestion: {
+    ...type.moment,
+    fontSize: 16,
+    lineHeight: 22,
+    letterSpacing: 0,
+    color: colors.inkSoft,
+    marginTop: 2,
+  },
+  turnGo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space.sm,
+    height: 48,
+    borderRadius: radius.pill,
+    backgroundColor: colors.ember,
+    marginTop: space.md,
+  },
+  turnGoText: { ...type.h3, color: colors.onEmber },
+  turnDone: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 44,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.smoke,
+    marginTop: space.sm,
+  },
+  turnDoneText: { ...type.h3, color: colors.ink },
   editButton: {
     flexDirection: 'row',
     alignItems: 'center',

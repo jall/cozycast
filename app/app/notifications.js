@@ -33,6 +33,11 @@ const KINDS = {
     text: (a, t, n) => `${a} asked you for a cast${n.prompt ? `: “${n.prompt}”` : ''}`,
   },
   answered: { icon: 'gift-outline', text: (a, t) => `${a} answered your ask with ${t}` },
+  turn: { icon: 'swap-horizontal', text: (a, t) => `${a} passed you the mic on ${t}` },
+  finished: {
+    icon: 'checkmark-done-outline',
+    text: (a, t) => `${a} finished ${t} — any of you can choose who hears it`,
+  },
 };
 
 function describe(n) {
@@ -86,7 +91,7 @@ export default function NotificationsScreen() {
             <Text style={styles.emptyText}>Nothing yet — it’s calm in here.</Text>
             <Text style={styles.emptyHint}>
               You’ll hear here when someone shares a cast with you, tags you in one, asks you for
-              one (or to share theirs), leaves a note, or listens to something you made.
+              one, passes you the mic, leaves a note, or listens to something you made.
             </Text>
           </View>
         ) : (

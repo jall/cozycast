@@ -12,6 +12,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { getFeed, getCastRequests, dismissCastRequest } from '../api/client';
 import AskCard from '../components/AskCard';
+import TurnCard from '../components/TurnCard';
+import { turnState } from '../utils/turns';
 import { useShell } from '../context/ShellContext';
 import CastCard from '../components/CastCard';
 import CastCover from '../components/CastCover';
@@ -59,7 +61,7 @@ export default function FeedScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { toggle, track, isPlaying } = usePlayer();
-  const { setTab, setAnswering } = useShell();
+  const { setTab, setAnswering, setTurnFor } = useShell();
   // Asks waiting on you ("Ben asked you for a cast…").
   const [asks, setAsks] = useState([]);
   const { unreadCount, refresh: refreshNotifications } = useNotifications();
@@ -81,6 +83,11 @@ export default function FeedScreen() {
 
   function answer(req) {
     setAnswering({ id: req.id, prompt: req.prompt, from: req.from });
+    setTab('record');
+  }
+
+  function takeTurn(cast) {
+    setTurnFor(cast);
     setTab('record');
   }
 
@@ -107,6 +114,8 @@ export default function FeedScreen() {
   }
 
   const isUnheard = (c) => c.shared_with_me && !c.can_manage && !c.played;
+  // Casts made in turns where the mic's been passed to you.
+  const myTurns = casts.filter((c) => turnState(c, user?.id) === 'yours');
   // Casts that are yours to share and still unshared (see utils/sharing).
   const needsSharing = (c) => shareState(c, user?.id) === 'yours';
 
@@ -178,6 +187,18 @@ export default function FeedScreen() {
                 onAnswer={() => answer(req)}
                 onDismiss={() => notNow(req)}
                 onOpenPerson={(pid) => router.push(`/person/${pid}`)}
+                style={styles.ask}
+              />
+            ))
+          : null}
+
+        {filter === 'all'
+          ? myTurns.map((c) => (
+              <TurnCard
+                key={c.id}
+                cast={c}
+                onTakeTurn={() => takeTurn(c)}
+                onOpen={() => router.push(`/cast/${c.id}`)}
                 style={styles.ask}
               />
             ))

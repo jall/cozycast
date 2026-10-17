@@ -9,6 +9,8 @@ import { colors } from '../theme/colors';
 // press or drag anywhere to move the playhead (committed on release so we
 // don't flood the audio engine), and arrow keys / screen-reader adjust call
 // `onStep(±1)`. (PlayerDeck draws timestamped notes as dots above it.)
+// A cast made in turns passes `bands` ([{ start, end, color }], fractions of
+// the whole): each turn is drawn in its maker's colour, dimmed until heard.
 export default function Waveform({
   seed,
   peaks,
@@ -20,6 +22,7 @@ export default function Waveform({
   onSeek,
   onStep,
   playhead = false,
+  bands,
   accessibilityValueText,
   style,
 }) {
@@ -106,19 +109,25 @@ export default function Waveform({
       {...responder}
       {...a11y}
     >
-      {shape.map((v, i) => (
-        <View
-          key={i}
-          pointerEvents="none"
-          style={[
-            styles.bar,
-            {
-              height: Math.max(3, Math.round(v * height)),
-              backgroundColor: (i + 0.5) / shape.length <= shown ? playedColor : idleColor,
-            },
-          ]}
-        />
-      ))}
+      {shape.map((v, i) => {
+        const f = (i + 0.5) / shape.length;
+        const heard = f <= shown;
+        const band = bands?.length ? bandAt(bands, f) : null;
+        return (
+          <View
+            key={i}
+            pointerEvents="none"
+            style={[
+              styles.bar,
+              {
+                height: Math.max(3, Math.round(v * height)),
+                backgroundColor: band ? band.color : heard ? playedColor : idleColor,
+              },
+              band && !heard ? styles.unheard : null,
+            ]}
+          />
+        );
+      })}
       {playhead ? (
         <View
           pointerEvents="none"
@@ -129,7 +138,14 @@ export default function Waveform({
   );
 }
 
+function bandAt(bands, f) {
+  return bands.find((b) => f >= b.start && f < b.end) || bands[bands.length - 1];
+}
+
 const styles = StyleSheet.create({
+  unheard: {
+    opacity: 0.35,
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

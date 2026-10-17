@@ -4,6 +4,7 @@ import { Audio } from 'expo-av';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { castArtworkDataUrl } from '../utils/castArtwork';
 import { getAudioUrl, markPlayed } from '../api/client';
+import { segmentsFor, restack, totalOf, locate } from '../utils/segments';
 
 // One audio session for the whole app. Playback used to live inside each
 // CastCard's player, so it died the moment you scrolled away or switched
@@ -12,7 +13,8 @@ import { getAudioUrl, markPlayed } from '../api/client';
 //
 // A "track" is { id, uri, audioPath, title, artist, seed, durationSeconds,
 // peaks } — id is the cast id, used to tell which card is the one currently
-// playing.
+// playing. A cast made in turns also has `segments` ([{ audioPath,
+// durationMs }]) — its takes, played back to back as one.
 // `uri` may be absent: signed URLs are minted lazily on first play (from
 // `audioPath`) so a feed of thirty casts doesn't fire thirty storage calls
 // just to render play buttons.
@@ -37,6 +39,8 @@ export function PlayerProvider({ children }) {
   // shows the track (and accepts scrubs) straight away rather than waiting.
   const [loading, setLoading] = useState(false);
   const durationRef = useRef(0);
+  const positionRef = useRef(0);
+  const isPlayingRef = useRef(false);
   const pendingStartRef = useRef(null);
   const loadSeqRef = useRef(0);
   const [progress, setProgress] = useState({});
@@ -45,6 +49,17 @@ export function PlayerProvider({ children }) {
   const trackIdRef = useRef(null);
   const progressRef = useRef({});
   const lastSavedRef = useRef(0);
+  // The track's segments (utils/segments): one file, or a cast's turns played
+  // back to back. Positions the UI sees are across the whole track.
+  const segsRef = useRef([]);
+  const segIdxRef = useRef(0);
+  // Bumped whenever a segment's sound is (un)loaded, so a late status update
+  // from an old sound is ignored.
+  const soundTokenRef = useRef(0);
+  // Played to the very end: pressing play starts it over.
+  const finishedRef = useRef(false);
+  // The latest internal functions, for callbacks that outlive a render.
+  const impl = useRef({});
 
   useEffect(() => {
     AsyncStorage.getItem(PROGRESS_KEY)
@@ -69,6 +84,16 @@ export function PlayerProvider({ children }) {
     };
   }, []);
 
+  function setPlaying(v) {
+    isPlayingRef.current = v;
+    setIsPlaying(v);
+  }
+
+  function setPos(v) {
+    positionRef.current = v;
+    setPosition(v);
+  }
+
   // Tell the OS media session (lock screen / control center) what's playing and
   // give it a high-res cover instead of the default favicon. Web only.
   function setupMediaSession(t) {
@@ -84,13 +109,9 @@ export function PlayerProvider({ children }) {
     navigator.mediaSession.setActionHandler('play', () => soundRef.current?.playAsync());
     navigator.mediaSession.setActionHandler('pause', () => soundRef.current?.pauseAsync());
     // Lock-screen / headphone skip buttons: back 15s, forward 30s, like the app.
-    const nudge = (delta) => async () => {
-      const st = await soundRef.current?.getStatusAsync();
-      if (!st?.isLoaded) return;
-      const max = st.durationMillis || Infinity;
-      await soundRef.current.setPositionAsync(
-        Math.min(max, Math.max(0, st.positionMillis + delta)),
-      );
+    const nudge = (delta) => () => {
+      const max = durationRef.current || Infinity;
+      impl.current.seekTo(Math.min(max, Math.max(0, positionRef.current + delta)));
     };
     try {
       navigator.mediaSession.setActionHandler('seekbackward', nudge(-15000));
@@ -106,35 +127,125 @@ export function PlayerProvider({ children }) {
     }
   }
 
-  const onStatus = useCallback(
-    (status) => {
-      if (!status.isLoaded) return;
-      const pos = status.positionMillis || 0;
-      // Browser recordings (WebM) report an Infinity duration until fully
-      // read; keep the length we already know (from the cast) until a real one.
-      const raw = status.durationMillis;
-      if (Number.isFinite(raw) && raw > 0) {
-        durationRef.current = raw;
-        setDuration(raw);
+  function onStatus(status, idx, token) {
+    if (token !== soundTokenRef.current || !status.isLoaded) return;
+    const segs = segsRef.current;
+    const seg = segs[idx];
+    if (!seg) return;
+    // Browser recordings (WebM) report an Infinity duration until fully
+    // read; keep the length we already know (from the cast) until a real one.
+    const raw = status.durationMillis;
+    if (Number.isFinite(raw) && raw > 0 && raw !== seg.durMs) {
+      seg.durMs = raw;
+      restack(segs);
+      durationRef.current = totalOf(segs);
+      setDuration(durationRef.current);
+    }
+    const dur = durationRef.current;
+    const pos = seg.startMs + (status.positionMillis || 0);
+    setPos(pos);
+    if (status.didJustFinish) {
+      // On to the next turn.
+      if (idx < segs.length - 1) {
+        impl.current.loadSegment(idx + 1, 0, true).catch(() => {});
+        return;
       }
-      const dur = durationRef.current;
-      setPosition(pos);
-      setIsPlaying(status.isPlaying);
-      setMediaPlaybackState(status.isPlaying ? 'playing' : 'paused');
-      if (status.didJustFinish) {
-        setIsPlaying(false);
-        setPosition(0);
-        setMediaPlaybackState('paused');
-        remember(trackIdRef.current, { pos: dur, dur, done: true });
-        lastSavedRef.current = 0;
-      } else if (dur && Math.abs(pos - lastSavedRef.current) >= SAVE_EVERY_MS) {
-        lastSavedRef.current = pos;
-        const prev = progressRef.current[trackIdRef.current];
-        remember(trackIdRef.current, { pos, dur, done: !!prev?.done });
-      }
-    },
-    [remember],
-  );
+      finishedRef.current = true;
+      setPlaying(false);
+      setPos(0);
+      setMediaPlaybackState('paused');
+      remember(trackIdRef.current, { pos: dur, dur, done: true });
+      lastSavedRef.current = 0;
+      return;
+    }
+    setPlaying(status.isPlaying);
+    setMediaPlaybackState(status.isPlaying ? 'playing' : 'paused');
+    if (dur && Math.abs(pos - lastSavedRef.current) >= SAVE_EVERY_MS) {
+      lastSavedRef.current = pos;
+      const prev = progressRef.current[trackIdRef.current];
+      remember(trackIdRef.current, { pos, dur, done: !!prev?.done });
+    }
+  }
+
+  // Load one segment of the current track (unloading whatever's loaded) and
+  // start it `local` ms in. Resolves false if a newer load superseded it;
+  // throws if its audio can't be had.
+  async function loadSegment(idx, local, shouldPlay) {
+    const seq = loadSeqRef.current;
+    const token = (soundTokenRef.current += 1);
+    segIdxRef.current = idx;
+    if (soundRef.current) {
+      const old = soundRef.current;
+      soundRef.current = null;
+      await old.unloadAsync().catch(() => {});
+    }
+    const segs = segsRef.current;
+    const seg = segs[idx];
+    if (!seg) throw new Error('Nothing to play.');
+    // Mint the signed URL on demand if we only have a storage path.
+    if (!seg.uri && seg.audioPath) {
+      setLoading(true);
+      seg.uri = await getAudioUrl(seg.audioPath).catch(() => null);
+    }
+    if (seq !== loadSeqRef.current || token !== soundTokenRef.current) return false;
+    if (!seg.uri) throw new Error('That audio isn’t available.');
+
+    const { sound } = await Audio.Sound.createAsync(
+      { uri: seg.uri },
+      {
+        shouldPlay,
+        positionMillis: local,
+        rate: rateRef.current,
+        shouldCorrectPitch: true,
+      },
+      (st) => onStatus(st, idx, token),
+    );
+    if (seq !== loadSeqRef.current || token !== soundTokenRef.current) {
+      await sound.unloadAsync().catch(() => {});
+      return false;
+    }
+    soundRef.current = sound;
+    setLoading(false);
+    setPlaying(shouldPlay);
+    // Get the next turn's URL ready so the hand-over is seamless.
+    const next = segs[idx + 1];
+    if (next && !next.uri && next.audioPath) {
+      getAudioUrl(next.audioPath)
+        .then((uri) => {
+          if (!next.uri) next.uri = uri;
+        })
+        .catch(() => {});
+    }
+    // Someone scrubbed while it was loading: honour where they let go.
+    if (pendingStartRef.current != null) {
+      const to = pendingStartRef.current;
+      pendingStartRef.current = null;
+      await seekTo(to);
+    }
+    return true;
+  }
+
+  // Move to a moment anywhere in the track (loading another turn if need be).
+  async function seekTo(millis, { resume = false } = {}) {
+    const segs = segsRef.current;
+    if (segs.length === 0) return;
+    const to = Math.max(0, millis);
+    finishedRef.current = false;
+    setPos(to); // reflect the scrub immediately; status catches up
+    if (!soundRef.current) {
+      pendingStartRef.current = to; // still loading: applied once it's ready
+      return;
+    }
+    const { idx, local } = locate(segs, to);
+    if (idx === segIdxRef.current) {
+      await soundRef.current.setPositionAsync(local).catch(() => {});
+      if (resume) await soundRef.current.playAsync().catch(() => {});
+      return;
+    }
+    await loadSegment(idx, local, resume || isPlayingRef.current).catch(() => {});
+  }
+
+  impl.current = { loadSegment, seekTo };
 
   // Load a brand-new track and start it (optionally part-way in, e.g. when
   // someone scrubs a cast that isn't playing yet, or taps a note's timestamp).
@@ -147,6 +258,7 @@ export function PlayerProvider({ children }) {
         startMillis = saved && !saved.done && saved.pos < saved.dur - 3000 ? saved.pos : 0;
       }
       const seq = (loadSeqRef.current += 1);
+      soundTokenRef.current += 1;
       if (soundRef.current) {
         const old = soundRef.current;
         soundRef.current = null;
@@ -155,32 +267,19 @@ export function PlayerProvider({ children }) {
 
       // Show the track right away — the panel, card and scrubber respond while
       // the signed URL is minted and the audio loads.
-      const known = next.durationSeconds ? next.durationSeconds * 1000 : 0;
+      const segs = segmentsFor(next);
+      segsRef.current = segs;
+      const known = totalOf(segs);
       setTrack(next);
       trackIdRef.current = next.id;
       lastSavedRef.current = startMillis;
       pendingStartRef.current = null;
+      finishedRef.current = false;
       durationRef.current = known;
-      setPosition(startMillis);
+      setPos(startMillis);
       setDuration(known);
-      setIsPlaying(false);
+      setPlaying(false);
       setLoading(true);
-
-      // Mint the signed URL on demand if the caller only had a storage path.
-      if (!next.uri && next.audioPath) {
-        try {
-          next = { ...next, uri: await getAudioUrl(next.audioPath) };
-        } catch {
-          next = { ...next, uri: null };
-        }
-      }
-      if (seq !== loadSeqRef.current) return; // superseded by another play
-      if (!next.uri) {
-        setLoading(false);
-        setTrack(null);
-        return;
-      }
-      setTrack(next);
 
       // Native: keep audio going when the screen locks / app backgrounds (web
       // gets the same via the browser). Guarded so a missing background-mode
@@ -193,41 +292,24 @@ export function PlayerProvider({ children }) {
       }
 
       try {
-        const { sound } = await Audio.Sound.createAsync(
-          { uri: next.uri },
-          {
-            shouldPlay: true,
-            positionMillis: startMillis,
-            rate: rateRef.current,
-            shouldCorrectPitch: true,
-          },
-          onStatus,
-        );
-        if (seq !== loadSeqRef.current) {
-          await sound.unloadAsync().catch(() => {});
-          return;
-        }
-        soundRef.current = sound;
-        setLoading(false);
-        setIsPlaying(true);
+        const { idx, local } = locate(segs, startMillis);
+        const ok = await impl.current.loadSegment(idx, local, true);
+        if (!ok) return;
         setupMediaSession(next);
         // Pressing play counts as hearing it (clears "New", and lets the people
         // who made/shared it know someone listened). First play only; quiet.
         markPlayed(next.id).catch(() => {});
-        // Someone scrubbed while it was loading: honour where they let go.
-        if (pendingStartRef.current != null) {
-          await sound.setPositionAsync(pendingStartRef.current).catch(() => {});
-          pendingStartRef.current = null;
-        }
       } catch {
         // Bad/expired URL — leave the player idle rather than crashing.
         if (seq !== loadSeqRef.current) return;
         setLoading(false);
         setTrack(null);
-        setIsPlaying(false);
+        setPlaying(false);
       }
     },
-    [onStatus],
+    // setupMediaSession only touches refs and the browser.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
   );
 
   // The card / mini-player play button: resume or pause the current track, or
@@ -243,19 +325,22 @@ export function PlayerProvider({ children }) {
       if (isPlaying) {
         await soundRef.current.pauseAsync();
         if (duration > 0) remember(track.id, { pos: position, dur: duration, done: false });
+      } else if (finishedRef.current || (position >= duration && duration > 0)) {
+        await impl.current.seekTo(0, { resume: true });
       } else {
-        if (position >= duration && duration > 0) await soundRef.current.setPositionAsync(0);
         await soundRef.current.playAsync();
       }
     },
     [track, isPlaying, position, duration, play, remember, loading],
   );
 
-  const seek = useCallback(async (millis) => {
-    const to = Math.max(0, millis);
-    setPosition(to); // reflect the scrub immediately; status catches up
-    if (soundRef.current) await soundRef.current.setPositionAsync(to);
-    else pendingStartRef.current = to; // still loading: applied once it's ready
+  const seek = useCallback((millis) => impl.current.seekTo(millis), []);
+
+  // Hold whatever's playing (e.g. when you start recording).
+  const pause = useCallback(async () => {
+    if (soundRef.current && isPlayingRef.current) {
+      await soundRef.current.pauseAsync().catch(() => {});
+    }
   }, []);
 
   // Jump back/forward by `deltaMillis` within the current track.
@@ -279,15 +364,19 @@ export function PlayerProvider({ children }) {
   // Dismiss the player entirely (the mini-player's close button).
   const stop = useCallback(async () => {
     loadSeqRef.current += 1;
+    soundTokenRef.current += 1;
     setLoading(false);
     if (soundRef.current) {
-      await soundRef.current.unloadAsync();
+      const old = soundRef.current;
       soundRef.current = null;
+      await old.unloadAsync().catch(() => {});
     }
+    segsRef.current = [];
     setTrack(null);
     trackIdRef.current = null;
     setIsPlaying(false);
-    setPosition(0);
+    isPlayingRef.current = false;
+    setPos(0);
     setDuration(0);
     if (Platform.OS === 'web' && typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
       navigator.mediaSession.metadata = null;
@@ -303,6 +392,7 @@ export function PlayerProvider({ children }) {
     rate,
     toggle,
     play,
+    pause,
     seek,
     skip,
     cycleRate,

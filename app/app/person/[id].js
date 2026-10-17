@@ -43,7 +43,7 @@ export default function PersonScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const { user } = useAuth();
-  const { setTab, setRecordWith, setAnswering } = useShell();
+  const { setTab, setRecordWith, setAnswering, setPassMic } = useShell();
   const [person, setPerson] = useState(null);
   const [casts, setCasts] = useState([]);
   const [requests, setRequests] = useState([]);
@@ -91,8 +91,10 @@ export default function PersonScreen() {
     await withdrawCastRequest(req.id).catch(() => {});
   }
 
-  function recordWith() {
+  // `turns`: start a cast made in turns with them ("pass the mic").
+  function recordWith(turns = false) {
     setRecordWith({ id: person.id, name: person.name, avatar_path: person.avatar_path });
+    setPassMic(turns);
     setTab('record');
     if (router.canDismiss()) router.dismissAll();
     else router.replace('/');
@@ -149,10 +151,25 @@ export default function PersonScreen() {
             </Text>
             {!person.is_me ? (
               <View style={styles.ctas}>
-                <TouchableOpacity style={styles.cta} onPress={recordWith} activeOpacity={0.85}>
+                <TouchableOpacity
+                  style={styles.cta}
+                  onPress={() => recordWith()}
+                  activeOpacity={0.85}
+                >
                   <Ionicons name="mic" size={18} color={colors.onEmber} />
                   <Text style={styles.ctaText}>Record with {first}</Text>
                 </TouchableOpacity>
+                {person.is_friend ? (
+                  <TouchableOpacity
+                    style={styles.ctaQuiet}
+                    onPress={() => recordWith(true)}
+                    activeOpacity={0.85}
+                    testID="pass-mic-with"
+                  >
+                    <Ionicons name="swap-horizontal" size={18} color={colors.ink} />
+                    <Text style={styles.ctaQuietText}>Pass {first} the mic</Text>
+                  </TouchableOpacity>
+                ) : null}
                 {person.is_friend ? (
                   <TouchableOpacity
                     style={styles.ctaQuiet}

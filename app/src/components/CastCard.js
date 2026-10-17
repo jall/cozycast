@@ -23,6 +23,7 @@ import { castBy, trackFor } from '../utils/track';
 import { castProgress } from '../utils/progress';
 import { shareState } from '../utils/sharing';
 import { castByIdOf } from '../utils/people';
+import { turnState, turnHolder } from '../utils/turns';
 import { colors } from '../theme/colors';
 import { type } from '../theme/type';
 import { space, radius, elevation } from '../theme/space';
@@ -54,6 +55,11 @@ export default function CastCard({ cast, index = 0, onShared }) {
   useEffect(() => setRecipientCount(cast.recipient_count), [cast.recipient_count]);
   const share = shareState({ ...cast, recipient_count: recipientCount }, user?.id);
   const madeIt = cast.creator_id === user?.id;
+  const inIt = (cast.participant_ids || []).includes(user?.id);
+  // Made in turns: whose turn it is, until it's finished.
+  const turns = turnState(cast, user?.id);
+  const holder = turns === 'theirs' ? turnHolder(cast) : null;
+  const track = trackFor(cast);
 
   const { isCurrent, total, at, done } = castProgress(cast, player);
   const playing = isCurrent && player.isPlaying;
@@ -89,7 +95,7 @@ export default function CastCard({ cast, index = 0, onShared }) {
 
   const playButton = cast.audio_path ? (
     <TouchableOpacity
-      onPress={() => player.toggle(trackFor(cast))}
+      onPress={() => player.toggle(track)}
       style={[styles.play, compact && styles.playCompact, isCurrent && styles.playLive]}
       activeOpacity={0.8}
       accessibilityLabel={`${playing ? 'Pause' : 'Play'} ${title}`}
@@ -138,7 +144,8 @@ export default function CastCard({ cast, index = 0, onShared }) {
     <View style={styles.shapeRow}>
       <Waveform
         seed={id}
-        peaks={cast.peaks}
+        peaks={track.peaks}
+        bands={track.bands?.length > 1 ? track.bands : undefined}
         bars={compact ? 36 : 56}
         height={compact ? 24 : 30}
         progress={total ? at / total : 0}
@@ -232,16 +239,25 @@ export default function CastCard({ cast, index = 0, onShared }) {
           >
             <Ionicons name="lock-closed-outline" size={16} color={colors.emberInk} />
             <Text style={styles.nudgeText}>
-              {madeIt
-                ? 'Only you can hear this so far.'
-                : `You’re the sharer — ${cast.creator_name} asked you to choose who hears it.`}
+              {(cast.participant_ids || []).length > 0 && (madeIt || inIt)
+                ? 'Only the people in it can hear this so far.'
+                : madeIt
+                  ? 'Only you can hear this so far.'
+                  : `You’re the sharer — ${cast.creator_name} asked you to choose who hears it.`}
             </Text>
             <View style={styles.nudgeButton}>
               <Text style={styles.nudgeButtonText}>Choose people</Text>
             </View>
           </TouchableOpacity>
-        ) : share === 'waiting' ? (
-          <Text style={styles.sharedNote}>Waiting for {cast.sharer_name} to share it</Text>
+        ) : turns === 'yours' || turns === 'theirs' ? (
+          <View style={styles.turnNote}>
+            <Ionicons name="swap-horizontal" size={14} color={colors.emberSoft} />
+            <Text style={styles.turnNoteText}>
+              {turns === 'yours'
+                ? 'Made in turns · the mic’s with you'
+                : `Made in turns · the mic’s with ${holder?.name || 'them'}`}
+            </Text>
+          </View>
         ) : !shared_with_me && recipientCount > 0 ? (
           <Text style={styles.sharedNote}>
             Shared with {recipientCount} {recipientCount === 1 ? 'person' : 'people'} — only the
@@ -269,6 +285,16 @@ export default function CastCard({ cast, index = 0, onShared }) {
 }
 
 const styles = StyleSheet.create({
+  turnNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: space.md,
+  },
+  turnNoteText: {
+    ...type.label,
+    color: colors.emberSoft,
+  },
   cardOuter: {
     marginBottom: space.md + 2,
   },

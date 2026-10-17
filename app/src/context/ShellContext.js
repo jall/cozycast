@@ -14,6 +14,11 @@ export function ShellProvider({ children }) {
   // Answering someone's ask: { id, prompt, from: { id, name } } — the next cast
   // goes to them and marks the ask answered.
   const [answering, setAnswering] = useState(null);
+  // Pass the mic: `passMic` starts a cast made in turns (with `recordWith`
+  // pre-picked, if set); `turnFor` is a cast whose mic was passed to you —
+  // the next recording is your turn on it.
+  const [passMic, setPassMic] = useState(false);
+  const [turnFor, setTurnFor] = useState(null);
   const bumpFriends = useCallback(() => setFriendsVersion((v) => v + 1), []);
   return (
     <ShellContext.Provider
@@ -26,6 +31,10 @@ export function ShellProvider({ children }) {
         setRecordWith,
         answering,
         setAnswering,
+        passMic,
+        setPassMic,
+        turnFor,
+        setTurnFor,
       }}
     >
       {children}

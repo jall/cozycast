@@ -150,12 +150,36 @@ async function fetchAvatars(ids) {
   }
 }
 
+// The turns of casts made together ({ [castId]: turns[] }, in order). Fetched
+// separately, like fetchPlayedIds, so a database without cast_turns yet still
+// serves the feed — those casts just play as their first take.
+async function fetchTurns(rows) {
+  const ids = (rows || []).filter((c) => c.together).map((c) => c.id);
+  if (ids.length === 0) return {};
+  try {
+    const { data, error } = await supabase
+      .from('cast_turns')
+      .select('id, cast_id, author_id, position, audio_path, duration, peaks, question, created_at')
+      .in('cast_id', ids)
+      .order('position', { ascending: true });
+    if (error) return {};
+    const byCast = {};
+    (data || []).forEach((t) => {
+      (byCast[t.cast_id] = byCast[t.cast_id] || []).push(t);
+    });
+    return byCast;
+  } catch {
+    return {};
+  }
+}
+
 // Flatten a joined cast row into the shape the UI consumes. `uid` is the
 // current user, used to decide whether the cast was shared *with* them and
 // whether they may manage it. `avatars` maps user id -> avatar_path.
-function mapCast(cast, uid, played = false, avatars = new Map()) {
+function mapCast(cast, uid, played = false, avatars = new Map(), turns = []) {
   const creatorId = cast.creator?.id || cast.creator_id;
   const sharerId = cast.sharer_id || creatorId;
+  const participantIds = (cast.cast_participants || []).map((p) => p.profile_id).filter(Boolean);
   return {
     ...cast,
     creator_id: creatorId,
@@ -166,7 +190,7 @@ function mapCast(cast, uid, played = false, avatars = new Map()) {
     sharer_id: sharerId,
     sharer_avatar: avatars.get(sharerId) || avatars.get(creatorId) || null,
     participants: (cast.cast_participants || []).map((p) => p.name),
-    participant_ids: (cast.cast_participants || []).map((p) => p.profile_id).filter(Boolean),
+    participant_ids: participantIds,
     // Names with their profile (when they're on cozycast), for linking to them.
     participant_people: (cast.cast_participants || []).map((p) => ({
       name: p.name,
@@ -177,8 +201,14 @@ function mapCast(cast, uid, played = false, avatars = new Map()) {
     comment_count: cast.cast_comments?.[0]?.count ?? 0,
     // Did this land in my feed because someone shared it with me (vs. mine)?
     shared_with_me: creatorId !== uid,
-    // Creator or assigned sharer may manage recipients (matches can_manage_cast).
-    can_manage: creatorId === uid || sharerId === uid,
+    // Everyone in it may choose who hears it (matches can_manage_cast): its
+    // creator, anyone tagged, and a nominated sharer on older casts.
+    can_manage: creatorId === uid || sharerId === uid || participantIds.includes(uid),
+    // Creator or nominated sharer: may update the row itself (e.g. its peaks).
+    owns: creatorId === uid || sharerId === uid,
+    // Made in turns ("pass the mic"): its takes, in order.
+    together: !!cast.together,
+    turns: cast.together ? turns : [],
     // Have I listened to it?
     played,
   };
@@ -197,8 +227,11 @@ export async function getFeed() {
   const uid = await currentUserId();
   const playedIds = await fetchPlayedIds();
   const rows = data || [];
-  const avatars = await fetchAvatars(rows.flatMap((c) => [c.creator?.id, c.sharer?.id]));
-  return rows.map((cast) => mapCast(cast, uid, playedIds.has(cast.id), avatars));
+  const [avatars, turns] = await Promise.all([
+    fetchAvatars(rows.flatMap((c) => [c.creator?.id, c.sharer?.id])),
+    fetchTurns(rows),
+  ]);
+  return rows.map((cast) => mapCast(cast, uid, playedIds.has(cast.id), avatars, turns[cast.id]));
 }
 
 // A single cast by id, for the detail page / deep links. Returns null when the
@@ -216,8 +249,11 @@ export async function getCast(castId) {
 
   const uid = await currentUserId();
   const playedIds = await fetchPlayedIds();
-  const avatars = await fetchAvatars([data.creator?.id, data.sharer?.id]);
-  return mapCast(data, uid, playedIds.has(data.id), avatars);
+  const [avatars, turns] = await Promise.all([
+    fetchAvatars([data.creator?.id, data.sharer?.id]),
+    fetchTurns([data]),
+  ]);
+  return mapCast(data, uid, playedIds.has(data.id), avatars, turns[data.id]);
 }
 
 // Mark a cast as listened-to by the current user (first play wins). Used by the
@@ -373,10 +409,80 @@ export async function updateCast(castId, { title, summary }) {
   if (error) throw error;
 }
 
-// Hand the "who hears it" decision to someone else in the cast (creator or
-// current sharer only, via RLS casts_update_manage).
-export async function setCastSharer(castId, sharerId) {
-  const { error } = await supabase.from('casts').update({ sharer_id: sharerId }).eq('id', castId);
+// ---- Pass the mic (casts made in turns; see add_cast_turn) ----------------
+
+// Attach a turn's measured waveform when its decode finishes (never blocks).
+function attachTurnPeaks(turnId, upload) {
+  upload.peaks
+    .then(
+      (peaks) =>
+        peaks &&
+        supabase
+          .from('cast_turns')
+          .update({ peaks })
+          .eq('id', turnId)
+          .then(() => {}),
+    )
+    .catch(() => {});
+}
+
+// Start a cast made in turns: your first take (from beginCastUpload), the
+// people you're making it with, and who you pass the mic to.
+export async function startTogetherCast({ title, people, upload, duration, question, passTo }) {
+  const userId = await currentUserId();
+  await upload.uploaded;
+  const { data: cast, error } = await supabase
+    .from('casts')
+    .insert({
+      creator_id: userId,
+      sharer_id: userId,
+      title,
+      audio_path: upload.path,
+      duration: duration || null,
+      together: true,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+
+  const rows = people.map((p) => ({ cast_id: cast.id, profile_id: p.id, name: p.name }));
+  if (rows.length > 0) {
+    const { error: partError } = await supabase.from('cast_participants').insert(rows);
+    if (partError) throw partError;
+  }
+
+  const { data: turnId, error: turnError } = await supabase.rpc('add_cast_turn', {
+    p_cast: cast.id,
+    p_audio_path: upload.path,
+    p_duration: duration || null,
+    p_question: (question || '').trim() || null,
+    p_pass_to: passTo,
+  });
+  if (turnError) throw turnError;
+  // The first take's waveform is the cast's too (for anything that only
+  // knows about one file).
+  upload.peaks.then((peaks) => peaks && savePeaks(cast.id, peaks)).catch(() => {});
+  if (turnId) attachTurnPeaks(turnId, upload);
+  return cast;
+}
+
+// Add your turn and pass the mic on — or, with `passTo` null, finish it.
+export async function addTurn(castId, { upload, duration, question, passTo }) {
+  await upload.uploaded;
+  const { data: turnId, error } = await supabase.rpc('add_cast_turn', {
+    p_cast: castId,
+    p_audio_path: upload.path,
+    p_duration: duration || null,
+    p_question: (question || '').trim() || null,
+    p_pass_to: passTo || null,
+  });
+  if (error) throw error;
+  if (turnId) attachTurnPeaks(turnId, upload);
+}
+
+// "We're done": any maker can finish it, whoever's turn it was.
+export async function finishTogetherCast(castId) {
+  const { error } = await supabase.rpc('finish_together_cast', { p_cast: castId });
   if (error) throw error;
 }
 

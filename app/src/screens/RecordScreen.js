@@ -21,6 +21,8 @@ import {
   beginCastUpload,
   discardUpload,
   answerCastRequest,
+  startTogetherCast,
+  addTurn,
 } from '../api/client';
 import { useRouter } from 'expo-router';
 import PressableScale from '../components/PressableScale';
@@ -30,6 +32,9 @@ import useMicLevel from '../hooks/useMicLevel';
 import { useShell } from '../context/ShellContext';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { usePlayer } from '../context/PlayerContext';
+import { makersOf } from '../utils/turns';
+import { trackFor } from '../utils/track';
 import { fonts } from '../theme/typography';
 import { type } from '../theme/type';
 import { space, radius, elevation, layout } from '../theme/space';
@@ -123,7 +128,28 @@ export default function RecordScreen() {
   const [summary, setSummary] = useState('');
   const [friends, setFriends] = useState([]);
   // Arrived via "Record with <name>"? They're pre-tagged as being in it.
-  const { recordWith, setRecordWith, answering, setAnswering } = useShell();
+  const {
+    recordWith,
+    setRecordWith,
+    answering,
+    setAnswering,
+    passMic,
+    setPassMic,
+    turnFor,
+    setTurnFor,
+  } = useShell();
+  const player = usePlayer();
+  // What this recording is: an ordinary cast, the first turn of one made in
+  // turns ("pass the mic"), or your turn on one whose mic was passed to you.
+  const flow = turnFor ? 'turn' : passMic ? 'start' : 'solo';
+  // The others in a cast made in turns (who the mic can go to next).
+  const turnMakers = turnFor ? makersOf(turnFor).filter((m) => m.id !== user?.id) : [];
+  const [passTo, setPassTo] = useState(null);
+  const [question, setQuestion] = useState('');
+  // After keeping a turn: who it went to (null when you finished it).
+  const [passedTo, setPassedTo] = useState(null);
+  // Starting one without having picked who it's with: ask on the form.
+  const [askWithInForm, setAskWithInForm] = useState(false);
   const router = useRouter();
   // The upload starts the moment there's audio (see startUpload), so saving is
   // usually instant by the time the title's written.
@@ -134,7 +160,6 @@ export default function RecordScreen() {
     if (!recordWith) return;
     setParticipantIds((ids) => (ids.includes(recordWith.id) ? ids : [...ids, recordWith.id]));
   }, [recordWith]);
-  const [sharerId, setSharerId] = useState('me');
   // Answering someone's "ask for a cast"? It goes to them.
   const [recipientIds, setRecipientIds] = useState(() => (answering ? [answering.from.id] : []));
   useEffect(() => {
@@ -146,7 +171,6 @@ export default function RecordScreen() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [createdCast, setCreatedCast] = useState(null);
   const [sentCount, setSentCount] = useState(0);
-  const sharerIsMe = sharerId === 'me' || sharerId === user?.id;
   // A gentle conversation prompt, picked once per visit to this screen.
   const [tip, setTip] = useState(randomTip);
 
@@ -195,6 +219,9 @@ export default function RecordScreen() {
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
       });
+
+      // Don't record whatever's playing (e.g. their turn you just heard).
+      await player.pause();
 
       const { recording: rec } = await Audio.Recording.createAsync(
         Audio.RecordingOptionsPresets.HIGH_QUALITY,
@@ -266,13 +293,75 @@ export default function RecordScreen() {
       ? participantIds.filter((x) => x !== id)
       : [...participantIds, id];
     setParticipantIds(next);
-    // If the assigned sharer is no longer a participant, fall back to you.
-    if (sharerId !== 'me' && !next.includes(sharerId)) setSharerId('me');
+    // Passing the mic to someone who's no longer in it: pass to the first.
+    if (passTo && !next.includes(passTo)) setPassTo(null);
+  }
+
+  // Who the mic goes to next: the one picked, or the only/first other person.
+  function nextHolder() {
+    if (flow === 'turn') {
+      return (
+        turnMakers.find((m) => m.id === passTo) ||
+        turnMakers.find((m) => m.id === turnFor.creator_id) ||
+        turnMakers[0] ||
+        null
+      );
+    }
+    const people = friends.filter((f) => participantIds.includes(f.id));
+    return people.find((f) => f.id === passTo) || people[0] || null;
+  }
+
+  // Keep a turn: start the cast made in turns, or add yours to it. `finish`
+  // ends it here instead of passing the mic on.
+  async function handleTurn({ finish = false } = {}) {
+    if (flow === 'start' && !title.trim()) {
+      toast.error('Give it a title first.');
+      return;
+    }
+    const people = friends.filter((f) => participantIds.includes(f.id));
+    if (flow === 'start' && people.length === 0) {
+      toast.error('Pick who you’re passing the mic to.');
+      return;
+    }
+    if (!recordingUri) {
+      toast.error('Please record or pick some audio first.');
+      return;
+    }
+    const holder = finish ? null : nextHolder();
+    setSubmitting(true);
+    try {
+      if (uploadState === 'failed') startUpload(recordingUri, audioMime);
+      const upload = await uploadRef.current;
+      const duration = elapsed || pickedDuration || null;
+      let cast;
+      if (flow === 'start') {
+        cast = await startTogetherCast({
+          title: title.trim(),
+          people: people.map((f) => ({ id: f.id, name: f.name })),
+          upload,
+          duration,
+          question,
+          passTo: holder.id,
+        });
+      } else {
+        await addTurn(turnFor.id, { upload, duration, question, passTo: holder?.id || null });
+        cast = turnFor;
+      }
+      uploadRef.current = null;
+      setCreatedCast(cast);
+      setPassedTo(holder);
+      setMode('done');
+    } catch (err) {
+      toast.error(err.message || 'Could not save your turn.');
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   // Kick off the upload (and waveform) in the background as soon as there's
   // audio, so it's done — or nearly — by the time they press Keep.
   function startUpload(uri, mime) {
+    setAskWithInForm(participantIds.length === 0);
     setUploadProgress(0);
     setUploadState('uploading');
     const pending = beginCastUpload({
@@ -314,15 +403,15 @@ export default function RecordScreen() {
         duration: elapsed || pickedDuration || null,
         mimeType: audioMime,
         participants,
-        sharerId: sharerId === 'me' ? user?.id : sharerId,
+        sharerId: user?.id,
         upload,
       });
       uploadRef.current = null;
       setCreatedCast(cast);
 
-      // You're the sharer: send it to the people you picked (anyone tagged can
-      // already hear it, so they're not double-counted).
-      const sendTo = sharerIsMe ? recipientIds.filter((id) => !participantIds.includes(id)) : [];
+      // Send it to the people you picked (anyone tagged can already hear it,
+      // so they're not double-counted).
+      const sendTo = recipientIds.filter((id) => !participantIds.includes(id));
       if (sendTo.length > 0) {
         try {
           await shareCast(cast.id, sendTo);
@@ -354,6 +443,11 @@ export default function RecordScreen() {
     setUploadState(null);
     setRecordWith(null);
     setAnswering(null);
+    setPassMic(false);
+    setTurnFor(null);
+    setPassTo(null);
+    setQuestion('');
+    setPassedTo(null);
     setMode(null);
     setRecordingUri(null);
     setAudioMime(null);
@@ -363,18 +457,93 @@ export default function RecordScreen() {
     setTitle('');
     setSummary('');
     setParticipantIds([]);
-    setSharerId('me');
     setRecipientIds([]);
     setRecording(null);
     setCreatedCast(null);
     setSentCount(0);
   }
 
+  // Taking turns: who it's with (starting one), or whose turn you're answering.
+  function renderTogetherHeader() {
+    if (flow === 'turn') {
+      // Whoever went last passed you the mic.
+      const last = turnFor.turns?.[turnFor.turns.length - 1];
+      const holderName = makersOf(turnFor).find((m) => m.id === last?.author_id)?.name || 'They';
+      const playing = player.track?.id === turnFor.id && player.isPlaying;
+      return (
+        <View style={styles.turnCard} testID="your-turn">
+          <View style={styles.turnHead}>
+            <Text style={styles.turnEyebrow}>{holderName} passed you the mic</Text>
+            <TouchableOpacity
+              onPress={resetState}
+              accessibilityLabel="Not now"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="close" size={16} color={colors.inkMuted} />
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.turnTitle}>{turnFor.title}</Text>
+          {last?.question ? <Text style={styles.turnQuestion}>“{last.question}”</Text> : null}
+          <TouchableOpacity
+            style={styles.turnListen}
+            onPress={() => player.toggle(trackFor(turnFor))}
+            activeOpacity={0.8}
+          >
+            <Ionicons name={playing ? 'pause' : 'play'} size={15} color={colors.ink} />
+            <Text style={styles.turnListenText}>{playing ? 'Pause' : 'Hear it so far'}</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    return (
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>With</Text>
+        {friends.length === 0 ? (
+          <Text style={styles.helpText}>
+            Invite someone from your You tab first — then you can pass them the mic.
+          </Text>
+        ) : (
+          <View style={styles.chipRow}>
+            {friends.map((f) =>
+              chip(f, participantIds.includes(f.id), () => toggleParticipant(f.id), 'with-person'),
+            )}
+          </View>
+        )}
+      </View>
+    );
+  }
+
   function renderChoiceScreen() {
+    const together = flow !== 'solo';
     return (
       <ScrollView contentContainerStyle={styles.choiceContainer}>
-        <Text style={styles.screenTitle}>Start a cast</Text>
-        <Text style={styles.screenSubtitle}>say something, then choose who hears it</Text>
+        {together ? (
+          <View style={styles.togetherTitleRow}>
+            <Text style={[styles.screenTitle, styles.momentTitle]}>
+              {flow === 'turn' ? 'Your turn.' : 'Pass the mic.'}
+            </Text>
+            {flow === 'start' ? (
+              <TouchableOpacity
+                onPress={() => setPassMic(false)}
+                accessibilityLabel="Record on your own instead"
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close" size={20} color={colors.inkMuted} />
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        ) : (
+          <Text style={styles.screenTitle}>Start a cast</Text>
+        )}
+        <Text style={styles.screenSubtitle}>
+          {flow === 'turn'
+            ? 'answer in your own time — end with a question to pass it back'
+            : flow === 'start'
+              ? 'you go first and end with a question; they answer in their own time. back and forth, one cast.'
+              : 'say something, then choose who hears it'}
+        </Text>
+
+        {together ? renderTogetherHeader() : null}
 
         {answering ? (
           <View style={styles.answerBanner} testID="answering">
@@ -395,7 +564,7 @@ export default function RecordScreen() {
           </View>
         ) : null}
 
-        {recordWith ? (
+        {recordWith && !together ? (
           <View style={styles.withRow}>
             <Avatar name={recordWith.name} path={recordWith.avatar_path} size={24} />
             <Text style={styles.withText}>With {recordWith.name} — they’ll be tagged in it</Text>
@@ -436,7 +605,13 @@ export default function RecordScreen() {
               <Ionicons name="mic" size={46} color={colors.onEmber} />
             </PressableScale>
           </View>
-          <Text style={styles.recordCue}>Tap and start talking</Text>
+          <Text style={styles.recordCue}>
+            {flow === 'turn'
+              ? 'Record your turn'
+              : flow === 'start'
+                ? 'Start your turn'
+                : 'Tap and start talking'}
+          </Text>
           <TouchableOpacity
             testID="record-pick"
             onPress={handlePickFile}
@@ -448,25 +623,51 @@ export default function RecordScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.tipCard} testID="conversation-tip">
-          <View style={styles.tipHeader}>
-            <Ionicons name="chatbubbles-outline" size={15} color={colors.emberSoft} />
-            <Text style={styles.tipLabel}>Recording with someone? Try this:</Text>
-            <TouchableOpacity
-              onPress={() => setTip((t) => randomTip(t))}
-              style={styles.tipShuffle}
-              accessibilityLabel="Another tip"
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons name="shuffle" size={16} color={colors.inkMuted} />
-            </TouchableOpacity>
+        {!together ? (
+          <TouchableOpacity
+            style={styles.passCard}
+            onPress={() => setPassMic(true)}
+            activeOpacity={0.85}
+            testID="start-pass-mic"
+          >
+            <View style={styles.passIcon}>
+              <Ionicons name="swap-horizontal" size={18} color={colors.emberInk} />
+            </View>
+            <View style={styles.passText}>
+              <Text style={styles.passTitle}>Pass the mic</Text>
+              <Text style={styles.passBody}>
+                Take turns with someone — you record, they answer when they can, one cast.
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.inkMuted} />
+          </TouchableOpacity>
+        ) : null}
+
+        {together ? null : (
+          <View style={styles.tipCard} testID="conversation-tip">
+            <View style={styles.tipHeader}>
+              <Ionicons name="chatbubbles-outline" size={15} color={colors.emberSoft} />
+              <Text style={styles.tipLabel}>Recording with someone? Try this:</Text>
+              <TouchableOpacity
+                onPress={() => setTip((t) => randomTip(t))}
+                style={styles.tipShuffle}
+                accessibilityLabel="Another tip"
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="shuffle" size={16} color={colors.inkMuted} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.tipText}>{tip}</Text>
           </View>
-          <Text style={styles.tipText}>{tip}</Text>
-        </View>
+        )}
 
         <View style={styles.privacyRow}>
           <Ionicons name="lock-closed-outline" size={13} color={colors.inkMuted} />
-          <Text style={styles.privacyText}>Nothing is shared until you choose who hears it.</Text>
+          <Text style={styles.privacyText}>
+            {together
+              ? 'Only the people in it hear it while you’re making it.'
+              : 'Nothing is shared until you choose who hears it.'}
+          </Text>
         </View>
       </ScrollView>
     );
@@ -583,7 +784,9 @@ export default function RecordScreen() {
           </Text>
           <Text style={styles.uploadNote}>
             {uploadState === 'done'
-              ? 'Safely uploaded — only you can hear it until you choose.'
+              ? flow === 'solo'
+                ? 'Safely uploaded — only you can hear it until you choose.'
+                : 'Safely uploaded — nobody hears it until you pass it on.'
               : uploadState === 'failed'
                 ? 'Upload hiccuped — we’ll try again when you keep it.'
                 : `Uploading in the background… ${pct}%`}
@@ -598,13 +801,114 @@ export default function RecordScreen() {
     );
   }
 
+  // The form after a turn: a question to leave them, who it goes to next, and
+  // pass it on (or, on your turn, finish it here).
+  function renderTurnForm() {
+    const starting = flow === 'start';
+    const options = starting ? friends.filter((f) => participantIds.includes(f.id)) : turnMakers;
+    const holder = nextHolder();
+    return (
+      <ScrollView
+        style={styles.formScroll}
+        contentContainerStyle={styles.formContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={[styles.screenTitle, styles.momentTitle]}>
+          {starting ? 'Pass the mic.' : 'Your turn’s in.'}
+        </Text>
+        <Text style={styles.screenSubtitle}>
+          {starting ? 'name it, and leave them something to answer' : turnFor.title}
+        </Text>
+
+        {renderUploadStatus()}
+
+        {starting ? (
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Title</Text>
+            <TextInput
+              style={styles.input}
+              value={title}
+              onChangeText={setTitle}
+              placeholder="What are you two talking about?"
+              placeholderTextColor={colors.inkFaint}
+              testID="together-title"
+            />
+          </View>
+        ) : null}
+
+        {/* Picked who before recording? No need to ask again. */}
+        {starting && askWithInForm ? renderTogetherHeader() : null}
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Leave them a question (optional)</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            value={question}
+            onChangeText={setQuestion}
+            placeholder="So what did the band teach you that you didn’t expect?"
+            placeholderTextColor={colors.inkFaint}
+            multiline
+            numberOfLines={2}
+            maxLength={500}
+            textAlignVertical="top"
+            testID="turn-question"
+          />
+          <Text style={styles.helpText}>
+            It shows with your turn, so they know what they’re answering.
+          </Text>
+        </View>
+
+        {options.length > 1 ? (
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Who goes next?</Text>
+            <View style={styles.chipRow}>
+              {options.map((m) => chip(m, holder?.id === m.id, () => setPassTo(m.id), 'pass-to'))}
+            </View>
+          </View>
+        ) : null}
+
+        <PressableScale
+          style={[styles.submitButton, (submitting || !holder) && styles.submitDisabled]}
+          onPress={() => handleTurn()}
+          disabled={submitting || !holder}
+          testID="pass-mic"
+        >
+          {submitting ? (
+            <ActivityIndicator color={colors.onEmber} />
+          ) : (
+            <Text style={styles.submitText}>
+              {holder
+                ? starting
+                  ? `Pass the mic to ${holder.name}`
+                  : `Pass it ${turnFor.turns?.some((t) => t.author_id === holder.id) ? 'back ' : ''}to ${holder.name}`
+                : 'Pick who goes next'}
+            </Text>
+          )}
+        </PressableScale>
+
+        {!starting ? (
+          <TouchableOpacity
+            style={styles.finishButton}
+            onPress={() => handleTurn({ finish: true })}
+            disabled={submitting}
+            activeOpacity={0.7}
+            testID="finish-turn"
+          >
+            <Text style={styles.finishText}>Finish it here — we’re done</Text>
+          </TouchableOpacity>
+        ) : null}
+
+        <TouchableOpacity style={styles.cancelButton} onPress={resetState} activeOpacity={0.6}>
+          <Text style={styles.cancelText}>Cancel</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    );
+  }
+
   function renderForm() {
-    const tagged = friends.filter((f) => participantIds.includes(f.id));
+    if (flow !== 'solo') return renderTurnForm();
     const others = friends.filter((f) => !participantIds.includes(f.id));
-    const sharer = tagged.find((f) => f.id === sharerId);
-    const sendCount = sharerIsMe
-      ? recipientIds.filter((id) => !participantIds.includes(id)).length
-      : 0;
+    const sendCount = recipientIds.filter((id) => !participantIds.includes(id)).length;
     return (
       <ScrollView
         style={styles.formScroll}
@@ -659,7 +963,9 @@ export default function RecordScreen() {
           <>
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Who’s in it?</Text>
-              <Text style={styles.helpText}>Tag who’s talking. Anyone tagged can hear it too.</Text>
+              <Text style={styles.helpText}>
+                Tag who’s talking. It’s theirs too: anyone tagged can hear it and share it.
+              </Text>
               <View style={styles.chipRow}>
                 {friends.map((f) =>
                   chip(
@@ -672,48 +978,25 @@ export default function RecordScreen() {
               </View>
             </View>
 
-            {tagged.length > 0 ? (
+            {others.length > 0 ? (
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Who decides who else hears it?</Text>
-                <View style={styles.chipRow}>
-                  {chip(
-                    { id: 'me', name: 'You' },
-                    sharerIsMe,
-                    () => setSharerId('me'),
-                    'sharer-me',
-                  )}
-                  {tagged.map((f) =>
-                    chip(f, sharerId === f.id, () => setSharerId(f.id), 'sharer-person'),
-                  )}
+                <Text style={styles.label}>Who else hears it?</Text>
+                <Text style={styles.helpText}>
+                  Only the people you pick — no one else, ever. You can change this later.
+                </Text>
+                <View style={styles.personList}>
+                  {others.map((f) => (
+                    <PersonRow
+                      key={f.id}
+                      person={f}
+                      selected={recipientIds.includes(f.id)}
+                      onToggle={() => toggle(recipientIds, setRecipientIds, f.id)}
+                      testID="hear-person"
+                    />
+                  ))}
                 </View>
               </View>
             ) : null}
-
-            {sharerIsMe ? (
-              others.length > 0 ? (
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Who else hears it?</Text>
-                  <Text style={styles.helpText}>
-                    Only the people you pick — no one else, ever. You can change this later.
-                  </Text>
-                  <View style={styles.personList}>
-                    {others.map((f) => (
-                      <PersonRow
-                        key={f.id}
-                        person={f}
-                        selected={recipientIds.includes(f.id)}
-                        onToggle={() => toggle(recipientIds, setRecipientIds, f.id)}
-                        testID="hear-person"
-                      />
-                    ))}
-                  </View>
-                </View>
-              ) : null
-            ) : (
-              <Text style={styles.helpText}>
-                {sharer?.name || 'They'} will choose who else hears it — we’ll let them know.
-              </Text>
-            )}
           </>
         )}
 
@@ -742,16 +1025,25 @@ export default function RecordScreen() {
   }
 
   function renderDone() {
+    const together = flow !== 'solo';
     return (
       <View style={styles.doneContainer}>
         <Campfire width={170} />
-        <Text style={styles.doneTitle}>It’s kept.</Text>
+        <Text style={styles.doneTitle}>
+          {!together
+            ? 'It’s kept.'
+            : passedTo
+              ? `The mic’s with ${passedTo.name}.`
+              : 'Finished together.'}
+        </Text>
         <Text style={styles.doneBody}>
-          {sentCount > 0
-            ? `Your cast is safe, and on its way to the ${sentCount === 1 ? 'person' : `${sentCount} people`} you chose.`
-            : sharerIsMe
-              ? 'Your cast is safe — share it whenever you’re ready.'
-              : 'Your cast is safe — they’ll choose who else hears it.'}
+          {together
+            ? passedTo
+              ? 'We’ll let them know it’s their turn. You’ll hear when it comes back.'
+              : 'It’s ready. Anyone in it can now choose who hears it.'
+            : sentCount > 0
+              ? `Your cast is safe, and on its way to the ${sentCount === 1 ? 'person' : `${sentCount} people`} you chose.`
+              : 'Your cast is safe — share it whenever you’re ready.'}
         </Text>
         <View style={styles.doneActions}>
           {createdCast ? (
@@ -785,6 +1077,113 @@ export default function RecordScreen() {
 }
 
 const styles = StyleSheet.create({
+  momentTitle: {
+    ...type.moment,
+    fontSize: 32,
+    lineHeight: 38,
+    color: colors.ink,
+  },
+  togetherTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  turnCard: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    borderRadius: radius.md,
+    padding: space.lg,
+    marginBottom: space.xl,
+  },
+  turnHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  turnEyebrow: {
+    ...type.monoLabel,
+    color: colors.emberInk,
+  },
+  turnTitle: {
+    ...type.h2,
+    color: colors.ink,
+    marginTop: space.sm,
+  },
+  turnQuestion: {
+    ...type.moment,
+    fontSize: 19,
+    lineHeight: 26,
+    letterSpacing: 0,
+    color: colors.ink,
+    marginTop: space.md,
+    padding: space.md,
+    borderRadius: radius.sm,
+    backgroundColor: colors.accentSurface,
+    overflow: 'hidden',
+  },
+  turnListen: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: space.sm,
+    marginTop: space.md,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.smoke,
+  },
+  turnListenText: {
+    ...type.bodySm,
+    fontFamily: fonts.bold,
+    color: colors.ink,
+  },
+  passCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    borderRadius: radius.md,
+    padding: space.lg,
+    marginBottom: space.lg,
+  },
+  passIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.accentSurface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  passText: {
+    flex: 1,
+  },
+  passTitle: {
+    ...type.body,
+    fontFamily: fonts.bold,
+    color: colors.ink,
+  },
+  passBody: {
+    ...type.bodySm,
+    color: colors.inkMuted,
+    marginTop: 2,
+  },
+  finishButton: {
+    alignItems: 'center',
+    paddingVertical: space.md,
+    marginTop: space.md,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.smoke,
+  },
+  finishText: {
+    ...type.body,
+    fontFamily: fonts.bold,
+    color: colors.ink,
+  },
   container: {
     flex: 1,
     backgroundColor: colors.bg,

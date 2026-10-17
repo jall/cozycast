@@ -24,7 +24,9 @@ import { space, radius, elevation } from '../theme/space';
 // scrubbing a cast that isn't playing starts it from that point.
 //
 // `cast` is a track: { id, audioPath, title, seed, artist, durationSeconds, peaks }.
-// `notes` are comments; those with `at_ms` become markers.
+// `notes` are comments; those with `at_ms` become markers. A cast made in
+// turns carries `bands` (see utils/turns): each turn in its maker's colour,
+// labelled with who and when, and tapping a label jumps to that turn.
 export default function PlayerDeck({ cast, notes = [], onNote, compact = false, style }) {
   const {
     track,
@@ -54,8 +56,34 @@ export default function PlayerDeck({ cast, notes = [], onNote, compact = false, 
   const pinned =
     total > 0 ? notes.filter((n) => typeof n.at_ms === 'number' && n.at_ms <= total) : [];
 
+  const bands = cast.bands?.length > 1 ? cast.bands : null;
+
   return (
     <View style={style}>
+      {bands ? (
+        <View style={styles.bandLabels}>
+          {bands.map((b, i) => (
+            <TouchableOpacity
+              key={i}
+              onPress={() => seekTo(b.startMs)}
+              style={[
+                styles.bandLabel,
+                {
+                  left: `${b.start * 100}%`,
+                  width: `${(b.end - b.start) * 100}%`,
+                  borderLeftColor: b.color,
+                },
+              ]}
+              accessibilityLabel={`Play ${b.name}'s turn, from ${formatClock(b.startMs)}`}
+              testID="turn-label"
+            >
+              <Text style={[styles.bandText, { color: b.color }]} numberOfLines={1}>
+                {b.name} · {formatClock(b.startMs)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      ) : null}
       <View style={styles.markers}>
         {pinned.map((n) => (
           <TouchableOpacity
@@ -78,6 +106,7 @@ export default function PlayerDeck({ cast, notes = [], onNote, compact = false, 
         height={compact ? 44 : 56}
         progress={progress}
         playhead
+        bands={bands}
         onSeek={total > 0 ? (f) => seekTo(f * total) : undefined}
         onStep={(dir) => (isCurrent ? skip(dir * 15000) : null)}
         accessibilityValueText={`${formatClock(at)} of ${formatClock(total)}`}
@@ -154,6 +183,23 @@ export default function PlayerDeck({ cast, notes = [], onNote, compact = false, 
 }
 
 const styles = StyleSheet.create({
+  bandLabels: {
+    height: 18,
+    marginBottom: space.xs,
+  },
+  bandLabel: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    borderLeftWidth: 2,
+    paddingLeft: 6,
+    justifyContent: 'center',
+  },
+  bandText: {
+    ...type.monoLabel,
+    letterSpacing: 0.4,
+    textTransform: 'none',
+  },
   markers: {
     height: 16,
     marginBottom: space.sm,

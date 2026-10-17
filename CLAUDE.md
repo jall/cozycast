@@ -17,8 +17,20 @@ recording one, which is shared with you and marks the ask answered
 (`answer_cast_request`). **Profiles** are visible only to people connected to
 you (`can_see_profile`: you, your address book, people on casts you can access,
 and people you've asked / been asked by) — never to every signed-in user.
-Anyone tagged in a cast can edit its title/summary (`update_cast_words`); who
-_hears_ it stays the sharer's call.
+A cast belongs to everyone in it: its creator and anyone tagged can edit its
+title/summary (`update_cast_words`) **and** choose who hears it
+(`can_manage_cast` includes participants; `sharer_id` survives only as an extra
+manager on older casts).
+
+**Pass the mic** (casts made in turns): `casts.together`, with each take in
+`cast_turns` (`casts.audio_path` = the first take, `casts.duration` = the sum).
+`add_cast_turn` adds yours when it's your turn (`casts.turn_with`) and passes
+the mic on — or, passing to nobody, finishes it; `finish_together_cast` is
+"we're done" for any maker. Until `finished_at`, only its makers can hear it and
+nobody can be added as a recipient (`cast_in_progress` in the recipients policy).
+`can_access_audio` covers turn audio. The player plays a track's `segments`
+back to back (`utils/segments`); `utils/turns` gives makers their colours and
+the banded waveform (`togetherShape`).
 
 A cast is visible only to its **creator**, its **sharer** (the one person made
 responsible for distributing it), the **participants** tagged on it, and the
@@ -35,8 +47,9 @@ cast access can read/post; the author or a cast manager can delete.
 In-app **notifications** (`notifications` table) are written by SECURITY DEFINER
 triggers and are owner-only via RLS: a new comment (everyone involved in the
 cast, minus the author), a cast shared with you, being tagged in a cast, being
-asked to be a cast's sharer, and someone first listening to a cast you made or
-share (`cast_plays`, written when playback starts). They're about people, never
+asked to be a cast's sharer, someone first listening to a cast you made or
+share (`cast_plays`, written when playback starts), being passed the mic
+(`turn`), and a cast you're making together being finished (`finished`). They're about people, never
 metrics. `app/notifications.js` shows them. (Push delivery is a later tranche, #15;
 the table can also feed a calmer "next unread" home — the data model is the
 durable part, the surface is provisional.) Manual summaries ship now; AI summaries/cover art are a
