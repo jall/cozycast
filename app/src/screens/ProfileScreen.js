@@ -6,6 +6,8 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
+  TextInput,
+  Platform,
 } from 'react-native';
 import { colors } from '../theme/colors';
 import * as Clipboard from 'expo-clipboard';
@@ -13,7 +15,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { getFriends, getPendingInvites, uploadAvatar } from '../api/client';
+import { getFriends, getPendingInvites, uploadAvatar, updateBio } from '../api/client';
 import { showAlert } from '../utils/alert';
 import { type } from '../theme/type';
 import { radius, elevation, layout, space } from '../theme/space';
@@ -25,6 +27,19 @@ import { inviteLink } from '../utils/invites';
 
 export default function ProfileScreen() {
   const { user, logout, refreshProfile } = useAuth();
+  const [editingBio, setEditingBio] = useState(false);
+  const [bioDraft, setBioDraft] = useState('');
+
+  async function saveBio() {
+    try {
+      await updateBio(bioDraft);
+      await refreshProfile();
+      setEditingBio(false);
+      toast.success('Saved.');
+    } catch (err) {
+      toast.error(err.message || 'Could not save that.');
+    }
+  }
   const toast = useToast();
   const [friends, setFriends] = useState([]);
   const [invites, setInvites] = useState([]);
@@ -119,6 +134,45 @@ export default function ProfileScreen() {
         </TouchableOpacity>
         <Text style={styles.userName}>{user?.name || 'You'}</Text>
         <Text style={styles.userEmail}>{user?.email || ''}</Text>
+        {editingBio ? (
+          <View style={styles.bioEdit}>
+            <TextInput
+              style={styles.bioInput}
+              value={bioDraft}
+              onChangeText={setBioDraft}
+              placeholder="A line about you — what you’re into lately, what you’d talk about all night…"
+              placeholderTextColor={colors.inkFaint}
+              multiline
+              maxLength={280}
+              autoFocus
+              testID="bio-input"
+            />
+            <View style={styles.bioActions}>
+              <Text style={styles.bioCount}>{bioDraft.length}/280</Text>
+              <TouchableOpacity onPress={() => setEditingBio(false)} style={styles.bioCancel}>
+                <Text style={styles.bioCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={saveBio} style={styles.bioSave} testID="bio-save">
+                <Text style={styles.bioSaveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <TouchableOpacity
+            onPress={() => {
+              setBioDraft(user?.bio || '');
+              setEditingBio(true);
+            }}
+            style={styles.bioView}
+            testID="bio-edit"
+          >
+            {user?.bio ? (
+              <Text style={styles.bioText}>{user.bio}</Text>
+            ) : (
+              <Text style={styles.bioAdd}>+ Add a line about you</Text>
+            )}
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Friends section */}
@@ -252,6 +306,56 @@ const styles = StyleSheet.create({
     color: colors.ink,
     marginBottom: space.xs,
   },
+  bioView: {
+    marginTop: space.md,
+    paddingHorizontal: space.lg,
+    maxWidth: 440,
+  },
+  bioText: {
+    ...type.body,
+    fontSize: 15,
+    lineHeight: 22,
+    color: colors.inkSoft,
+    textAlign: 'center',
+  },
+  bioAdd: {
+    ...type.label,
+    color: colors.emberInk,
+  },
+  bioEdit: {
+    alignSelf: 'stretch',
+    marginTop: space.md,
+  },
+  bioInput: {
+    ...type.body,
+    fontSize: 15,
+    color: colors.ink,
+    minHeight: 80,
+    textAlignVertical: 'top',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    borderRadius: radius.sm,
+    padding: space.md,
+    ...Platform.select({ web: { outlineStyle: 'none' }, default: {} }),
+  },
+  bioActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    marginTop: space.sm,
+  },
+  bioCount: { ...type.caption, color: colors.inkMuted, flex: 1 },
+  bioCancel: { paddingHorizontal: space.md, paddingVertical: space.sm },
+  bioCancelText: { ...type.label, color: colors.inkSoft },
+  bioSave: {
+    backgroundColor: colors.ember,
+    borderRadius: radius.pill,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.sm,
+    marginLeft: space.sm,
+  },
+  bioSaveText: { ...type.h3, fontSize: 14, color: colors.onEmber },
   userEmail: {
     ...type.bodySm,
     color: colors.inkMuted,

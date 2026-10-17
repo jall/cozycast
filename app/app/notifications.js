@@ -28,12 +28,17 @@ const KINDS = {
     text: (a, t) => `${a} asked you to choose who hears ${t}`,
   },
   heard: { icon: 'headset-outline', text: (a, t) => `${a} listened to ${t}` },
+  ask: {
+    icon: 'help-buoy-outline',
+    text: (a, t, n) => `${a} asked you for a cast${n.prompt ? `: “${n.prompt}”` : ''}`,
+  },
+  answered: { icon: 'gift-outline', text: (a, t) => `${a} answered your ask with ${t}` },
 };
 
 function describe(n) {
   const kind = KINDS[n.type];
   const title = `“${n.cast_title}”`;
-  return kind ? kind.text(n.actor_name, title) : `${n.actor_name} on ${title}`;
+  return kind ? kind.text(n.actor_name, title, n) : `${n.actor_name} on ${title}`;
 }
 
 export default function NotificationsScreen() {
@@ -80,8 +85,8 @@ export default function NotificationsScreen() {
             <Ionicons name="notifications-off-outline" size={32} color={colors.inkFaint} />
             <Text style={styles.emptyText}>Nothing yet — it’s calm in here.</Text>
             <Text style={styles.emptyHint}>
-              You’ll hear here when someone shares a cast with you, tags you in one, asks you to
-              share theirs, leaves a note, or listens to something you made.
+              You’ll hear here when someone shares a cast with you, tags you in one, asks you for
+              one (or to share theirs), leaves a note, or listens to something you made.
             </Text>
           </View>
         ) : (
@@ -89,7 +94,13 @@ export default function NotificationsScreen() {
             <TouchableOpacity
               key={n.id}
               style={[styles.row, !n.read && styles.rowUnread]}
-              onPress={() => n.cast_id && router.push(`/cast/${n.cast_id}`)}
+              onPress={() => {
+                // An ask is answered from Fireside; everything else opens its cast.
+                if (n.type === 'ask') {
+                  if (router.canDismiss()) router.dismissAll();
+                  else router.replace('/');
+                } else if (n.cast_id) router.push(`/cast/${n.cast_id}`);
+              }}
               activeOpacity={0.7}
               testID="notification-row"
             >

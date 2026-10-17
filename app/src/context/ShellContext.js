@@ -11,10 +11,22 @@ export function ShellProvider({ children }) {
   const [friendsVersion, setFriendsVersion] = useState(0);
   // "Record with Ben" from someone's page: who to pre-tag in the next cast.
   const [recordWith, setRecordWith] = useState(null);
+  // Answering someone's ask: { id, prompt, from: { id, name } } — the next cast
+  // goes to them and marks the ask answered.
+  const [answering, setAnswering] = useState(null);
   const bumpFriends = useCallback(() => setFriendsVersion((v) => v + 1), []);
   return (
     <ShellContext.Provider
-      value={{ tab, setTab, friendsVersion, bumpFriends, recordWith, setRecordWith }}
+      value={{
+        tab,
+        setTab,
+        friendsVersion,
+        bumpFriends,
+        recordWith,
+        setRecordWith,
+        answering,
+        setAnswering,
+      }}
     >
       {children}
     </ShellContext.Provider>

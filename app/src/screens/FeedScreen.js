@@ -10,7 +10,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { getFeed } from '../api/client';
+import { getFeed, getCastRequests, dismissCastRequest } from '../api/client';
+import AskCard from '../components/AskCard';
+import { useShell } from '../context/ShellContext';
 import CastCard from '../components/CastCard';
 import CastCover from '../components/CastCover';
 import CastCardSkeleton from '../components/CastCardSkeleton';
@@ -57,6 +59,9 @@ export default function FeedScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { toggle, track, isPlaying } = usePlayer();
+  const { setTab, setAnswering } = useShell();
+  // Asks waiting on you ("Ben asked you for a cast…").
+  const [asks, setAsks] = useState([]);
   const { unreadCount, refresh: refreshNotifications } = useNotifications();
   const { width } = useWindowDimensions();
   const wide = width >= layout.wide;
@@ -65,13 +70,24 @@ export default function FeedScreen() {
   const fetchCasts = useCallback(async () => {
     try {
       setError(null);
-      const feed = await getFeed();
+      const [feed, requests] = await Promise.all([getFeed(), getCastRequests()]);
       rememberCasts(feed);
       setCasts(feed);
+      setAsks(requests.filter((r) => r.to.id === user?.id && !r.answered && !r.dismissed));
     } catch (err) {
       setError(err.message || 'Could not load your casts.');
     }
-  }, []);
+  }, [user?.id]);
+
+  function answer(req) {
+    setAnswering({ id: req.id, prompt: req.prompt, from: req.from });
+    setTab('record');
+  }
+
+  async function notNow(req) {
+    setAsks((a) => a.filter((x) => x.id !== req.id));
+    await dismissCastRequest(req.id).catch(() => {});
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -104,7 +120,9 @@ export default function FeedScreen() {
   };
   let rest = waiting ? casts.filter((c) => c.id !== waiting.id) : casts;
   if (filter === 'new') rest = unheard;
-  if (filter === 'mine') rest = casts.filter((c) => !c.shared_with_me);
+  // "From you": yours, including the ones you made with someone else.
+  if (filter === 'mine')
+    rest = casts.filter((c) => !c.shared_with_me || (c.participant_ids || []).includes(user?.id));
   if (filter === 'share') rest = casts.filter(needsSharing);
 
   const firstName = (user?.name || '').trim().split(/\s+/)[0];
@@ -151,6 +169,19 @@ export default function FeedScreen() {
     return (
       <View>
         {hero(subline)}
+
+        {filter === 'all'
+          ? asks.map((req) => (
+              <AskCard
+                key={req.id}
+                request={req}
+                onAnswer={() => answer(req)}
+                onDismiss={() => notNow(req)}
+                onOpenPerson={(pid) => router.push(`/person/${pid}`)}
+                style={styles.ask}
+              />
+            ))
+          : null}
 
         {waiting ? (
           <TouchableOpacity
@@ -374,6 +405,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.ember,
     borderWidth: 1.5,
     borderColor: '#1A1526',
+  },
+  ask: {
+    marginHorizontal: space.lg,
+    marginBottom: space.lg,
   },
   waiting: {
     flexDirection: 'row',

@@ -84,7 +84,8 @@ export default function CastCard({ cast, index = 0, onShared }) {
   const byId = castByIdOf(cast);
   const openPerson = (pid) => pid && router.push(`/person/${pid}`);
   const others = (Array.isArray(participants) ? participants : []).filter((n) => n !== by);
-  const withLine = others.length > 0 ? `with ${others.join(', ')}` : '';
+  // Casts made together read as everyone's: "You & Ben", "Ben & Cleo".
+  const withLine = others.length > 0 ? `& ${others.join(' & ')}` : '';
 
   const playButton = cast.audio_path ? (
     <TouchableOpacity

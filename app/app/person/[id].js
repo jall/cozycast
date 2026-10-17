@@ -13,7 +13,9 @@ import Avatar from '../../src/components/Avatar';
 import CastCard from '../../src/components/CastCard';
 import NightSky from '../../src/components/NightSky';
 import MiniPlayer from '../../src/components/MiniPlayer';
-import { getFeed, getPerson } from '../../src/api/client';
+import { getFeed, getPerson, getCastRequests, withdrawCastRequest } from '../../src/api/client';
+import AskSheet from '../../src/components/AskSheet';
+import AskCard from '../../src/components/AskCard';
 import { useAuth } from '../../src/context/AuthContext';
 import { useShell } from '../../src/context/ShellContext';
 import { castsBetween, friendTint } from '../../src/utils/people';
@@ -41,16 +43,23 @@ export default function PersonScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const { user } = useAuth();
-  const { setTab, setRecordWith } = useShell();
+  const { setTab, setRecordWith, setAnswering } = useShell();
   const [person, setPerson] = useState(null);
   const [casts, setCasts] = useState([]);
+  const [requests, setRequests] = useState([]);
+  const [asking, setAsking] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    const [p, feed] = await Promise.all([getPerson(id), getFeed().catch(() => [])]);
+    const [p, feed, reqs] = await Promise.all([
+      getPerson(id),
+      getFeed().catch(() => []),
+      getCastRequests(),
+    ]);
     rememberCasts(feed);
     setPerson(p);
     setCasts(feed);
+    setRequests(reqs.filter((r) => !r.answered && !r.dismissed));
   }, [id]);
 
   useEffect(() => {
@@ -65,6 +74,22 @@ export default function PersonScreen() {
   }, [load]);
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/'));
+
+  function goHome() {
+    if (router.canDismiss()) router.dismissAll();
+    else router.replace('/');
+  }
+
+  function answer(req) {
+    setAnswering({ id: req.id, prompt: req.prompt, from: req.from });
+    setTab('record');
+    goHome();
+  }
+
+  async function withdraw(req) {
+    setRequests((rs) => rs.filter((r) => r.id !== req.id));
+    await withdrawCastRequest(req.id).catch(() => {});
+  }
 
   function recordWith() {
     setRecordWith({ id: person.id, name: person.name, avatar_path: person.avatar_path });
@@ -95,6 +120,8 @@ export default function PersonScreen() {
   const first = (person.name || 'them').split(/\s+/)[0];
   const { fromThem, fromYou, together } = castsBetween(casts, person.id, user?.id);
   const total = fromThem.length + fromYou.length + together.length;
+  const waitingOnYou = requests.filter((r) => r.from.id === person.id && r.to.id === user?.id);
+  const waitingOnThem = requests.filter((r) => r.to.id === person.id && r.from.id === user?.id);
 
   return (
     <View style={styles.container} testID="person">
@@ -110,6 +137,7 @@ export default function PersonScreen() {
               <Avatar name={person.name} path={person.avatar_path} size={92} />
             </View>
             <Text style={styles.name}>{person.name}</Text>
+            {person.bio ? <Text style={styles.bio}>{person.bio}</Text> : null}
             <Text style={styles.relation}>
               {person.is_me
                 ? 'This is you.'
@@ -120,13 +148,39 @@ export default function PersonScreen() {
                   : 'Not in your address book'}
             </Text>
             {!person.is_me ? (
-              <TouchableOpacity style={styles.cta} onPress={recordWith} activeOpacity={0.85}>
-                <Ionicons name="mic" size={18} color={colors.onEmber} />
-                <Text style={styles.ctaText}>Record with {first}</Text>
-              </TouchableOpacity>
+              <View style={styles.ctas}>
+                <TouchableOpacity style={styles.cta} onPress={recordWith} activeOpacity={0.85}>
+                  <Ionicons name="mic" size={18} color={colors.onEmber} />
+                  <Text style={styles.ctaText}>Record with {first}</Text>
+                </TouchableOpacity>
+                {person.is_friend ? (
+                  <TouchableOpacity
+                    style={styles.ctaQuiet}
+                    onPress={() => setAsking(true)}
+                    activeOpacity={0.85}
+                    testID="ask-for-cast"
+                  >
+                    <Ionicons name="help-buoy-outline" size={18} color={colors.ink} />
+                    <Text style={styles.ctaQuietText}>Ask {first} for a cast</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
             ) : null}
           </View>
         </NightSky>
+
+        {waitingOnYou.map((req) => (
+          <AskCard key={req.id} request={req} onAnswer={() => answer(req)} style={styles.askCard} />
+        ))}
+        {waitingOnThem.map((req) => (
+          <View key={req.id} style={styles.sentAsk}>
+            <Text style={styles.sentLabel}>You asked {first}</Text>
+            <Text style={styles.sentPrompt}>“{req.prompt}”</Text>
+            <TouchableOpacity onPress={() => withdraw(req)}>
+              <Text style={styles.withdraw}>Withdraw</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
 
         <Section title={`From ${first}`} casts={fromThem} onShared={load} />
         <Section title={`From you to ${first}`} casts={fromYou} onShared={load} />
@@ -140,6 +194,14 @@ export default function PersonScreen() {
         ) : null}
       </ScrollView>
       <MiniPlayer />
+      {asking ? (
+        <AskSheet
+          person={person}
+          visible={asking}
+          onClose={() => setAsking(false)}
+          onAsked={(req) => setRequests((rs) => [req, ...rs])}
+        />
+      ) : null}
     </View>
   );
 }
@@ -165,13 +227,59 @@ const styles = StyleSheet.create({
   cta: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: space.lg,
     backgroundColor: colors.ember,
     borderRadius: radius.pill,
     paddingHorizontal: space.xl,
     paddingVertical: space.md,
   },
   ctaText: { ...type.h3, color: colors.onEmber, marginLeft: space.sm },
+  ctas: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: space.sm,
+    marginTop: space.lg,
+    paddingHorizontal: space.md,
+  },
+  ctaQuiet: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.smoke,
+    paddingHorizontal: space.xl,
+    paddingVertical: space.md,
+    backgroundColor: 'rgba(18, 15, 24, 0.5)',
+  },
+  ctaQuietText: { ...type.h3, color: colors.ink, marginLeft: space.sm },
+  bio: {
+    ...type.body,
+    fontSize: 15,
+    lineHeight: 22,
+    color: colors.inkSoft,
+    textAlign: 'center',
+    maxWidth: 420,
+    marginTop: space.sm,
+    paddingHorizontal: space.lg,
+  },
+  askCard: { marginBottom: space.lg },
+  sentAsk: {
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: colors.smoke,
+    borderRadius: radius.md,
+    padding: space.lg,
+    marginBottom: space.lg,
+  },
+  sentLabel: { ...type.eyebrow, color: colors.inkMuted },
+  sentPrompt: {
+    fontFamily: type.moment.fontFamily,
+    fontSize: 18,
+    lineHeight: 24,
+    color: colors.inkSoft,
+    marginTop: space.sm,
+  },
+  withdraw: { ...type.label, color: colors.inkMuted, marginTop: space.sm },
   section: { marginBottom: space.lg },
   sectionTitle: {
     fontFamily: type.moment.fontFamily,

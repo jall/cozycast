@@ -35,6 +35,7 @@ import {
   deleteComment,
   markPlayed,
   updateCast,
+  setCastSharer,
   getAudioUrl,
   savePeaks,
 } from '../../src/api/client';
@@ -96,6 +97,7 @@ export default function CastDetailScreen() {
   const [draftTitle, setDraftTitle] = useState('');
   const [draftSummary, setDraftSummary] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
+  const [draftSharer, setDraftSharer] = useState(null);
   // The moment (ms) a new comment will be pinned to, or null for a general one.
   const [pinAt, setPinAt] = useState(null);
   const [loading, setLoading] = useState(() => !cachedCast(id));
@@ -214,6 +216,7 @@ export default function CastDetailScreen() {
   function startEdit() {
     setDraftTitle(cast.title || '');
     setDraftSummary(cast.summary || cast.description || '');
+    setDraftSharer(cast.sharer_id);
     setEditing(true);
   }
 
@@ -225,7 +228,14 @@ export default function CastDetailScreen() {
     setSavingEdit(true);
     try {
       await updateCast(id, { title: draftTitle, summary: draftSummary });
-      const next = { ...cast, title: draftTitle.trim(), summary: draftSummary.trim() || null };
+      let next = { ...cast, title: draftTitle.trim(), summary: draftSummary.trim() || null };
+      if (cast.can_manage && draftSharer && draftSharer !== cast.sharer_id) {
+        await setCastSharer(id, draftSharer);
+        const holder = sharerOptions.find((o) => o.id === draftSharer);
+        next = { ...next, sharer_id: draftSharer, sharer_name: holder?.name || next.sharer_name };
+        // Handing it over means you may no longer manage it.
+        if (draftSharer !== user?.id && cast.creator_id !== user?.id) next.can_manage = false;
+      }
       setCast(next);
       rememberCasts([next]);
       setEditing(false);
@@ -301,7 +311,19 @@ export default function CastDetailScreen() {
     );
   }
 
-  const byline = cast.shared_with_me ? `Shared by ${castBy(cast)}` : cast.creator_name;
+  // Everyone in it, not just whoever pressed record: "Jon & Ben".
+  const makers = [
+    cast.creator_id === user?.id ? 'You' : cast.creator_name,
+    ...(cast.participant_people || []).map((p) => p.name).filter((n) => n !== cast.creator_name),
+  ];
+  const byline = cast.shared_with_me ? `Shared by ${castBy(cast)}` : makers.join(' & ');
+  // Anyone in the cast can fix its words; the creator or sharer can also hand
+  // the "who hears it" decision to someone else in it.
+  const canEdit = cast.can_manage || (cast.participant_ids || []).includes(user?.id);
+  const sharerOptions = [
+    { id: cast.creator_id, name: cast.creator_id === user?.id ? 'You' : cast.creator_name },
+    ...(cast.participant_people || []).filter((p) => p.id && p.id !== cast.creator_id),
+  ];
   const participantList = Array.isArray(cast.participants) ? cast.participants : [];
   const castTrack = trackFor(cast);
   const isCurrent = track?.id === cast.id;
@@ -379,7 +401,28 @@ export default function CastDetailScreen() {
                   {byline} · {formatDate(cast.created_at)}
                 </Text>
               </TouchableOpacity>
-              {cast.can_manage && !editing ? (
+              {editing && cast.can_manage && sharerOptions.length > 1 ? (
+                <View style={styles.sharerEdit}>
+                  <Text style={styles.sectionHeading}>Who decides who hears it?</Text>
+                  <View style={styles.tagRow}>
+                    {sharerOptions.map((o) => {
+                      const on = draftSharer === o.id;
+                      return (
+                        <TouchableOpacity
+                          key={o.id}
+                          onPress={() => setDraftSharer(o.id)}
+                          style={[styles.tag, on && styles.tagOn]}
+                          accessibilityRole="radio"
+                          accessibilityState={{ checked: on }}
+                        >
+                          <Text style={[styles.tagText, on && styles.tagTextOn]}>{o.name}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              ) : null}
+              {canEdit && !editing ? (
                 <TouchableOpacity
                   onPress={startEdit}
                   style={styles.editButton}
@@ -851,6 +894,9 @@ const styles = StyleSheet.create({
     paddingVertical: space.xs,
     ...Platform.select({ web: { outlineStyle: 'none' }, default: {} }),
   },
+  sharerEdit: { alignSelf: 'stretch', marginTop: space.lg },
+  tagOn: { backgroundColor: colors.ink },
+  tagTextOn: { color: colors.onEmber },
   editButton: {
     flexDirection: 'row',
     alignItems: 'center',

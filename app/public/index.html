@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="%LANG_ISO_CODE%">
+  <head>
+    <meta charset="utf-8" />
+    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <title>%WEB_TITLE%</title>
+    <meta
+      name="description"
+      content="Small, private conversations — shared only with the people you choose."
+    />
+    <meta name="theme-color" content="#120F18" />
+    <meta name="color-scheme" content="dark" />
+    <!--
+      Link previews (iMessage, WhatsApp, Slack…). Deliberately the same for
+      every URL: casts are private, so a preview must never carry a title or
+      anything else about one. __SITE_URL__ is filled in from the environment
+      by scripts/finalize-html.mjs during `npm run build:web`.
+    -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="cozycast" />
+    <meta property="og:title" content="cozycast — around the fire" />
+    <meta
+      property="og:description"
+      content="Small, private conversations — shared only with the people you choose."
+    />
+    <meta property="og:image" content="__SITE_URL__/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="A small campfire under a night sky, with the cozycast wordmark."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="cozycast — around the fire" />
+    <meta
+      name="twitter:description"
+      content="Small, private conversations — shared only with the people you choose."
+    />
+    <meta name="twitter:image" content="__SITE_URL__/og.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
+    <style id="expo-reset">
+      /* These styles make the body full-height */
+      html,
+      body {
+        height: 100%;
+        /* Night from the first frame — no white flash before the app paints. */
+        background-color: #120f18;
+      }
+      /* These styles disable body scrolling if you are using <ScrollView> */
+      body {
+        overflow: hidden;
+      }
+      /* These styles make the root element full-height */
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- Use static rendering with Expo Router to support running without JavaScript. -->
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <!-- The root element for your Expo app. -->
+    <div id="root"></div>
+  </body>
+</html>

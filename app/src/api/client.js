@@ -235,6 +235,36 @@ export async function markPlayed(castId) {
 
 // Create a cast: upload the audio, insert the row, then tag participants.
 // Sharing with specific recipients is a separate, deliberate step (shareCast).
+// Start uploading a recording straight away — while its maker is still
+// writing the title — and measure its waveform alongside. Returns { path,
+// uploaded, peaks }: `uploaded` settles when the audio is safely in storage,
+// `peaks` with the waveform (or null). Hand it to createCast.
+export async function beginCastUpload({ audioUri, mimeType, onProgress }) {
+  const userId = await currentUserId();
+  // Into the creator's own folder (storage RLS keys off this).
+  const contentType = mimeType || 'audio/m4a';
+  const path = `${userId}/${Date.now()}.${extFromMime(mimeType)}`;
+  // A CPU-bound decode (off the main thread) next to a network-bound upload.
+  const peaks = computePeaks(audioUri).catch(() => null);
+  const uploaded = uploadAudio(path, audioUri, contentType, onProgress);
+  uploaded.catch(() => {}); // the caller awaits it; don't warn about it meanwhile
+  return { path, uploaded, peaks };
+}
+
+// Throw away an upload that never became a cast (they cancelled). Best-effort.
+export async function discardUpload(upload) {
+  if (!upload) return;
+  try {
+    await upload.uploaded;
+    await supabase.storage.from('casts').remove([upload.path]);
+  } catch {
+    // An orphaned file is harmless.
+  }
+}
+
+// Create a cast: (finish) the upload, insert the row, then tag participants.
+// Pass `upload` from beginCastUpload to reuse one already under way.
+// Sharing with specific recipients is a separate, deliberate step (shareCast).
 export async function createCast({
   title,
   summary,
@@ -244,18 +274,11 @@ export async function createCast({
   sharerId,
   mimeType,
   onProgress,
+  upload,
 }) {
   const userId = await currentUserId();
-
-  // Upload audio into the creator's own folder (storage RLS keys off this).
-  const contentType = mimeType || 'audio/m4a';
-  const fileName = `${userId}/${Date.now()}.${extFromMime(mimeType)}`;
-
-  // Measure the waveform alongside the upload (a CPU-bound decode, off the main
-  // thread, vs. a network-bound upload). Resolves null where it can't be done.
-  const peaksPromise = computePeaks(audioUri);
-
-  await uploadAudio(fileName, audioUri, contentType, onProgress);
+  const up = upload || (await beginCastUpload({ audioUri, mimeType, onProgress }));
+  await up.uploaded;
 
   const { data: cast, error } = await supabase
     .from('casts')
@@ -264,7 +287,7 @@ export async function createCast({
       sharer_id: sharerId || userId,
       title,
       summary: summary || null,
-      audio_path: fileName,
+      audio_path: up.path,
       duration: duration || null,
     })
     .select()
@@ -276,7 +299,7 @@ export async function createCast({
   // the cast for it (a long cast can take several seconds to decode on a slow
   // device). If it's lost (tab closed, a database without the column yet), the
   // cast page backfills it the next time someone who manages the cast opens it.
-  peaksPromise.then((peaks) => peaks && savePeaks(cast.id, peaks)).catch(() => {});
+  up.peaks.then((peaks) => peaks && savePeaks(cast.id, peaks)).catch(() => {});
 
   // Tag participants (those who are cozycast users carry a profile_id, which is
   // what grants them access to the cast).
@@ -337,14 +360,94 @@ export async function removeRecipient(castId, recipientId) {
   if (error) throw error;
 }
 
-// Edit a cast's words (creator/sharer only, via RLS casts_update_manage).
+// Edit a cast's words. Anyone in it can (creator, sharer, or tagged
+// participant) — see update_cast_words.
 export async function updateCast(castId, { title, summary }) {
   const title_ = (title || '').trim();
   if (!title_) throw new Error('A cast needs a title.');
+  const { error } = await supabase.rpc('update_cast_words', {
+    p_cast: castId,
+    p_title: title_,
+    p_summary: (summary || '').trim(),
+  });
+  if (error) throw error;
+}
+
+// Hand the "who hears it" decision to someone else in the cast (creator or
+// current sharer only, via RLS casts_update_manage).
+export async function setCastSharer(castId, sharerId) {
+  const { error } = await supabase.from('casts').update({ sharer_id: sharerId }).eq('id', castId);
+  if (error) throw error;
+}
+
+// ---- Asking for a cast (cast_requests: visible to its two people only) -----
+
+const REQUEST_SELECT = `id, prompt, created_at, answered_at, answered_cast_id, dismissed_at,
+  from:profiles!cast_requests_from_id_fkey(id, name),
+  to:profiles!cast_requests_to_id_fkey(id, name)`;
+
+function mapRequest(r) {
+  return {
+    id: r.id,
+    prompt: r.prompt,
+    created_at: r.created_at,
+    answered: !!r.answered_at,
+    answered_cast_id: r.answered_cast_id,
+    dismissed: !!r.dismissed_at,
+    from: r.from || { id: null, name: 'Someone' },
+    to: r.to || { id: null, name: 'Someone' },
+  };
+}
+
+// Asks involving you: those waiting on you, and those you've sent. Empty (not
+// an error) on a database that hasn't got cast_requests yet.
+export async function getCastRequests() {
+  const { data, error } = await supabase
+    .from('cast_requests')
+    .select(REQUEST_SELECT)
+    .order('created_at', { ascending: false });
+  if (error) return [];
+  return (data || []).map(mapRequest);
+}
+
+export async function askForCast(toId, prompt) {
+  const text = (prompt || '').trim();
+  if (!text) throw new Error('Write what you’d love to hear about.');
+  const { data, error } = await supabase
+    .from('cast_requests')
+    .insert({ to_id: toId, prompt: text })
+    .select(REQUEST_SELECT)
+    .single();
+  if (error) throw error;
+  return mapRequest(data);
+}
+
+export async function answerCastRequest(requestId, castId) {
+  const { error } = await supabase.rpc('answer_cast_request', {
+    p_request: requestId,
+    p_cast: castId,
+  });
+  if (error) throw error;
+}
+
+export async function dismissCastRequest(requestId) {
+  const { error } = await supabase.rpc('dismiss_cast_request', { p_request: requestId });
+  if (error) throw error;
+}
+
+export async function withdrawCastRequest(requestId) {
+  const { error } = await supabase.from('cast_requests').delete().eq('id', requestId);
+  if (error) throw error;
+}
+
+// Your bio (shown on your page to the people who can see you).
+export async function updateBio(bio) {
+  const userId = await currentUserId();
+  const text = (bio || '').trim().slice(0, 280);
   const { error } = await supabase
-    .from('casts')
-    .update({ title: title_, summary: (summary || '').trim() || null })
-    .eq('id', castId);
+    .from('profiles')
+    .update({ bio: text || null })
+    .eq('id', userId);
   if (error) throw error;
 }
 
@@ -491,23 +594,31 @@ export async function deleteComment(commentId) {
 
 // ---- Notifications (your own inbox; rows are written by DB triggers) --------
 
+const NOTIFICATION_SELECT = `id, type, cast_id, created_at, read_at,
+  actor:profiles!notifications_actor_id_fkey(id, name),
+  cast:casts!notifications_cast_id_fkey(title)`;
+
 export async function getNotifications() {
-  const { data, error } = await supabase
-    .from('notifications')
-    .select(
-      `id, type, cast_id, created_at, read_at,
-       actor:profiles!notifications_actor_id_fkey(name),
-       cast:casts!notifications_cast_id_fkey(title)`,
-    )
-    .order('created_at', { ascending: false })
-    .limit(50);
+  const query = (select) =>
+    supabase
+      .from('notifications')
+      .select(select)
+      .order('created_at', { ascending: false })
+      .limit(50);
+  // Asks carry their prompt; a database without cast_requests yet gets the rest.
+  let { data, error } = await query(
+    `${NOTIFICATION_SELECT}, request:cast_requests!notifications_request_id_fkey(prompt)`,
+  );
+  if (error) ({ data, error } = await query(NOTIFICATION_SELECT));
   if (error) throw error;
   return (data || []).map((n) => ({
     id: n.id,
     type: n.type,
     cast_id: n.cast_id,
     cast_title: n.cast?.title || 'a cast',
+    actor_id: n.actor?.id || null,
     actor_name: n.actor?.name || 'Someone',
+    prompt: n.request?.prompt || null,
     created_at: n.created_at,
     read: !!n.read_at,
   }));
@@ -548,7 +659,7 @@ async function withAvatars(profiles) {
 export async function getPerson(personId) {
   const userId = await currentUserId();
   const [{ data: profile, error }, { data: link }] = await Promise.all([
-    supabase.from('profiles').select('id, name').eq('id', personId).maybeSingle(),
+    supabase.from('profiles').select('*').eq('id', personId).maybeSingle(),
     supabase
       .from('friendships')
       .select('friend_id')
@@ -560,7 +671,9 @@ export async function getPerson(personId) {
   if (!profile) return null;
   const avatars = await fetchAvatars([personId]);
   return {
-    ...profile,
+    id: profile.id,
+    name: profile.name,
+    bio: profile.bio || null,
     avatar_path: avatars.get(personId) || null,
     is_friend: !!link,
     is_me: personId === userId,

@@ -11,6 +11,15 @@ auto-broadcast: the interviewee controls who receives a recording.
 redeems it once there's a session — straight away, or after signup/confirm/login
 — and `redeem_invite` returns the inviter's name for the "connected" toast.)
 
+**Asking for a cast:** `cast_requests` (visible to its two people only) — you
+ask someone in your address book for a cast with a prompt; they answer by
+recording one, which is shared with you and marks the ask answered
+(`answer_cast_request`). **Profiles** are visible only to people connected to
+you (`can_see_profile`: you, your address book, people on casts you can access,
+and people you've asked / been asked by) — never to every signed-in user.
+Anyone tagged in a cast can edit its title/summary (`update_cast_words`); who
+_hears_ it stays the sharer's call.
+
 A cast is visible only to its **creator**, its **sharer** (the one person made
 responsible for distributing it), the **participants** tagged on it, and the
 explicit **recipients** it's been shared with. Friends/invites are just your
