@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { createCast, shareCast, getFriends } from '../api/client';
 import PressableScale from '../components/PressableScale';
 import Campfire from '../components/Campfire';
+import useMicLevel from '../hooks/useMicLevel';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { fonts } from '../theme/typography';
@@ -124,15 +125,19 @@ export default function RecordScreen() {
     Animated.timing(fade, { toValue: 1, duration: 280, useNativeDriver: true }).start();
   }, [mode, fade]);
 
+  // Your voice, live: drives the fire's height and the rolling waveform.
+  const mic = useMicLevel(mode === 'recording');
+
   useEffect(() => {
     getFriends()
       .then(setFriends)
       .catch(() => setFriends([]));
   }, []);
 
-  // Gentle "breathing" halo behind the stop button while recording.
+  // Gentle "breathing" halo behind the record button (waiting) and the stop
+  // button (recording).
   useEffect(() => {
-    if (mode !== 'recording') return undefined;
+    if (mode !== 'recording' && mode !== null) return undefined;
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, { toValue: 1, duration: 1100, useNativeDriver: true }),
@@ -299,39 +304,45 @@ export default function RecordScreen() {
 
   function renderChoiceScreen() {
     return (
-      <View style={styles.choiceContainer}>
+      <ScrollView contentContainerStyle={styles.choiceContainer}>
         <Text style={styles.screenTitle}>Start a cast</Text>
         <Text style={styles.screenSubtitle}>say something, then choose who hears it</Text>
 
-        <PressableScale
-          testID="record-start"
-          style={styles.choiceCard}
-          hoverStyle={styles.choiceCardHover}
-          onPress={startRecording}
-        >
-          <View style={styles.choiceIconWrap}>
-            <Ionicons name="mic" size={32} color={colors.ember} />
+        <View style={styles.hearth}>
+          <Campfire width={190} sparks={false} style={styles.hearthFire} />
+          <View style={styles.recordWrap}>
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.recordHalo,
+                {
+                  opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.9] }),
+                  transform: [
+                    { scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.18] }) },
+                  ],
+                },
+              ]}
+            />
+            <PressableScale
+              testID="record-start"
+              style={styles.recordButton}
+              onPress={startRecording}
+              accessibilityLabel="Start recording"
+            >
+              <Ionicons name="mic" size={46} color={colors.onEmber} />
+            </PressableScale>
           </View>
-          <View style={styles.choiceTextWrap}>
-            <Text style={styles.choiceTitle}>Record</Text>
-            <Text style={styles.choiceDesc}>Record something right now</Text>
-          </View>
-        </PressableScale>
-
-        <PressableScale
-          testID="record-pick"
-          style={styles.choiceCard}
-          hoverStyle={styles.choiceCardHover}
-          onPress={handlePickFile}
-        >
-          <View style={styles.choiceIconWrap}>
-            <Ionicons name="document-outline" size={32} color={colors.emberSoft} />
-          </View>
-          <View style={styles.choiceTextWrap}>
-            <Text style={styles.choiceTitle}>Pick a file</Text>
-            <Text style={styles.choiceDesc}>Bring a conversation you already have</Text>
-          </View>
-        </PressableScale>
+          <Text style={styles.recordCue}>Tap and start talking</Text>
+          <TouchableOpacity
+            testID="record-pick"
+            onPress={handlePickFile}
+            style={styles.pickLink}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="cloud-upload-outline" size={16} color={colors.emberInk} />
+            <Text style={styles.pickText}>or bring an audio file you already have</Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.tipCard} testID="conversation-tip">
           <View style={styles.tipHeader}>
@@ -348,11 +359,20 @@ export default function RecordScreen() {
           </View>
           <Text style={styles.tipText}>{tip}</Text>
         </View>
-      </View>
+
+        <View style={styles.privacyRow}>
+          <Ionicons name="lock-closed-outline" size={13} color={colors.inkMuted} />
+          <Text style={styles.privacyText}>Nothing is shared until you choose who hears it.</Text>
+        </View>
+      </ScrollView>
     );
   }
 
   function renderRecordingScreen() {
+    const bars = Array.from(
+      { length: mic.slots },
+      (_, i) => mic.history[i - (mic.slots - mic.history.length)] ?? 0,
+    );
     return (
       <View style={styles.recordingContainer}>
         <View style={styles.recordingPill}>
@@ -367,8 +387,23 @@ export default function RecordScreen() {
         <Text style={styles.elapsed}>{formatElapsed(elapsed)}</Text>
         <Text style={styles.recordingMoment}>Take your time. The fire’s listening.</Text>
 
-        {/* The fire stands in for a level meter: it's lit while you talk. */}
-        <Campfire width={240} style={styles.recordingFire} />
+        {/* The fire rises and settles with your voice. */}
+        <Campfire width={240} intensity={mic.level} style={styles.recordingFire} />
+
+        <View style={styles.liveWave} accessibilityElementsHidden>
+          {bars.map((v, i) => (
+            <View
+              key={i}
+              style={[
+                styles.liveBar,
+                {
+                  height: Math.max(3, Math.round(v * 44)),
+                  backgroundColor: i >= bars.length - 10 ? colors.emberSoft : colors.smoke,
+                },
+              ]}
+            />
+          ))}
+        </View>
 
         <View style={styles.pulseWrap}>
           {/* The breathing halo sits *behind* the button and never intercepts
@@ -636,9 +671,9 @@ const styles = StyleSheet.create({
 
   // Choice screen
   choiceContainer: {
-    flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 72,
+    paddingTop: 56,
+    paddingBottom: 32,
   },
   screenTitle: {
     ...type.h1,
@@ -754,8 +789,77 @@ const styles = StyleSheet.create({
     marginTop: space.xs,
   },
   recordingFire: {
-    marginTop: space['2xl'],
+    marginTop: space.xl,
+    marginBottom: space.md,
+  },
+  liveWave: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 48,
+    width: '100%',
+    maxWidth: 360,
     marginBottom: space.xl,
+  },
+  liveBar: {
+    flex: 1,
+    marginHorizontal: 1.5,
+    borderRadius: 2,
+  },
+  hearth: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    borderRadius: radius.lg,
+    paddingTop: space.lg,
+    paddingBottom: space.xl,
+    marginBottom: space.lg,
+    overflow: 'hidden',
+  },
+  hearthFire: {
+    marginBottom: space.sm,
+  },
+  recordWrap: {
+    width: 150,
+    height: 150,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recordHalo: {
+    position: 'absolute',
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 140, 80, 0.55)',
+    backgroundColor: 'rgba(255, 122, 61, 0.10)',
+  },
+  recordButton: {
+    width: 112,
+    height: 112,
+    borderRadius: 56,
+    backgroundColor: colors.ember,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...elevation.glow,
+  },
+  recordCue: {
+    fontFamily: type.moment.fontFamily,
+    fontSize: 20,
+    lineHeight: 26,
+    color: colors.ink,
+    marginTop: space.sm,
+  },
+  pickLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: space.md,
+    paddingVertical: space.xs,
+  },
+  pickText: {
+    ...type.label,
+    color: colors.emberInk,
+    marginLeft: 6,
   },
   pulseWrap: {
     width: 104,

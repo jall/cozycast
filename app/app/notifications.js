@@ -17,11 +17,23 @@ import { fonts } from '../src/theme/typography';
 import { type } from '../src/theme/type';
 import { radius, layout, space } from '../src/theme/space';
 
+// What each kind of notification says, and its icon. (Written by DB triggers —
+// see the notifications migrations.)
+const KINDS = {
+  comment: { icon: 'chatbubble-outline', text: (a, t) => `${a} commented on ${t}` },
+  share: { icon: 'paper-plane-outline', text: (a, t) => `${a} shared ${t} with you` },
+  tagged: { icon: 'people-outline', text: (a, t) => `${a} tagged you in ${t}` },
+  sharer: {
+    icon: 'hand-left-outline',
+    text: (a, t) => `${a} asked you to choose who hears ${t}`,
+  },
+  heard: { icon: 'headset-outline', text: (a, t) => `${a} listened to ${t}` },
+};
+
 function describe(n) {
+  const kind = KINDS[n.type];
   const title = `“${n.cast_title}”`;
-  if (n.type === 'comment') return `${n.actor_name} commented on ${title}`;
-  if (n.type === 'share') return `${n.actor_name} shared ${title} with you`;
-  return `${n.actor_name} did something on ${title}`;
+  return kind ? kind.text(n.actor_name, title) : `${n.actor_name} on ${title}`;
 }
 
 export default function NotificationsScreen() {
@@ -67,6 +79,10 @@ export default function NotificationsScreen() {
           <View style={styles.empty}>
             <Ionicons name="notifications-off-outline" size={32} color={colors.inkFaint} />
             <Text style={styles.emptyText}>Nothing yet — it’s calm in here.</Text>
+            <Text style={styles.emptyHint}>
+              You’ll hear here when someone shares a cast with you, tags you in one, asks you to
+              share theirs, leaves a note, or listens to something you made.
+            </Text>
           </View>
         ) : (
           items.map((n) => (
@@ -78,7 +94,7 @@ export default function NotificationsScreen() {
               testID="notification-row"
             >
               <Ionicons
-                name={n.type === 'comment' ? 'chatbubble-outline' : 'paper-plane-outline'}
+                name={KINDS[n.type]?.icon || 'flame-outline'}
                 size={18}
                 color={colors.emberInk}
                 style={styles.rowIcon}
@@ -129,6 +145,13 @@ const styles = StyleSheet.create({
   empty: {
     alignItems: 'center',
     paddingTop: space['3xl'],
+  },
+  emptyHint: {
+    ...type.bodySm,
+    color: colors.inkMuted,
+    textAlign: 'center',
+    maxWidth: 360,
+    marginTop: space.sm,
   },
   emptyText: {
     ...type.bodySm,

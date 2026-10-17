@@ -5,7 +5,9 @@ import Glow from './Glow';
 import useReducedMotion from '../hooks/useReducedMotion';
 
 // The brand's one light source: a little campfire whose flames flicker from
-// their base, whose glow breathes, and which throws the odd spark. Drawn in a
+// their base, whose glow breathes, and which throws the odd spark. Pass an
+// Animated 0–1 `intensity` (e.g. your voice while recording) and the whole
+// fire rises and settles with it. Drawn in a
 // 200×170 box; every layer is its own SVG so each can be animated as a plain
 // view (scale from the flame's base) — cheap on native and on web alike.
 // Holds perfectly still under "reduce motion".
@@ -137,6 +139,7 @@ export default function Campfire({
   sparks = true,
   glow = true,
   still = false,
+  intensity,
   style,
 }) {
   const reduced = useReducedMotion();
@@ -182,11 +185,39 @@ export default function Campfire({
         <Ellipse cx="100" cy="150" rx="78" ry="13" fill="#FF7A3D" opacity={0.3} />
       </Svg>
 
-      {sparks ? SPARKS.map((s, i) => <Spark key={i} spec={s} scale={scale} still={calm} />) : null}
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          StyleSheet.absoluteFill,
+          intensity
+            ? {
+                transformOrigin: '50% 85%',
+                transform: [
+                  {
+                    scaleX: intensity.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.88, 1.12],
+                    }),
+                  },
+                  {
+                    scaleY: intensity.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.62, 1.32],
+                    }),
+                  },
+                ],
+              }
+            : null,
+        ]}
+      >
+        {sparks
+          ? SPARKS.map((s, i) => <Spark key={i} spec={s} scale={scale} still={calm} />)
+          : null}
 
-      <Layer d={OUTER} fill="#FF6A2E" width={width} height={height} osc={outer} amount={0.06} />
-      <Layer d={MIDDLE} fill="#FFA23D" width={width} height={height} osc={middle} amount={0.07} />
-      <Layer d={INNER} fill="#FFE2A6" width={width} height={height} osc={inner} amount={0.08} />
+        <Layer d={OUTER} fill="#FF6A2E" width={width} height={height} osc={outer} amount={0.06} />
+        <Layer d={MIDDLE} fill="#FFA23D" width={width} height={height} osc={middle} amount={0.07} />
+        <Layer d={INNER} fill="#FFE2A6" width={width} height={height} osc={inner} amount={0.08} />
+      </Animated.View>
 
       <Svg
         width={width}

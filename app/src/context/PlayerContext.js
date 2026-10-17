@@ -3,7 +3,7 @@ import { Platform } from 'react-native';
 import { Audio } from 'expo-av';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { castArtworkDataUrl } from '../utils/castArtwork';
-import { getAudioUrl } from '../api/client';
+import { getAudioUrl, markPlayed } from '../api/client';
 
 // One audio session for the whole app. Playback used to live inside each
 // CastCard's player, so it died the moment you scrolled away or switched
@@ -211,6 +211,9 @@ export function PlayerProvider({ children }) {
         setLoading(false);
         setIsPlaying(true);
         setupMediaSession(next);
+        // Pressing play counts as hearing it (clears "New", and lets the people
+        // who made/shared it know someone listened). First play only; quiet.
+        markPlayed(next.id).catch(() => {});
         // Someone scrubbed while it was loading: honour where they let go.
         if (pendingStartRef.current != null) {
           await sound.setPositionAsync(pendingStartRef.current).catch(() => {});

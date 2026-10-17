@@ -22,7 +22,7 @@ import Faces from '../../src/components/Faces';
 import InvitePanel from '../../src/components/InvitePanel';
 import Waveform from '../../src/components/Waveform';
 import useLayout from '../../src/hooks/useLayout';
-import { cachedCast } from '../../src/utils/castCache';
+import { cachedCast, rememberCasts } from '../../src/utils/castCache';
 import {
   getCast,
   getRecipients,
@@ -34,6 +34,7 @@ import {
   addComment,
   deleteComment,
   markPlayed,
+  updateCast,
   getAudioUrl,
   savePeaks,
 } from '../../src/api/client';
@@ -87,6 +88,11 @@ export default function CastDetailScreen() {
   const [comments, setComments] = useState([]);
   const [commentText, setCommentText] = useState('');
   const [posting, setPosting] = useState(false);
+  // Editing the title/summary (creator or sharer only).
+  const [editing, setEditing] = useState(false);
+  const [draftTitle, setDraftTitle] = useState('');
+  const [draftSummary, setDraftSummary] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
   // The moment (ms) a new comment will be pinned to, or null for a general one.
   const [pinAt, setPinAt] = useState(null);
   const [loading, setLoading] = useState(() => !cachedCast(id));
@@ -202,6 +208,32 @@ export default function CastDetailScreen() {
     }
   }
 
+  function startEdit() {
+    setDraftTitle(cast.title || '');
+    setDraftSummary(cast.summary || cast.description || '');
+    setEditing(true);
+  }
+
+  async function saveEdit() {
+    if (!draftTitle.trim()) {
+      toast.error('A cast needs a title.');
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      await updateCast(id, { title: draftTitle, summary: draftSummary });
+      const next = { ...cast, title: draftTitle.trim(), summary: draftSummary.trim() || null };
+      setCast(next);
+      rememberCasts([next]);
+      setEditing(false);
+      toast.success('Saved.');
+    } catch (err) {
+      toast.error(err.message || 'Could not save your changes.');
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
   function confirmDelete() {
     showAlert(
       'Delete this cast?',
@@ -307,7 +339,23 @@ export default function CastDetailScreen() {
               <View style={[styles.coverWrap, { shadowColor: glow }]}>
                 <CastCover seed={cast.id} title={cast.title} size={220} radius={radius.lg} />
               </View>
-              <Text style={styles.title}>{cast.title}</Text>
+              {editing ? (
+                <TextInput
+                  style={[styles.title, styles.titleInput]}
+                  value={draftTitle}
+                  onChangeText={setDraftTitle}
+                  placeholder="What's this about?"
+                  placeholderTextColor={colors.inkFaint}
+                  autoFocus
+                  multiline
+                  blurOnSubmit
+                  maxLength={140}
+                  accessibilityLabel="Title"
+                  testID="edit-title"
+                />
+              ) : (
+                <Text style={styles.title}>{cast.title}</Text>
+              )}
               <View style={styles.bylineRow}>
                 <Avatar
                   name={castBy(cast)}
@@ -323,6 +371,17 @@ export default function CastDetailScreen() {
                   {byline} · {formatDate(cast.created_at)}
                 </Text>
               </View>
+              {cast.can_manage && !editing ? (
+                <TouchableOpacity
+                  onPress={startEdit}
+                  style={styles.editButton}
+                  accessibilityLabel="Edit title and summary"
+                  testID="edit-cast"
+                >
+                  <Ionicons name="pencil" size={13} color={colors.inkSoft} />
+                  <Text style={styles.editText}>Edit</Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
 
             {cast.audio_path ? (
@@ -330,7 +389,41 @@ export default function CastDetailScreen() {
             ) : null}
           </View>
           <View style={twoCol ? styles.rightCol : null}>
-            {cast.summary || cast.description ? (
+            {editing ? (
+              <View style={styles.section}>
+                <Text style={styles.sectionHeading}>Summary</Text>
+                <TextInput
+                  style={styles.summaryInput}
+                  value={draftSummary}
+                  onChangeText={setDraftSummary}
+                  placeholder="A little about the conversation…"
+                  placeholderTextColor={colors.inkFaint}
+                  multiline
+                  accessibilityLabel="Summary"
+                />
+                <View style={styles.editActions}>
+                  <TouchableOpacity
+                    onPress={() => setEditing(false)}
+                    style={styles.editCancel}
+                    disabled={savingEdit}
+                  >
+                    <Text style={styles.editCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={saveEdit}
+                    style={styles.editSave}
+                    disabled={savingEdit}
+                    testID="save-cast"
+                  >
+                    {savingEdit ? (
+                      <ActivityIndicator size="small" color={colors.onEmber} />
+                    ) : (
+                      <Text style={styles.editSaveText}>Save</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : cast.summary || cast.description ? (
               <View style={styles.section}>
                 <Text style={styles.sectionHeading}>Summary</Text>
                 <Text style={styles.bodyText}>{cast.summary || cast.description}</Text>
@@ -735,6 +828,54 @@ const styles = StyleSheet.create({
   },
   commentPostOff: { opacity: 0.45 },
   inviteBox: { marginTop: space.xs },
+  titleInput: {
+    alignSelf: 'stretch',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.emberDeep,
+    paddingVertical: space.xs,
+    ...Platform.select({ web: { outlineStyle: 'none' }, default: {} }),
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: space.md,
+    paddingHorizontal: space.md,
+    paddingVertical: space.xs + 1,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.smoke,
+  },
+  editText: { ...type.label, color: colors.inkSoft, marginLeft: 6 },
+  summaryInput: {
+    ...type.body,
+    fontSize: 15,
+    color: colors.ink,
+    minHeight: 96,
+    textAlignVertical: 'top',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    borderRadius: radius.sm,
+    padding: space.md,
+    ...Platform.select({ web: { outlineStyle: 'none' }, default: {} }),
+  },
+  editActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: space.md,
+  },
+  editCancel: { paddingHorizontal: space.lg, paddingVertical: space.sm + 2 },
+  editCancelText: { ...type.label, color: colors.inkSoft },
+  editSave: {
+    minWidth: 88,
+    alignItems: 'center',
+    backgroundColor: colors.ember,
+    borderRadius: radius.pill,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.sm + 2,
+    marginLeft: space.sm,
+  },
+  editSaveText: { ...type.h3, fontSize: 14, color: colors.onEmber },
   skeleton: { alignItems: 'center' },
   skeletonWave: { alignSelf: 'stretch' },
   skeletonCover: {

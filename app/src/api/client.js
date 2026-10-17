@@ -330,10 +330,13 @@ export async function removeRecipient(castId, recipientId) {
   if (error) throw error;
 }
 
-export async function updateCastSummary(castId, summary) {
+// Edit a cast's words (creator/sharer only, via RLS casts_update_manage).
+export async function updateCast(castId, { title, summary }) {
+  const title_ = (title || '').trim();
+  if (!title_) throw new Error('A cast needs a title.');
   const { error } = await supabase
     .from('casts')
-    .update({ summary: summary || null })
+    .update({ title: title_, summary: (summary || '').trim() || null })
     .eq('id', castId);
   if (error) throw error;
 }

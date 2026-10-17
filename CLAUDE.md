@@ -24,9 +24,11 @@ policies don't recurse). Storage reads follow the same rule via
 `can_access_audio`. Comments (`cast_comments`) use the same helpers: anyone with
 cast access can read/post; the author or a cast manager can delete.
 In-app **notifications** (`notifications` table) are written by SECURITY DEFINER
-triggers — on a new comment (everyone involved in the cast, minus the author)
-and on a cast being shared with you — and are owner-only via RLS; the bell in the
-feed header opens `app/notifications.js`. (Push delivery is a later tranche, #15;
+triggers and are owner-only via RLS: a new comment (everyone involved in the
+cast, minus the author), a cast shared with you, being tagged in a cast, being
+asked to be a cast's sharer, and someone first listening to a cast you made or
+share (`cast_plays`, written when playback starts). They're about people, never
+metrics. `app/notifications.js` shows them. (Push delivery is a later tranche, #15;
 the table can also feed a calmer "next unread" home — the data model is the
 durable part, the surface is provisional.) Manual summaries ship now; AI summaries/cover art are a
 planned fast-follow behind a Supabase Edge Function (cover art is currently
