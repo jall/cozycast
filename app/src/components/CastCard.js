@@ -22,6 +22,7 @@ import { formatClock } from '../utils/waveform';
 import { castBy, trackFor } from '../utils/track';
 import { castProgress } from '../utils/progress';
 import { shareState } from '../utils/sharing';
+import { castByIdOf } from '../utils/people';
 import { colors } from '../theme/colors';
 import { type } from '../theme/type';
 import { space, radius, elevation } from '../theme/space';
@@ -80,6 +81,8 @@ export default function CastCard({ cast, index = 0, onShared }) {
 
   const body = summary || description;
   const by = castBy(cast);
+  const byId = castByIdOf(cast);
+  const openPerson = (pid) => pid && router.push(`/person/${pid}`);
   const others = (Array.isArray(participants) ? participants : []).filter((n) => n !== by);
   const withLine = others.length > 0 ? `with ${others.join(', ')}` : '';
 
@@ -110,9 +113,19 @@ export default function CastCard({ cast, index = 0, onShared }) {
           <Text style={styles.newText}>New</Text>
         </View>
       ) : null}
-      <Text style={styles.by} numberOfLines={1}>
-        {cast.creator_id === user?.id ? 'You' : by}
-      </Text>
+      {cast.creator_id === user?.id ? (
+        <Text style={styles.by}>You</Text>
+      ) : (
+        <TouchableOpacity
+          onPress={() => openPerson(byId)}
+          accessibilityLabel={`Open ${by}`}
+          hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+        >
+          <Text style={[styles.by, styles.byLink]} numberOfLines={1}>
+            {by}
+          </Text>
+        </TouchableOpacity>
+      )}
       <Text style={styles.meta} numberOfLines={1}>
         {withLine ? `${withLine} · ` : '· '}
         {timeAgo(cast.created_at)}
@@ -140,7 +153,16 @@ export default function CastCard({ cast, index = 0, onShared }) {
           <Text style={styles.countText}>{cast.comment_count}</Text>
         </View>
       ) : null}
-      {!compact ? <Faces names={[by, ...others]} size={24} /> : null}
+      {!compact ? (
+        <Faces
+          people={[
+            { id: byId, name: by },
+            ...(cast.participant_people || []).filter((p) => p.name !== by),
+          ]}
+          onPressPerson={(pid) => (pid === user?.id ? null : openPerson(pid))}
+          size={24}
+        />
+      ) : null}
     </View>
   );
 
@@ -308,6 +330,10 @@ const styles = StyleSheet.create({
     fontFamily: type.h3.fontFamily,
     color: colors.inkSoft,
     marginRight: space.xs + 2,
+  },
+  byLink: {
+    textDecorationLine: 'underline',
+    textDecorationColor: colors.smoke,
   },
   meta: {
     ...type.caption,

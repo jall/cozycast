@@ -17,7 +17,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { createCast, shareCast, getFriends } from '../api/client';
 import PressableScale from '../components/PressableScale';
 import Campfire from '../components/Campfire';
+import Avatar from '../components/Avatar';
 import useMicLevel from '../hooks/useMicLevel';
+import { useShell } from '../context/ShellContext';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { fonts } from '../theme/typography';
@@ -105,7 +107,13 @@ export default function RecordScreen() {
   const [title, setTitle] = useState('');
   const [summary, setSummary] = useState('');
   const [friends, setFriends] = useState([]);
-  const [participantIds, setParticipantIds] = useState([]);
+  // Arrived via "Record with <name>"? They're pre-tagged as being in it.
+  const { recordWith, setRecordWith } = useShell();
+  const [participantIds, setParticipantIds] = useState(() => (recordWith ? [recordWith.id] : []));
+  useEffect(() => {
+    if (!recordWith) return;
+    setParticipantIds((ids) => (ids.includes(recordWith.id) ? ids : [...ids, recordWith.id]));
+  }, [recordWith]);
   const [sharerId, setSharerId] = useState('me');
   const [recipientIds, setRecipientIds] = useState([]);
 
@@ -287,6 +295,7 @@ export default function RecordScreen() {
   }
 
   function resetState() {
+    setRecordWith(null);
     setMode(null);
     setRecordingUri(null);
     setAudioMime(null);
@@ -307,6 +316,23 @@ export default function RecordScreen() {
       <ScrollView contentContainerStyle={styles.choiceContainer}>
         <Text style={styles.screenTitle}>Start a cast</Text>
         <Text style={styles.screenSubtitle}>say something, then choose who hears it</Text>
+
+        {recordWith ? (
+          <View style={styles.withRow}>
+            <Avatar name={recordWith.name} path={recordWith.avatar_path} size={24} />
+            <Text style={styles.withText}>With {recordWith.name} — they’ll be tagged in it</Text>
+            <TouchableOpacity
+              onPress={() => {
+                setRecordWith(null);
+                setParticipantIds((ids) => ids.filter((x) => x !== recordWith.id));
+              }}
+              accessibilityLabel={`Don't tag ${recordWith.name}`}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="close" size={16} color={colors.inkMuted} />
+            </TouchableOpacity>
+          </View>
+        ) : null}
 
         <View style={styles.hearth}>
           <Campfire width={190} sparks={false} style={styles.hearthFire} />
@@ -804,6 +830,23 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: 1.5,
     borderRadius: 2,
+  },
+  withRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: colors.accentSurface,
+    borderRadius: radius.pill,
+    paddingLeft: 4,
+    paddingRight: space.md,
+    paddingVertical: 4,
+    marginTop: -space.lg,
+    marginBottom: space.lg,
+  },
+  withText: {
+    ...type.label,
+    color: colors.ink,
+    marginHorizontal: space.sm,
   },
   hearth: {
     alignItems: 'center',

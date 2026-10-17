@@ -166,6 +166,13 @@ function mapCast(cast, uid, played = false, avatars = new Map()) {
     sharer_id: sharerId,
     sharer_avatar: avatars.get(sharerId) || avatars.get(creatorId) || null,
     participants: (cast.cast_participants || []).map((p) => p.name),
+    participant_ids: (cast.cast_participants || []).map((p) => p.profile_id).filter(Boolean),
+    // Names with their profile (when they're on cozycast), for linking to them.
+    participant_people: (cast.cast_participants || []).map((p) => ({
+      name: p.name,
+      id: p.profile_id || null,
+    })),
+    recipient_ids: (cast.cast_recipients || []).map((r) => r.recipient_id),
     recipient_count: (cast.cast_recipients || []).length,
     comment_count: cast.cast_comments?.[0]?.count ?? 0,
     // Did this land in my feed because someone shared it with me (vs. mine)?
@@ -536,6 +543,30 @@ async function withAvatars(profiles) {
 }
 
 // Your address book: the people you can choose to share with.
+// One person, for their page: who they are and whether they're in your address
+// book. (Profiles are readable by any signed-in user; casts stay behind RLS.)
+export async function getPerson(personId) {
+  const userId = await currentUserId();
+  const [{ data: profile, error }, { data: link }] = await Promise.all([
+    supabase.from('profiles').select('id, name').eq('id', personId).maybeSingle(),
+    supabase
+      .from('friendships')
+      .select('friend_id')
+      .eq('user_id', userId)
+      .eq('friend_id', personId)
+      .maybeSingle(),
+  ]);
+  if (error) throw error;
+  if (!profile) return null;
+  const avatars = await fetchAvatars([personId]);
+  return {
+    ...profile,
+    avatar_path: avatars.get(personId) || null,
+    is_friend: !!link,
+    is_me: personId === userId,
+  };
+}
+
 export async function getFriends() {
   const userId = await currentUserId();
   const { data, error } = await supabase

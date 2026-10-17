@@ -49,7 +49,7 @@ derived deterministically from the cast id in `components/CastCover.js`).
   route), `index.js` (the tab home: Fireside/Record/You — tabs are local state
   in `ShellContext`, not routes; a slim bottom `TabBar` on phones),
   `cast/[id].js` (the shareable cast detail page; paints instantly from the
-  feed's cached data), `notifications.js`, and `invite/[code].js` (just
+  feed's cached data), `notifications.js`, `person/[id].js` (someone's page: what's passed between you, plus "Record with them"), and `invite/[code].js` (just
   redirects home — see invites below). Reusable UI/logic stays in `app/src/`
   (`components/`, `screens/`, `context/`, `api/`). Web build is a single-page SPA
   (`web.output: "single"` in `app.json`); the `netlify.toml` `/* → /index.html`

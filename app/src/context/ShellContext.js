@@ -9,9 +9,13 @@ const ShellContext = createContext(null);
 export function ShellProvider({ children }) {
   const [tab, setTab] = useState('feed');
   const [friendsVersion, setFriendsVersion] = useState(0);
+  // "Record with Ben" from someone's page: who to pre-tag in the next cast.
+  const [recordWith, setRecordWith] = useState(null);
   const bumpFriends = useCallback(() => setFriendsVersion((v) => v + 1), []);
   return (
-    <ShellContext.Provider value={{ tab, setTab, friendsVersion, bumpFriends }}>
+    <ShellContext.Provider
+      value={{ tab, setTab, friendsVersion, bumpFriends, recordWith, setRecordWith }}
+    >
       {children}
     </ShellContext.Provider>
   );

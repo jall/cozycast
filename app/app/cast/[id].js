@@ -40,10 +40,12 @@ import {
 } from '../../src/api/client';
 import { usePlayer } from '../../src/context/PlayerContext';
 import { useToast } from '../../src/context/ToastContext';
+import { useAuth } from '../../src/context/AuthContext';
 import { showAlert } from '../../src/utils/alert';
 import { timeAgo } from '../../src/utils/time';
 import { formatClock } from '../../src/utils/waveform';
 import { castBy, trackFor } from '../../src/utils/track';
+import { castByIdOf } from '../../src/utils/people';
 import { coverFor } from '../../src/utils/castCover';
 import { computePeaks } from '../../src/utils/peaks';
 import { colors } from '../../src/theme/colors';
@@ -73,6 +75,7 @@ export default function CastDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const toast = useToast();
+  const { user } = useAuth();
   const { track, position, seek, play, stop } = usePlayer();
   const { content } = useLayout();
   // On a laptop the cast reads as two columns: the cover and player on the
@@ -356,7 +359,12 @@ export default function CastDetailScreen() {
               ) : (
                 <Text style={styles.title}>{cast.title}</Text>
               )}
-              <View style={styles.bylineRow}>
+              <TouchableOpacity
+                style={styles.bylineRow}
+                disabled={cast.creator_id === user?.id}
+                onPress={() => router.push(`/person/${castByIdOf(cast)}`)}
+                activeOpacity={0.7}
+              >
                 <Avatar
                   name={castBy(cast)}
                   path={
@@ -370,7 +378,7 @@ export default function CastDetailScreen() {
                 <Text style={styles.byline}>
                   {byline} · {formatDate(cast.created_at)}
                 </Text>
-              </View>
+              </TouchableOpacity>
               {cast.can_manage && !editing ? (
                 <TouchableOpacity
                   onPress={startEdit}
@@ -440,11 +448,19 @@ export default function CastDetailScreen() {
                     ringColor={colors.bg}
                     style={styles.faces}
                   />
-                  {participantList.map((name, i) => (
-                    <View key={i} style={styles.tag}>
-                      <Text style={styles.tagText}>{name}</Text>
-                    </View>
-                  ))}
+                  {(cast.participant_people || participantList.map((name) => ({ name }))).map(
+                    (p, i) => (
+                      <TouchableOpacity
+                        key={i}
+                        style={styles.tag}
+                        disabled={!p.id}
+                        onPress={() => router.push(`/person/${p.id}`)}
+                        accessibilityLabel={p.id ? `Open ${p.name}` : undefined}
+                      >
+                        <Text style={styles.tagText}>{p.name}</Text>
+                      </TouchableOpacity>
+                    ),
+                  )}
                 </View>
               </View>
             ) : null}

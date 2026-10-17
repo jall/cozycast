@@ -64,3 +64,25 @@ describe('coverFor', () => {
     expect(a.moonX).toBeLessThanOrEqual(76);
   });
 });
+
+describe('castsBetween', () => {
+  const { castsBetween } = jest.requireActual('../people');
+  const me = 'me';
+  const ben = 'ben';
+  const casts = [
+    { id: 'a', creator_id: ben, sharer_id: ben, recipient_ids: [me], participant_ids: [] },
+    { id: 'b', creator_id: me, sharer_id: me, recipient_ids: [ben], participant_ids: [] },
+    { id: 'c', creator_id: 'cleo', sharer_id: 'cleo', recipient_ids: [me], participant_ids: [ben] },
+    { id: 'd', creator_id: me, sharer_id: me, recipient_ids: [], participant_ids: [] },
+    { id: 'e', creator_id: ben, sharer_id: me, recipient_ids: [], participant_ids: [ben] },
+  ];
+
+  it('groups what passed between you, each cast once', () => {
+    const { fromThem, fromYou, together } = castsBetween(casts, ben, me);
+    expect(fromThem.map((c) => c.id)).toEqual(['a']);
+    expect(fromYou.map((c) => c.id)).toEqual(['b']);
+    // 'e' is Ben's but you're its sharer and haven't sent it — it's still one
+    // you're both in.
+    expect(together.map((c) => c.id)).toEqual(['c', 'e']);
+  });
+});

@@ -19,6 +19,7 @@ import { type } from '../theme/type';
 import { radius, elevation, layout, space } from '../theme/space';
 import Avatar from '../components/Avatar';
 import InvitePanel from '../components/InvitePanel';
+import { useRouter } from 'expo-router';
 import { useShell } from '../context/ShellContext';
 import { inviteLink } from '../utils/invites';
 
@@ -31,6 +32,7 @@ export default function ProfileScreen() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   const { friendsVersion } = useShell();
+  const router = useRouter();
   useEffect(() => {
     loadData();
   }, [friendsVersion]);
@@ -134,7 +136,12 @@ export default function ProfileScreen() {
         ) : (
           <View style={styles.friendsList}>
             {friends.map((friend, index) => (
-              <View key={friend._id || friend.id || index} style={styles.friendRow}>
+              <TouchableOpacity
+                key={friend._id || friend.id || index}
+                style={styles.friendRow}
+                onPress={() => router.push(`/person/${friend.id}`)}
+                activeOpacity={0.7}
+              >
                 <Avatar
                   name={friend.name}
                   path={friend.avatar_path}
@@ -145,7 +152,8 @@ export default function ProfileScreen() {
                   <Text style={styles.friendName}>{friend.name}</Text>
                   {friend.email && <Text style={styles.friendEmail}>{friend.email}</Text>}
                 </View>
-              </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.inkFaint} />
+              </TouchableOpacity>
             ))}
           </View>
         )}

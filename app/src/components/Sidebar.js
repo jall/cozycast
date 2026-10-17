@@ -117,7 +117,8 @@ export default function Sidebar() {
         {friends.length > 0 ? (
           <>
             <Faces
-              names={friends.map((f) => f.name || f.email)}
+              people={friends.map((f) => ({ id: f.id, name: f.name || f.email }))}
+              onPressPerson={(pid) => router.push(`/person/${pid}`)}
               size={30}
               max={6}
               ringColor={colors.surfaceSunk}
