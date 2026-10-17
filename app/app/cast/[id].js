@@ -21,6 +21,7 @@ import Avatar from '../../src/components/Avatar';
 import Faces from '../../src/components/Faces';
 import InvitePanel from '../../src/components/InvitePanel';
 import Waveform from '../../src/components/Waveform';
+import Transcript from '../../src/components/Transcript';
 import useLayout from '../../src/hooks/useLayout';
 import { cachedCast, rememberCasts } from '../../src/utils/castCache';
 import {
@@ -36,6 +37,8 @@ import {
   markPlayed,
   updateCast,
   finishTogetherCast,
+  getTranscripts,
+  requestTranscript,
   getAudioUrl,
   savePeaks,
 } from '../../src/api/client';
@@ -64,6 +67,8 @@ function formatDate(dateString) {
 // Casts we've already tried to backfill peaks for this session, so a decode
 // that fails doesn't re-download the audio every time the page opens.
 const peaksTried = new Set();
+// Likewise for asking for a transcript.
+const transcriptTried = new Set();
 
 function BackButton({ onPress }) {
   return (
@@ -82,6 +87,8 @@ export default function CastDetailScreen() {
   const { track, position, seek, play, stop } = usePlayer();
   const { setTab, setTurnFor } = useShell();
   const [finishing, setFinishing] = useState(false);
+  const [transcripts, setTranscripts] = useState([]);
+  const [writingDown, setWritingDown] = useState(false);
   const { content } = useLayout();
   // On a laptop the cast reads as two columns: the cover and player on the
   // left, everything said about it on the right.
@@ -143,6 +150,22 @@ export default function CastDetailScreen() {
         }
         // Comments are visible to anyone who can access the cast.
         if (c) getComments(id).then((cs) => active && setComments(cs));
+        // What was said. Missing (an older cast, or still being written)? Ask
+        // for it once per session; it comes back with the reply.
+        if (c?.audio_path) {
+          getTranscripts(id).then((ts) => {
+            if (!active) return;
+            setTranscripts(ts);
+            const expected = c.together ? (c.turns || []).length : 1;
+            if (ts.length >= expected || transcriptTried.has(id)) return;
+            transcriptTried.add(id);
+            setWritingDown(true);
+            requestTranscript(id)
+              .then((r) => active && r?.transcripts?.length && setTranscripts(r.transcripts))
+              .catch(() => {})
+              .finally(() => active && setWritingDown(false));
+          });
+        }
         // Opening a cast shared with you counts as hearing it (clears it from
         // the calm home's "waiting for you"). Best-effort, fire-and-forget.
         if (c?.shared_with_me) markPlayed(id).catch(() => {});
@@ -369,6 +392,18 @@ export default function CastDetailScreen() {
     else play(castTrack, { startMillis: ms });
   }
 
+  // The transcript, a part per recording (per turn, with who's speaking).
+  const byPath = Object.fromEntries(transcripts.map((t) => [t.audio_path, t]));
+  const transcriptParts = shape?.bands
+    ? shape.bands.map((b) => ({
+        key: b.turn.id || b.turn.audio_path,
+        name: b.authorId === user?.id ? 'You' : b.name,
+        color: b.color,
+        offsetMs: b.startMs,
+        segments: byPath[b.turn.audio_path]?.segments || [],
+      }))
+    : [{ key: 'cast', offsetMs: 0, segments: byPath[cast.audio_path]?.segments || [] }];
+
   return (
     <Animated.View
       style={[
@@ -549,6 +584,13 @@ export default function CastDetailScreen() {
                 <Text style={styles.bodyText}>{cast.summary || cast.description}</Text>
               </View>
             ) : null}
+
+            <Transcript
+              parts={transcriptParts}
+              position={isCurrent ? position : null}
+              onSeek={jumpTo}
+              writing={writingDown}
+            />
 
             {participantList.length > 0 ? (
               <View style={styles.section}>

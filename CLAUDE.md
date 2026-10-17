@@ -52,7 +52,16 @@ share (`cast_plays`, written when playback starts), being passed the mic
 (`turn`), and a cast you're making together being finished (`finished`). They're about people, never
 metrics. `app/notifications.js` shows them. (Push delivery is a later tranche, #15;
 the table can also feed a calmer "next unread" home — the data model is the
-durable part, the surface is provisional.) Manual summaries ship now; AI summaries/cover art are a
+durable part, the surface is provisional.) **Transcripts** come from the
+`transcribe` Edge Function (`supabase/functions/transcribe`, deployed with the
+Supabase CLI/MCP — not by the GitHub integration): the app calls it after
+saving a cast or turn (and the cast page asks once for any cast missing one);
+it checks access by reading the cast as the caller, then hands Groq's Whisper
+(`whisper-large-v3-turbo`, ~$0.04/audio hour) a 10-minute signed URL and
+writes `transcripts` (one row per audio file, `[{ s, e, t }]` segments; read
+via `can_access_cast`). Needs the `GROQ_API_KEY` Edge Function secret — without
+it the function quietly does nothing. The cast page shows them as a
+read-along ("What was said"). Manual summaries ship now; AI summaries/cover art are a
 planned fast-follow behind a Supabase Edge Function (cover art is currently
 derived deterministically from the cast id in `components/CastCover.js`).
 

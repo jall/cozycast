@@ -349,7 +349,38 @@ export async function createCast({
     if (partError) throw partError;
   }
 
+  transcribeSoon(cast.id);
   return cast;
+}
+
+// ---- Transcripts (written by the `transcribe` Edge Function) ---------------
+
+// Ask for a cast's recordings to be transcribed (those that aren't yet).
+// Resolves { transcripts, pending } — `pending` when some couldn't be done
+// (e.g. transcription isn't set up on this project).
+export async function requestTranscript(castId) {
+  const { data, error } = await supabase.functions.invoke('transcribe', {
+    body: { cast_id: castId },
+  });
+  if (error) throw error;
+  return data || { transcripts: [], pending: true };
+}
+
+// Fire-and-forget after saving: the cast page picks the result up later.
+function transcribeSoon(castId) {
+  requestTranscript(castId).catch(() => {});
+}
+
+// What was said in a cast, per recording: [{ audio_path, segments: [{ s, e,
+// t }], text, language }]. Empty (not an error) on a database without the
+// transcripts table yet.
+export async function getTranscripts(castId) {
+  const { data, error } = await supabase
+    .from('transcripts')
+    .select('audio_path, segments, text, language')
+    .eq('cast_id', castId);
+  if (error) return [];
+  return data || [];
 }
 
 // Store a cast's measured waveform (creator/sharer only, via RLS): right after
@@ -463,6 +494,7 @@ export async function startTogetherCast({ title, people, upload, duration, quest
   // knows about one file).
   upload.peaks.then((peaks) => peaks && savePeaks(cast.id, peaks)).catch(() => {});
   if (turnId) attachTurnPeaks(turnId, upload);
+  transcribeSoon(cast.id);
   return cast;
 }
 
@@ -478,6 +510,7 @@ export async function addTurn(castId, { upload, duration, question, passTo }) {
   });
   if (error) throw error;
   if (turnId) attachTurnPeaks(turnId, upload);
+  transcribeSoon(castId);
 }
 
 // "We're done": any maker can finish it, whoever's turn it was.
