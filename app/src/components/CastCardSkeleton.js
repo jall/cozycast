@@ -36,11 +36,11 @@ export default function CastCardSkeleton() {
   );
 }
 
-const BLOCK = '#EFE6DC';
+const BLOCK = colors.hairline;
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: 18,
     padding: 20,
     marginHorizontal: 16,

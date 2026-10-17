@@ -20,12 +20,12 @@ export function useToast() {
 const VARIANTS = {
   success: {
     bg: colors.successSurface,
-    border: '#C3E2C6',
-    fg: '#2F6B34',
+    border: '#2C4A46',
+    fg: colors.success,
     icon: 'checkmark-circle',
   },
-  error: { bg: colors.dangerSurface, border: '#F3C9BD', fg: colors.emberInk, icon: 'alert-circle' },
-  info: { bg: colors.accentSurface, border: '#F0D9C8', fg: '#9A6A3F', icon: 'leaf' },
+  error: { bg: colors.dangerSurface, border: '#5A2E28', fg: colors.danger, icon: 'alert-circle' },
+  info: { bg: colors.accentSurface, border: '#6B3A28', fg: colors.emberInk, icon: 'leaf' },
 };
 
 let idSeq = 0;
@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
     maxWidth: 480,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.4,
     shadowRadius: 12,
     elevation: 5,
   },

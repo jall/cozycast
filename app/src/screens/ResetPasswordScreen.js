@@ -97,7 +97,7 @@ export default function ResetPasswordScreen() {
             activeOpacity={0.8}
           >
             {submitting ? (
-              <ActivityIndicator color={colors.white} />
+              <ActivityIndicator color={colors.onEmber} />
             ) : (
               <Text style={styles.buttonText}>Update password</Text>
             )}
@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: 20,
     padding: 28,
     shadowColor: '#000',
@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     backgroundColor: colors.dangerSurface,
     borderWidth: 1,
-    borderColor: '#F3C9BD',
+    borderColor: colors.hairline,
   },
   feedbackText: {
     fontSize: 14,
@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   buttonText: {
-    color: colors.white,
+    color: colors.onEmber,
     fontSize: 17,
     fontFamily: fonts.bold,
   },

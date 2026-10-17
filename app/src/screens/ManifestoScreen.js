@@ -153,12 +153,12 @@ const styles = StyleSheet.create({
   bodyText: {
     fontSize: 16,
     fontFamily: fonts.regular,
-    color: '#4A4036',
+    color: colors.inkSoft,
     lineHeight: 26,
     marginBottom: 12,
   },
   tipsCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: 20,
     padding: 24,
     marginTop: 8,
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontFamily: fonts.regular,
-    color: '#4A4036',
+    color: colors.inkSoft,
     lineHeight: 24,
   },
   closing: {

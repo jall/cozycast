@@ -7,6 +7,40 @@ we build.
 
 ---
 
+## Campfire (Oct 2026) — the current look
+
+The language below was first built as a light, lamp-lit room. It has since
+moved outdoors, after dark: **a few faces lit from below, around one fire.**
+The north star and principles still hold; what changed is the palette, the
+type, and how the app fills a laptop.
+
+- **One light source.** Night ground (`#120F18`), dusk cards (`#1F1A26`),
+  cream ink (`#F5EADB`). Ember (`#FF7A3D`) is the only loud colour and always
+  means *alive*: playing, recording, progress, yours to act on. Flame
+  (`#FFB547`) is for live indicators and mono eyebrows. Accent text on night
+  is `#FFB89A`. Dark ink goes on ember.
+- **Three voices.** Fraunces for titles; its italic for *moments* ("Good
+  evening, Alice.", "Along the way", "Take your time. The fire's listening.").
+  Nunito for body and UI. DM Mono for anything that's time.
+- **Every cast shows its shape before you press play:** a night-sky cover
+  (sky, moon, two ridges, a small fire — seeded from the id), who it's by and
+  who's around it, its waveform with what you've heard banked in ember, and
+  its length or time left.
+- **Listening is generous:** a waveform you can scrub, elapsed / total /
+  remaining, back 15 · forward 30, speed, and notes pinned to moments that sit
+  on the waveform as glowing dots.
+- **Filling the laptop.** ≥860px: a left rail replaces the bottom tab bar.
+  ≥1180px: the now-playing panel docks on the right. Phones get a slim tab bar
+  with a raised record button and a mini player above it.
+- **Motion is ambient, never on content.** Flames flicker from their base,
+  sparks rise, the glow breathes, stars twinkle — and all of it stops under
+  reduce-motion.
+
+Where the sections below give light-theme hexes, the role names still apply;
+`app/src/theme/colors.js` is the source of truth for values.
+
+---
+
 ## North star
 
 > **cozycast is a lamp-lit room, not a stage.** Opening it should feel like

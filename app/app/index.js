@@ -1,56 +1,55 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, StyleSheet, useWindowDimensions } from 'react-native';
 import FeedScreen from '../src/screens/FeedScreen';
 import RecordScreen from '../src/screens/RecordScreen';
 import ProfileScreen from '../src/screens/ProfileScreen';
 import MiniPlayer from '../src/components/MiniPlayer';
+import Sidebar from '../src/components/Sidebar';
+import TabBar from '../src/components/TabBar';
+import NowPlayingPanel from '../src/components/NowPlayingPanel';
 import { colors } from '../src/theme/colors';
-import { type } from '../src/theme/type';
-import { space, layout } from '../src/theme/space';
+import { layout } from '../src/theme/space';
 
-function TabBar({ active, onNavigate }) {
-  const tabs = [
-    { key: 'feed', label: 'Home', icon: 'home' },
-    { key: 'record', label: 'Record', icon: 'mic' },
-    { key: 'profile', label: 'You', icon: 'person' },
-  ];
-  return (
-    <View style={styles.tabBar}>
-      <View style={styles.tabRow}>
-        {tabs.map((tab) => {
-          const on = active === tab.key;
-          return (
-            <TouchableOpacity key={tab.key} style={styles.tab} onPress={() => onNavigate(tab.key)}>
-              <Ionicons
-                name={on ? tab.icon : `${tab.icon}-outline`}
-                size={24}
-                color={on ? colors.ember : colors.inkMuted}
-              />
-              <Text style={[styles.tabLabel, on && styles.tabLabelActive]}>{tab.label}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-    </View>
-  );
-}
-
-// The signed-in home: the three primary surfaces behind a custom bottom tab
-// bar. Tabs stay local state (they were never URLs); the router is what gives
-// us the separate, shareable /cast/:id detail route.
+// The signed-in home. Tabs stay local state (they were never URLs); the router
+// is what gives us the separate, shareable /cast/:id detail route.
+//
+// Phone: one column, a slim tab bar with a raised Record button, and the
+// MiniPlayer docked above it. Laptop (`layout.wide`+): a left rail replaces the
+// tab bar so the screen is filled rather than a narrow strip in a wash of
+// margin; from `layout.panelAt` the now-playing panel docks on the right
+// (otherwise the MiniPlayer sits under the content).
 export default function Home() {
   const [activeTab, setActiveTab] = useState('feed');
+  const { width } = useWindowDimensions();
+  const wide = width >= layout.wide;
+  const panel = width >= layout.panelAt;
+
+  const screen = (
+    <View style={styles.screen}>
+      {activeTab === 'feed' && <FeedScreen />}
+      {activeTab === 'record' && <RecordScreen />}
+      {activeTab === 'profile' && <ProfileScreen />}
+    </View>
+  );
+
+  if (!wide) {
+    return (
+      <View style={styles.container}>
+        {screen}
+        <MiniPlayer />
+        <TabBar active={activeTab} onNavigate={setActiveTab} />
+      </View>
+    );
+  }
 
   return (
-    <View style={styles.container}>
-      <View style={{ flex: 1 }}>
-        {activeTab === 'feed' && <FeedScreen />}
-        {activeTab === 'record' && <RecordScreen />}
-        {activeTab === 'profile' && <ProfileScreen />}
+    <View style={[styles.container, styles.room]}>
+      <Sidebar active={activeTab} onNavigate={setActiveTab} />
+      <View style={styles.main}>
+        {screen}
+        {!panel ? <MiniPlayer /> : null}
       </View>
-      <MiniPlayer />
-      <TabBar active={activeTab} onNavigate={setActiveTab} />
+      {panel ? <NowPlayingPanel /> : null}
     </View>
   );
 }
@@ -60,43 +59,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
-  // NB: must stay a column — tabRow centers itself horizontally via alignSelf,
-  // which only works on the cross axis (a row parent pins it to the left edge
-  // on wide viewports).
-  tabBar: {
-    backgroundColor: colors.surface,
-    borderTopWidth: 0,
-    shadowColor: '#7A5A3A',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 8,
-    height: 88,
-    paddingTop: space.sm,
-    paddingBottom: 28,
-  },
-  // Keep the tabs together in the reading column on wide viewports rather than
-  // flinging Home and You to opposite corners of the window.
-  tabRow: {
-    flex: 1,
+  room: {
     flexDirection: 'row',
-    width: '100%',
-    maxWidth: layout.column,
-    alignSelf: 'center',
   },
-  tab: {
+  main: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    minWidth: 0,
   },
-  tabLabel: {
-    ...type.caption,
-    fontFamily: type.label.fontFamily,
-    fontSize: 11,
-    color: colors.inkMuted,
-    marginTop: space.xs,
-  },
-  tabLabelActive: {
-    color: colors.ember,
+  screen: {
+    flex: 1,
   },
 });

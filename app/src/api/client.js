@@ -115,7 +115,8 @@ const CAST_SELECT = `
   creator:profiles!casts_creator_id_fkey(id, name, email),
   sharer:profiles!casts_sharer_id_fkey(id, name, email),
   cast_participants(profile_id, name),
-  cast_recipients(recipient_id)
+  cast_recipients(recipient_id),
+  cast_comments(count)
 `;
 
 // Which casts the current user has listened to. Fetched separately (not embedded
@@ -165,6 +166,7 @@ function mapCast(cast, uid, played = false, avatars = new Map()) {
     sharer_avatar: avatars.get(sharerId) || avatars.get(creatorId) || null,
     participants: (cast.cast_participants || []).map((p) => p.name),
     recipient_count: (cast.cast_recipients || []).length,
+    comment_count: cast.cast_comments?.[0]?.count ?? 0,
     // Did this land in my feed because someone shared it with me (vs. mine)?
     shared_with_me: creatorId !== uid,
     // Creator or assigned sharer may manage recipients (matches can_manage_cast).
@@ -401,6 +403,8 @@ function mapComment(row, uid, avatars = new Map()) {
     id: row.id,
     body: row.body,
     created_at: row.created_at,
+    // Where in the audio the note was left (ms), or null for a general comment.
+    at_ms: typeof row.at_ms === 'number' ? row.at_ms : null,
     author_id: authorId,
     author_name: row.author?.name || 'Someone',
     author_avatar: avatars.get(authorId) || null,
@@ -408,12 +412,25 @@ function mapComment(row, uid, avatars = new Map()) {
   };
 }
 
+const COMMENT_SELECT =
+  'id, body, created_at, author:profiles!cast_comments_author_id_fkey(id, name)';
+
+// Postgres "undefined column": the at_ms migration hasn't reached this database
+// yet (e.g. a deploy preview pointed at prod before it lands). We retry without
+// the column so comments keep working, just without moments.
+function isMissingColumn(error) {
+  return error?.code === '42703' || /at_ms/.test(error?.message || '');
+}
+
 export async function getComments(castId) {
-  const { data, error } = await supabase
-    .from('cast_comments')
-    .select('id, body, created_at, author:profiles!cast_comments_author_id_fkey(id, name)')
-    .eq('cast_id', castId)
-    .order('created_at', { ascending: true });
+  const query = (select) =>
+    supabase
+      .from('cast_comments')
+      .select(select)
+      .eq('cast_id', castId)
+      .order('created_at', { ascending: true });
+  let { data, error } = await query(`${COMMENT_SELECT}, at_ms`);
+  if (error && isMissingColumn(error)) ({ data, error } = await query(COMMENT_SELECT));
   if (error) throw error;
   const uid = await currentUserId();
   const rows = data || [];
@@ -421,13 +438,19 @@ export async function getComments(castId) {
   return rows.map((row) => mapComment(row, uid, avatars));
 }
 
-export async function addComment(castId, body) {
+// Post a comment; pass `atMs` to pin it to a moment in the audio.
+export async function addComment(castId, body, atMs = null) {
   const userId = await currentUserId();
-  const { data, error } = await supabase
-    .from('cast_comments')
-    .insert({ cast_id: castId, author_id: userId, body })
-    .select('id, body, created_at, author:profiles!cast_comments_author_id_fkey(id, name)')
-    .single();
+  const base = { cast_id: castId, author_id: userId, body };
+  const insert = (row, select) =>
+    supabase.from('cast_comments').insert(row).select(select).single();
+  let { data, error } =
+    atMs == null
+      ? await insert(base, COMMENT_SELECT)
+      : await insert({ ...base, at_ms: Math.max(0, Math.round(atMs)) }, `${COMMENT_SELECT}, at_ms`);
+  if (error && atMs != null && isMissingColumn(error)) {
+    ({ data, error } = await insert(base, COMMENT_SELECT));
+  }
   if (error) throw error;
   const avatars = await fetchAvatars([userId]);
   return mapComment(data, userId, avatars);

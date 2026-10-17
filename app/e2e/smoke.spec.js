@@ -80,7 +80,7 @@ async function signIn(page, userEmail = email, userPassword = password) {
   await page.getByPlaceholder(/you@example\.com/i).fill(userEmail);
   await page.getByPlaceholder(/your password/i).fill(userPassword);
 
-  // The authenticated shell shows the bottom tab bar (Feed / Record / Profile).
+  // The authenticated shell shows the tab bar / rail (Fireside / Record / You).
   // The submit can hit a transient network blip ("Failed to fetch" through a
   // proxy) while the auth endpoint itself is healthy, so re-submit from the
   // still-present login screen until the shell appears rather than failing once.
@@ -170,7 +170,7 @@ test.describe('signed in', () => {
 
     // Back to the feed (refetches on focus); the new cast is on top. Open it.
     await page
-      .getByText(/^home$/i)
+      .getByText(/^fireside$/i)
       .first()
       .click();
     await page.getByText(title).click();
@@ -309,7 +309,7 @@ test.describe('signed in (local fixtures)', () => {
 
     // Open it from the feed; the detail page reflects the participant + recipient.
     await page
-      .getByText(/^home$/i)
+      .getByText(/^fireside$/i)
       .first()
       .click();
     await page.getByText(title).click();

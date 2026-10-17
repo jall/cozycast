@@ -1,36 +1,42 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Animated,
+  TouchableOpacity,
+  useWindowDimensions,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import AudioPlayer from './AudioPlayer';
 import CastCover from './CastCover';
-import Avatar from './Avatar';
+import Faces from './Faces';
+import Waveform from './Waveform';
 import PressableScale from './PressableScale';
 import { useAuth } from '../context/AuthContext';
+import { usePlayer } from '../context/PlayerContext';
 import { timeAgo } from '../utils/time';
+import { formatClock } from '../utils/waveform';
+import { castBy, trackFor } from '../utils/track';
+import { castProgress } from '../utils/progress';
 import { colors } from '../theme/colors';
 import { type } from '../theme/type';
 import { space, radius, elevation } from '../theme/space';
 
+// A cast in the feed. Even before anyone presses play it shows its *shape*: a
+// little night-sky cover, who it's by and who's around it, its waveform with
+// what you've heard banked in ember, and how long it is (or how long is left).
+// The playing card glows. Tap anywhere for the detail page; the play button
+// claims its own presses.
 export default function CastCard({ cast, index = 0 }) {
-  const {
-    id,
-    title,
-    summary,
-    description,
-    creator_name,
-    creator_avatar,
-    sharer_name,
-    sharer_avatar,
-    participants,
-    recipient_count,
-    shared_with_me,
-    played,
-    created_at,
-  } = cast;
+  const { id, title, summary, description, participants, recipient_count, shared_with_me, played } =
+    cast;
 
   const router = useRouter();
   const { user } = useAuth();
+  const player = usePlayer();
+  const { width } = useWindowDimensions();
+  const compact = width < 600;
 
   const openDetail = () => router.push(`/cast/${id}`);
 
@@ -41,6 +47,21 @@ export default function CastCard({ cast, index = 0 }) {
   // You're the assigned sharer (not the creator) and haven't sent it yet.
   const needsSharing =
     !!user && cast.sharer_id === user.id && cast.creator_id !== user.id && recipient_count === 0;
+  // Yours, and still only yours.
+  const onlyYou = !shared_with_me && !needsSharing && cast.can_manage && recipient_count === 0;
+
+  const { isCurrent, total, at, done } = castProgress(cast, player);
+  const playing = isCurrent && player.isPlaying;
+  const started = at > 0 && !done && at < total;
+  const timeLabel = !total
+    ? ''
+    : isCurrent
+      ? `${formatClock(at)} / ${formatClock(total)}`
+      : done
+        ? `Heard · ${formatClock(total)}`
+        : started
+          ? `${formatClock(total - at)} left`
+          : formatClock(total);
 
   // Gentle staggered fade-in-up as cards arrive.
   const enter = useRef(new Animated.Value(0)).current;
@@ -54,7 +75,65 @@ export default function CastCard({ cast, index = 0 }) {
   }, [enter, index]);
 
   const body = summary || description;
-  const participantList = Array.isArray(participants) ? participants : [];
+  const by = castBy(cast);
+  const others = (Array.isArray(participants) ? participants : []).filter((n) => n !== by);
+  const withLine = others.length > 0 ? `with ${others.join(', ')}` : '';
+
+  const playButton = cast.audio_path ? (
+    <TouchableOpacity
+      onPress={() => player.toggle(trackFor(cast))}
+      style={[styles.play, compact && styles.playCompact, isCurrent && styles.playLive]}
+      activeOpacity={0.8}
+      accessibilityLabel={`${playing ? 'Pause' : 'Play'} ${title}`}
+    >
+      <Ionicons
+        name={playing ? 'pause' : 'play'}
+        size={compact ? 18 : 22}
+        color={isCurrent ? colors.onEmber : colors.ink}
+        style={playing ? null : styles.playNudge}
+      />
+    </TouchableOpacity>
+  ) : null;
+
+  const meta = (
+    <View style={styles.metaRow}>
+      {unheard ? (
+        <View style={styles.newChip} accessibilityLabel="Unheard">
+          <Text style={styles.newText}>New</Text>
+        </View>
+      ) : null}
+      <Text style={styles.by} numberOfLines={1}>
+        {cast.creator_id === user?.id ? 'You' : by}
+      </Text>
+      <Text style={styles.meta} numberOfLines={1}>
+        {withLine ? `${withLine} · ` : '· '}
+        {timeAgo(cast.created_at)}
+      </Text>
+    </View>
+  );
+
+  const shapeRow = (
+    <View style={styles.shapeRow}>
+      <Waveform
+        seed={id}
+        bars={compact ? 36 : 56}
+        height={compact ? 24 : 30}
+        progress={total ? at / total : 0}
+        playedColor={isCurrent ? colors.ember : colors.emberDeep}
+        style={styles.wave}
+      />
+      {timeLabel ? (
+        <Text style={[styles.time, (started || isCurrent) && styles.timeLive]}>{timeLabel}</Text>
+      ) : null}
+      {cast.comment_count > 0 ? (
+        <View style={styles.count} accessibilityLabel={`${cast.comment_count} notes`}>
+          <Ionicons name="chatbubble-outline" size={14} color={colors.inkMuted} />
+          <Text style={styles.countText}>{cast.comment_count}</Text>
+        </View>
+      ) : null}
+      {!compact ? <Faces names={[by, ...others]} size={24} /> : null}
+    </View>
+  );
 
   return (
     <Animated.View
@@ -68,79 +147,67 @@ export default function CastCard({ cast, index = 0 }) {
         },
       ]}
     >
-      {/* The whole card is one gentle press target (detail), with a soft
-          hover lift on web; the play button inside claims its own presses. */}
       <PressableScale
-        style={[styles.card, unheard && styles.cardUnheard]}
+        style={[styles.card, compact && styles.cardCompact, isCurrent && styles.cardLive]}
         hoverStyle={styles.cardHover}
         onPress={openDetail}
         accessibilityLabel={`Open ${title}`}
       >
-        <View style={styles.topRow}>
-          <View style={styles.headerPress}>
-            <CastCover seed={id} title={title} size={56} />
-            <View style={styles.headerText}>
+        {compact ? (
+          <>
+            <View style={styles.head}>
+              <CastCover seed={id} title={title} size={60} />
+              <View style={styles.headText}>
+                {meta}
+                <Text style={[styles.title, styles.titleCompact]} numberOfLines={2}>
+                  {title}
+                </Text>
+              </View>
+              {playButton}
+            </View>
+            {body ? (
+              <Text style={styles.summary} numberOfLines={2}>
+                {body}
+              </Text>
+            ) : null}
+            {shapeRow}
+          </>
+        ) : (
+          <View style={styles.wide}>
+            <CastCover seed={id} title={title} size={100} radius={18} />
+            <View style={styles.wideMain}>
+              {meta}
               <Text style={styles.title} numberOfLines={2}>
                 {title}
               </Text>
-              <View style={styles.bylineRow}>
-                <Avatar
-                  name={shared_with_me ? sharer_name || creator_name : creator_name}
-                  path={shared_with_me ? sharer_avatar || creator_avatar : creator_avatar}
-                  size={18}
-                  style={styles.bylineAvatar}
-                />
-                <Text style={styles.byline} numberOfLines={1}>
-                  {shared_with_me ? `Shared by ${sharer_name || creator_name}` : creator_name} ·{' '}
-                  {timeAgo(created_at)}
+              {body ? (
+                <Text style={styles.summary} numberOfLines={2}>
+                  {body}
                 </Text>
-              </View>
+              ) : null}
+              {shapeRow}
             </View>
-          </View>
-          {unheard ? <View style={styles.unheardDot} accessibilityLabel="Unheard" /> : null}
-        </View>
-
-        {body ? (
-          <Text style={styles.summary} numberOfLines={4}>
-            {body}
-          </Text>
-        ) : null}
-
-        {participantList.length > 0 && (
-          <View style={styles.participantsRow}>
-            <Ionicons
-              name="people-outline"
-              size={14}
-              color={colors.inkMuted}
-              style={styles.participantsIcon}
-            />
-            {participantList.map((name, i) => (
-              <View key={i} style={styles.participantTag}>
-                <Text style={styles.participantText}>{name}</Text>
-              </View>
-            ))}
+            {playButton}
           </View>
         )}
 
-        {cast.audio_path && (
-          <AudioPlayer
-            audioPath={cast.audio_path}
-            style={styles.player}
-            castId={id}
-            title={title}
-            seed={id}
-            artist={shared_with_me ? sharer_name || creator_name : creator_name}
-            durationSeconds={cast.duration}
-          />
-        )}
-
-        {needsSharing ? (
-          <TouchableOpacity style={styles.nudge} onPress={openDetail} activeOpacity={0.7}>
-            <Ionicons name="megaphone-outline" size={15} color={colors.emberInk} />
-            <Text style={styles.nudgeText}>You’re the sharer — choose who hears this</Text>
+        {needsSharing || onlyYou ? (
+          <TouchableOpacity style={styles.nudge} onPress={openDetail} activeOpacity={0.75}>
+            <Ionicons name="lock-closed-outline" size={16} color={colors.emberInk} />
+            <Text style={styles.nudgeText}>
+              {needsSharing
+                ? 'You’re the sharer — choose who gathers round.'
+                : 'Only you can hear this so far.'}
+            </Text>
+            <View style={styles.nudgeButton}>
+              <Text style={styles.nudgeButtonText}>Choose people</Text>
+            </View>
           </TouchableOpacity>
         ) : !shared_with_me && recipient_count > 0 ? (
-          <Text style={styles.sharedNote}>Shared — only with the people you chose</Text>
+          <Text style={styles.sharedNote}>
+            Shared with {recipient_count} {recipient_count === 1 ? 'person' : 'people'} — only the
+            ones you chose
+          </Text>
         ) : null}
       </PressableScale>
     </Animated.View>
@@ -149,107 +216,171 @@ export default function CastCard({ cast, index = 0 }) {
 
 const styles = StyleSheet.create({
   cardOuter: {
-    marginHorizontal: space.lg,
     marginBottom: space.md + 2,
   },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.md,
-    padding: space.lg + 4,
-    ...elevation.rest,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    padding: space.lg,
+    paddingRight: space.xl,
   },
-  cardUnheard: {
-    backgroundColor: colors.accentSurface,
+  cardCompact: {
+    padding: space.md + 2,
+  },
+  cardLive: {
+    borderColor: '#6B3A28',
+    ...elevation.glow,
+    shadowOpacity: 0.18,
   },
   cardHover: {
-    ...elevation.raised,
+    backgroundColor: colors.surfaceRaised,
   },
-  topRow: {
+  wide: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: space.md,
   },
-  headerPress: {
+  wideMain: {
     flex: 1,
+    minWidth: 0,
+    marginHorizontal: space.xl - 2,
+  },
+  head: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  headerText: {
+  headText: {
     flex: 1,
-    marginLeft: space.md + 2,
+    minWidth: 0,
+    marginHorizontal: space.md,
   },
-  unheardDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.ember,
-    marginLeft: space.sm,
-  },
-  title: {
-    ...type.h3,
-    color: colors.ink,
-    marginBottom: space.xs,
-  },
-  bylineRow: {
+  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: space.xs + 2,
   },
-  bylineAvatar: {
+  newChip: {
+    backgroundColor: '#3A1F17',
+    borderRadius: 7,
+    paddingHorizontal: 7,
+    paddingVertical: 1,
+    marginRight: space.sm,
+  },
+  newText: {
+    ...type.monoLabel,
+    fontSize: 10,
+    color: colors.emberInk,
+  },
+  by: {
+    ...type.label,
+    fontFamily: type.h3.fontFamily,
+    color: colors.inkSoft,
     marginRight: space.xs + 2,
   },
-  byline: {
+  meta: {
     ...type.caption,
+    fontSize: 13,
     color: colors.inkMuted,
-    flex: 1,
+    flexShrink: 1,
+  },
+  title: {
+    ...type.h2,
+    fontSize: 23,
+    lineHeight: 28,
+    color: colors.ink,
+  },
+  titleCompact: {
+    fontSize: 18,
+    lineHeight: 22,
   },
   summary: {
     ...type.bodySm,
-    color: colors.inkSoft,
-    marginBottom: space.md,
+    color: '#B3A595',
+    marginTop: space.xs + 2,
   },
-  participantsRow: {
+  shapeRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     alignItems: 'center',
-    marginBottom: space.sm,
+    marginTop: space.md,
   },
-  participantsIcon: {
-    marginRight: space.xs + 2,
+  wave: {
+    flex: 1,
+    minWidth: 0,
+    marginRight: space.md,
   },
-  participantTag: {
-    backgroundColor: colors.surfaceSunk,
-    borderRadius: radius.sm,
-    paddingHorizontal: space.md,
-    paddingVertical: space.xs,
-    marginRight: space.xs + 2,
-    marginBottom: space.xs,
+  time: {
+    ...type.time,
+    fontSize: 12,
+    color: colors.inkMuted,
+    marginRight: space.md,
   },
-  participantText: {
-    ...type.caption,
+  timeLive: {
     color: colors.emberInk,
-    fontFamily: type.label.fontFamily,
   },
-  player: {
-    marginTop: space.xs,
+  count: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: space.md,
+  },
+  countText: {
+    ...type.caption,
+    fontSize: 13,
+    color: colors.inkMuted,
+    marginLeft: 4,
+  },
+  play: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: '#2E2636',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playCompact: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  playLive: {
+    backgroundColor: colors.ember,
+    ...elevation.glow,
+  },
+  playNudge: {
+    marginLeft: 3,
   },
   sharedNote: {
     ...type.caption,
     color: colors.inkMuted,
-    marginTop: space.sm,
+    marginTop: space.md,
   },
   nudge: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: space.sm + 2,
-    backgroundColor: colors.surfaceSunk,
-    borderRadius: radius.sm,
+    marginTop: space.md,
+    backgroundColor: colors.accentSurface,
+    borderRadius: radius.sm + 2,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#6B3A28',
     paddingHorizontal: space.md,
-    paddingVertical: space.sm,
+    paddingVertical: space.sm + 2,
   },
   nudgeText: {
-    ...type.caption,
-    color: colors.emberInk,
-    fontFamily: type.label.fontFamily,
-    marginLeft: space.xs + 2,
+    ...type.bodySm,
+    color: colors.ink,
+    flex: 1,
+    marginHorizontal: space.sm + 2,
+  },
+  nudgeButton: {
+    backgroundColor: colors.ink,
+    borderRadius: radius.pill,
+    paddingHorizontal: space.md + 2,
+    paddingVertical: space.xs + 3,
+  },
+  nudgeButtonText: {
+    ...type.label,
+    fontFamily: type.h3.fontFamily,
+    color: colors.onEmber,
   },
 });

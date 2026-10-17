@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useState, useRef, useEffect, useCallback } from 'react';
 import { Platform } from 'react-native';
 import { Audio } from 'expo-av';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { castArtworkDataUrl } from '../utils/castArtwork';
 import { getAudioUrl } from '../api/client';
 
 // One audio session for the whole app. Playback used to live inside each
-// CastCard's AudioPlayer, so it died the moment you scrolled away or switched
+// CastCard's player, so it died the moment you scrolled away or switched
 // tabs. Lifting it here lets a single track keep playing while you browse, and
 // gives the persistent MiniPlayer something to drive.
 //
@@ -16,12 +17,44 @@ import { getAudioUrl } from '../api/client';
 // just to render play buttons.
 const PlayerContext = createContext(null);
 
+// Playback speeds the speed button cycles through.
+export const RATES = [1, 1.25, 1.5, 2, 0.75];
+
+// Where you left off in each cast, kept on this device so a card can show its
+// banked progress and playback resumes from there. { [castId]: { pos, dur,
+// done } } in milliseconds.
+const PROGRESS_KEY = 'cozycast.progress.v1';
+const SAVE_EVERY_MS = 5000;
+
 export function PlayerProvider({ children }) {
   const [track, setTrack] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [position, setPosition] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [rate, setRateState] = useState(1);
+  const [progress, setProgress] = useState({});
   const soundRef = useRef(null);
+  const rateRef = useRef(1);
+  const trackIdRef = useRef(null);
+  const progressRef = useRef({});
+  const lastSavedRef = useRef(0);
+
+  useEffect(() => {
+    AsyncStorage.getItem(PROGRESS_KEY)
+      .then((raw) => {
+        const saved = raw ? JSON.parse(raw) : {};
+        progressRef.current = { ...saved, ...progressRef.current };
+        setProgress(progressRef.current);
+      })
+      .catch(() => {});
+  }, []);
+
+  const remember = useCallback((id, entry) => {
+    if (!id) return;
+    progressRef.current = { ...progressRef.current, [id]: entry };
+    setProgress(progressRef.current);
+    AsyncStorage.setItem(PROGRESS_KEY, JSON.stringify(progressRef.current)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -43,6 +76,21 @@ export function PlayerProvider({ children }) {
     });
     navigator.mediaSession.setActionHandler('play', () => soundRef.current?.playAsync());
     navigator.mediaSession.setActionHandler('pause', () => soundRef.current?.pauseAsync());
+    // Lock-screen / headphone skip buttons: back 15s, forward 30s, like the app.
+    const nudge = (delta) => async () => {
+      const st = await soundRef.current?.getStatusAsync();
+      if (!st?.isLoaded) return;
+      const max = st.durationMillis || Infinity;
+      await soundRef.current.setPositionAsync(
+        Math.min(max, Math.max(0, st.positionMillis + delta)),
+      );
+    };
+    try {
+      navigator.mediaSession.setActionHandler('seekbackward', nudge(-15000));
+      navigator.mediaSession.setActionHandler('seekforward', nudge(30000));
+    } catch {
+      // Older browsers reject actions they don't know; play/pause still work.
+    }
   }
 
   function setMediaPlaybackState(state) {
@@ -51,22 +99,40 @@ export function PlayerProvider({ children }) {
     }
   }
 
-  const onStatus = useCallback((status) => {
-    if (!status.isLoaded) return;
-    setPosition(status.positionMillis || 0);
-    if (status.durationMillis) setDuration(status.durationMillis);
-    setIsPlaying(status.isPlaying);
-    setMediaPlaybackState(status.isPlaying ? 'playing' : 'paused');
-    if (status.didJustFinish) {
-      setIsPlaying(false);
-      setPosition(0);
-      setMediaPlaybackState('paused');
-    }
-  }, []);
+  const onStatus = useCallback(
+    (status) => {
+      if (!status.isLoaded) return;
+      const pos = status.positionMillis || 0;
+      const dur = status.durationMillis || 0;
+      setPosition(pos);
+      if (dur) setDuration(dur);
+      setIsPlaying(status.isPlaying);
+      setMediaPlaybackState(status.isPlaying ? 'playing' : 'paused');
+      if (status.didJustFinish) {
+        setIsPlaying(false);
+        setPosition(0);
+        setMediaPlaybackState('paused');
+        remember(trackIdRef.current, { pos: dur, dur, done: true });
+        lastSavedRef.current = 0;
+      } else if (dur && Math.abs(pos - lastSavedRef.current) >= SAVE_EVERY_MS) {
+        lastSavedRef.current = pos;
+        const prev = progressRef.current[trackIdRef.current];
+        remember(trackIdRef.current, { pos, dur, done: !!prev?.done });
+      }
+    },
+    [remember],
+  );
 
-  // Load a brand-new track and start it. Unloads whatever was playing first.
+  // Load a brand-new track and start it (optionally part-way in, e.g. when
+  // someone scrubs a cast that isn't playing yet, or taps a note's timestamp).
+  // Unloads whatever was playing first.
   const play = useCallback(
-    async (next) => {
+    async (next, { startMillis } = {}) => {
+      // Resume where you left off unless told otherwise (or it's finished).
+      if (startMillis == null) {
+        const saved = progressRef.current[next.id];
+        startMillis = saved && !saved.done && saved.pos < saved.dur - 3000 ? saved.pos : 0;
+      }
       if (soundRef.current) {
         await soundRef.current.unloadAsync();
         soundRef.current = null;
@@ -83,7 +149,9 @@ export function PlayerProvider({ children }) {
       if (!next.uri) return;
 
       setTrack(next);
-      setPosition(0);
+      trackIdRef.current = next.id;
+      lastSavedRef.current = startMillis;
+      setPosition(startMillis);
       setDuration(next.durationSeconds ? next.durationSeconds * 1000 : 0);
       setIsPlaying(false);
 
@@ -100,7 +168,12 @@ export function PlayerProvider({ children }) {
       try {
         const { sound } = await Audio.Sound.createAsync(
           { uri: next.uri },
-          { shouldPlay: true },
+          {
+            shouldPlay: true,
+            positionMillis: startMillis,
+            rate: rateRef.current,
+            shouldCorrectPitch: true,
+          },
           onStatus,
         );
         soundRef.current = sound;
@@ -126,16 +199,37 @@ export function PlayerProvider({ children }) {
       }
       if (isPlaying) {
         await soundRef.current.pauseAsync();
+        if (duration > 0) remember(track.id, { pos: position, dur: duration, done: false });
       } else {
         if (position >= duration && duration > 0) await soundRef.current.setPositionAsync(0);
         await soundRef.current.playAsync();
       }
     },
-    [track, isPlaying, position, duration, play],
+    [track, isPlaying, position, duration, play, remember],
   );
 
   const seek = useCallback(async (millis) => {
-    await soundRef.current?.setPositionAsync(Math.max(0, millis));
+    const to = Math.max(0, millis);
+    setPosition(to); // reflect the scrub immediately; status catches up
+    await soundRef.current?.setPositionAsync(to);
+  }, []);
+
+  // Jump back/forward by `deltaMillis` within the current track.
+  const skip = useCallback(
+    async (deltaMillis) => {
+      if (!soundRef.current) return;
+      const max = duration > 0 ? duration : Infinity;
+      await seek(Math.min(max, Math.max(0, position + deltaMillis)));
+    },
+    [position, duration, seek],
+  );
+
+  // Step to the next playback speed (pitch-corrected). Sticks across tracks.
+  const cycleRate = useCallback(async () => {
+    const next = RATES[(RATES.indexOf(rateRef.current) + 1) % RATES.length];
+    rateRef.current = next;
+    setRateState(next);
+    await soundRef.current?.setRateAsync(next, true).catch(() => {});
   }, []);
 
   // Dismiss the player entirely (the mini-player's close button).
@@ -145,6 +239,7 @@ export function PlayerProvider({ children }) {
       soundRef.current = null;
     }
     setTrack(null);
+    trackIdRef.current = null;
     setIsPlaying(false);
     setPosition(0);
     setDuration(0);
@@ -154,7 +249,20 @@ export function PlayerProvider({ children }) {
     }
   }, []);
 
-  const value = { track, isPlaying, position, duration, toggle, play, seek, stop };
+  const value = {
+    track,
+    isPlaying,
+    position,
+    duration,
+    rate,
+    toggle,
+    play,
+    seek,
+    skip,
+    cycleRate,
+    stop,
+    progress,
+  };
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
 }
 

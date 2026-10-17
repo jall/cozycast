@@ -240,7 +240,7 @@ export default function LoginScreen({ onBack }) {
             disabled={submitting}
           >
             {submitting ? (
-              <ActivityIndicator color={colors.white} />
+              <ActivityIndicator color={colors.onEmber} />
             ) : (
               <Text style={styles.buttonText}>
                 {resetMode ? 'Send reset link' : isSignup ? 'Sign up' : 'Log in'}

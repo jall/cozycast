@@ -139,9 +139,9 @@ export default function ProfileScreen() {
           <Avatar name={user?.name} path={user?.avatar_path} size={88} />
           <View style={styles.avatarBadge}>
             {uploadingAvatar ? (
-              <ActivityIndicator color={colors.white} size="small" />
+              <ActivityIndicator color={colors.onEmber} size="small" />
             ) : (
-              <Ionicons name="camera" size={15} color={colors.white} />
+              <Ionicons name="camera" size={15} color={colors.onEmber} />
             )}
           </View>
         </TouchableOpacity>
@@ -191,10 +191,10 @@ export default function ProfileScreen() {
           disabled={generatingInvite}
         >
           {generatingInvite ? (
-            <ActivityIndicator color={colors.white} size="small" />
+            <ActivityIndicator color={colors.onEmber} size="small" />
           ) : (
             <>
-              <Ionicons name="add-circle-outline" size={20} color={colors.white} />
+              <Ionicons name="add-circle-outline" size={20} color={colors.onEmber} />
               <Text style={styles.generateText}>Share an invite</Text>
             </>
           )}
@@ -257,6 +257,7 @@ const styles = StyleSheet.create({
   },
   avatarWrap: {
     marginBottom: 16,
+    borderRadius: 44,
     shadowColor: colors.emberSoft,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,

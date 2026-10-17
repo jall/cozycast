@@ -37,9 +37,11 @@ derived deterministically from the cast id in `components/CastCover.js`).
 - **Routing is Expo Router** (`"main": "expo-router/entry"`). Routes live in
   `app/app/`: `_layout.js` (the root — fonts, Sentry, providers, and the
   signed-in/out gate; signed-out renders `src/screens/PublicRoot.js`, signed-in
-  renders the `<Stack>`), `index.js` (the tab home: Feed/Record/Profile behind a
-  custom bottom tab bar — tabs are local state, not routes), and `cast/[id].js`
-  (the shareable cast detail page). Reusable UI/logic stays in `app/src/`
+  renders the `<Stack>`), `index.js` (the tab home: Fireside/Record/You — tabs
+  are local state, not routes; a slim bottom `TabBar` on phones, a left
+  `Sidebar` rail from `layout.wide` up, plus a docked `NowPlayingPanel` from
+  `layout.panelAt`), and `cast/[id].js` (the shareable cast detail page, two
+  columns on a laptop). Reusable UI/logic stays in `app/src/`
   (`components/`, `screens/`, `context/`, `api/`). Web build is a single-page SPA
   (`web.output: "single"` in `app.json`); the `netlify.toml` `/* → /index.html`
   redirect serves deep links like `/cast/:id`. Because the URL is untouched while
@@ -204,8 +206,20 @@ poking prod by hand.
 
 ## Audio (playback & casts)
 
-- Playback/recording use `expo-av` (`components/AudioPlayer.js`,
-  `screens/RecordScreen.js`). expo-av is deprecated in favour of `expo-audio`;
+- Playback/recording use `expo-av`: one app-wide sound in
+  `context/PlayerContext.js` (play/seek/skip/speed, plus per-cast "where you
+  left off" kept in AsyncStorage so cards show banked progress and playback
+  resumes), driven by `components/PlayerDeck.js` (the waveform scrubber +
+  controls, used by the cast page and the now-playing panel) and the
+  `MiniPlayer`; recording in `screens/RecordScreen.js`.
+- **Waveforms** are a deterministic *portrait* of each cast from its id
+  (`utils/waveform.js`), not decoded peaks — the feed shows a shape before you
+  press play without extra storage reads. Seeking needs the audio host to
+  honour HTTP range requests (Supabase storage does).
+- **Notes along the way:** a comment can be pinned to a moment
+  (`cast_comments.at_ms`). Pinned notes become dots on the scrubber and "at
+  2:31" chips that jump there. The client retries without the column if a
+  database hasn't got the migration yet. expo-av is deprecated in favour of `expo-audio`;
   migrating is a worthwhile future cleanup but **doesn't unlock lock-screen
   artwork** — rich now-playing controls aren't first-class there either, so it
   doesn't change the decision below.
@@ -231,12 +245,20 @@ poking prod by hand.
 - Keep every `expo-*` package on the version for the installed SDK (run
   `npx expo install --check`). Mismatched native modules crash the web build at
   runtime with "Module implementation must be a class".
-- **Typography:** the brand font is Nunito (`src/theme/typography.js` exposes
-  `fonts.regular/medium/bold/display`). Loaded once in `App.js` via `useFonts`
-  (render is gated until it resolves). Set `fontFamily: fonts.*` on headings,
-  wordmarks, buttons, and titles — the weight is baked into the family, so don't
-  rely on `fontWeight`. Import weights by subpath (e.g.
-  `@expo-google-fonts/nunito/700Bold`) so only used faces are bundled.
+- **Look ("Campfire"):** night ground, cream ink, and ember as the one loud
+  colour, reserved for what's alive (play, record, progress). Use the roles in
+  `src/theme/colors.js`, never raw hexes; dark text (`colors.onEmber`) goes on
+  ember. The campfire (`components/Campfire.js`), night sky (`NightSky`),
+  covers (`CastCover`, from `utils/castCover`) and glows (`Glow`) are
+  `react-native-svg`; every ambient loop holds still under reduce-motion
+  (`hooks/useReducedMotion`). See `docs/design-vision.md`.
+- **Typography:** three faces (`src/theme/typography.js`): Fraunces (serif) for
+  titles and its italic for *moments* (`type.moment`), Nunito for body/UI, DM
+  Mono for time (`type.time`, `type.monoLabel`). Loaded once in
+  `app/_layout.js` via `useFonts` (render is gated until it resolves). Set
+  `fontFamily: fonts.*` — the weight is baked into the family, so don't rely on
+  `fontWeight`. Import weights by subpath (e.g.
+  `@expo-google-fonts/fraunces/500Medium`) so only used faces are bundled.
 
 ## Error tracking
 

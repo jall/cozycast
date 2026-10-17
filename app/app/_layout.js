@@ -17,6 +17,12 @@ import { Nunito_400Regular } from '@expo-google-fonts/nunito/400Regular';
 import { Nunito_600SemiBold } from '@expo-google-fonts/nunito/600SemiBold';
 import { Nunito_700Bold } from '@expo-google-fonts/nunito/700Bold';
 import { Nunito_800ExtraBold } from '@expo-google-fonts/nunito/800ExtraBold';
+import { Fraunces_500Medium } from '@expo-google-fonts/fraunces/500Medium';
+import { Fraunces_600SemiBold } from '@expo-google-fonts/fraunces/600SemiBold';
+import { Fraunces_500Medium_Italic } from '@expo-google-fonts/fraunces/500Medium_Italic';
+import { DMMono_400Regular } from '@expo-google-fonts/dm-mono/400Regular';
+import { DMMono_500Medium } from '@expo-google-fonts/dm-mono/500Medium';
+import { StatusBar } from 'expo-status-bar';
 import { fonts } from '../src/theme/typography';
 import { colors } from '../src/theme/colors';
 import { AuthProvider, useAuth } from '../src/context/AuthContext';
@@ -25,6 +31,7 @@ import { PlayerProvider } from '../src/context/PlayerContext';
 import { NotificationsProvider } from '../src/context/NotificationsContext';
 import PublicRoot from '../src/screens/PublicRoot';
 import ResetPasswordScreen from '../src/screens/ResetPasswordScreen';
+import FlameMark from '../src/components/FlameMark';
 
 // Error tracking. 12-factor: the DSN comes from the environment, never the
 // repo. Set EXPO_PUBLIC_SENTRY_DSN (Netlify build env / local .env); without
@@ -48,8 +55,8 @@ if (sentryDsn) {
 function LoadingScreen() {
   return (
     <View style={styles.loading}>
-      <Text style={styles.loadingLogo}>cozycast</Text>
-      <ActivityIndicator size="large" color={colors.ember} style={{ marginTop: 24 }} />
+      <FlameMark size={44} />
+      <ActivityIndicator size="small" color={colors.ember} style={{ marginTop: 20 }} />
     </View>
   );
 }
@@ -88,6 +95,11 @@ function RootLayout() {
     Nunito_600SemiBold,
     Nunito_700Bold,
     Nunito_800ExtraBold,
+    Fraunces_500Medium,
+    Fraunces_600SemiBold,
+    Fraunces_500Medium_Italic,
+    DMMono_400Regular,
+    DMMono_500Medium,
   });
 
   // Hold the splash until fonts are ready (or fail) so we never flash a
@@ -97,6 +109,7 @@ function RootLayout() {
   return (
     <Sentry.ErrorBoundary fallback={<ErrorFallback />}>
       <SafeAreaProvider>
+        <StatusBar style="light" />
         <ToastProvider>
           <AuthProvider>
             <NotificationsProvider>
@@ -143,8 +156,8 @@ const styles = StyleSheet.create({
   },
   loadingLogo: {
     fontSize: 36,
-    fontFamily: fonts.display,
-    color: colors.ember,
+    fontFamily: fonts.serifBold,
+    color: colors.ink,
     letterSpacing: -1,
   },
   errorText: {
@@ -161,7 +174,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   errorButtonText: {
-    color: '#FFFFFF',
+    color: colors.onEmber,
     fontSize: 15,
     fontFamily: fonts.bold,
   },

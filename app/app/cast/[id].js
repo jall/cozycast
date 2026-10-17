@@ -2,18 +2,22 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
+  useWindowDimensions,
   TextInput,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import CastCover from '../../src/components/CastCover';
-import AudioPlayer from '../../src/components/AudioPlayer';
+import Glow from '../../src/components/Glow';
+import PlayerDeck from '../../src/components/PlayerDeck';
 import MiniPlayer from '../../src/components/MiniPlayer';
 import Avatar from '../../src/components/Avatar';
+import Faces from '../../src/components/Faces';
 import {
   getCast,
   getRecipients,
@@ -30,6 +34,9 @@ import { usePlayer } from '../../src/context/PlayerContext';
 import { useToast } from '../../src/context/ToastContext';
 import { showAlert } from '../../src/utils/alert';
 import { timeAgo } from '../../src/utils/time';
+import { formatClock } from '../../src/utils/waveform';
+import { castBy, trackFor } from '../../src/utils/track';
+import { coverFor } from '../../src/utils/castCover';
 import { colors } from '../../src/theme/colors';
 import { type } from '../../src/theme/type';
 import { space, radius, layout } from '../../src/theme/space';
@@ -53,7 +60,11 @@ export default function CastDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const toast = useToast();
-  const { track, stop } = usePlayer();
+  const { track, position, seek, play, stop } = usePlayer();
+  const { width } = useWindowDimensions();
+  // On a laptop the cast reads as two columns: the cover and player on the
+  // left, everything said about it on the right.
+  const twoCol = width >= 1080;
 
   const [cast, setCast] = useState(null);
   const [recipients, setRecipients] = useState([]);
@@ -62,6 +73,8 @@ export default function CastDetailScreen() {
   const [comments, setComments] = useState([]);
   const [commentText, setCommentText] = useState('');
   const [posting, setPosting] = useState(false);
+  // The moment (ms) a new comment will be pinned to, or null for a general one.
+  const [pinAt, setPinAt] = useState(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
 
@@ -119,9 +132,10 @@ export default function CastDetailScreen() {
     if (!body) return;
     setPosting(true);
     try {
-      const comment = await addComment(id, body);
+      const comment = await addComment(id, body, pinAt);
       setComments((prev) => [...prev, comment]);
       setCommentText('');
+      setPinAt(null);
     } catch (err) {
       toast.error(err.message || 'Could not post your comment.');
     } finally {
@@ -200,224 +214,281 @@ export default function CastDetailScreen() {
     );
   }
 
-  const byline = cast.shared_with_me
-    ? `Shared by ${cast.sharer_name || cast.creator_name}`
-    : cast.creator_name;
+  const byline = cast.shared_with_me ? `Shared by ${castBy(cast)}` : cast.creator_name;
   const participantList = Array.isArray(cast.participants) ? cast.participants : [];
+  const castTrack = trackFor(cast);
+  const isCurrent = track?.id === cast.id;
+  const glow = coverFor(cast.id, cast.title).glow;
+
+  // "Leave a note here" from the deck pins the comment to that moment.
+  function noteAt(ms) {
+    setPinAt(Math.round(ms));
+  }
+
+  function jumpTo(ms) {
+    if (isCurrent) seek(ms);
+    else play(castTrack, { startMillis: ms });
+  }
 
   return (
     <View style={styles.container} testID="cast-detail">
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.scrollContent, twoCol && styles.scrollWide]}
+        showsVerticalScrollIndicator={false}
+      >
         <BackButton onPress={goBack} />
-
-        <View style={styles.hero}>
-          <CastCover seed={cast.id} title={cast.title} size={96} />
-          <Text style={styles.title}>{cast.title}</Text>
-          <View style={styles.bylineRow}>
-            <Avatar
-              name={cast.shared_with_me ? cast.sharer_name || cast.creator_name : cast.creator_name}
-              path={
-                cast.shared_with_me
-                  ? cast.sharer_avatar || cast.creator_avatar
-                  : cast.creator_avatar
-              }
-              size={20}
-              style={styles.bylineAvatar}
-            />
-            <Text style={styles.byline}>
-              {byline} · {formatDate(cast.created_at)}
-            </Text>
-          </View>
-        </View>
-
-        {cast.audio_path ? (
-          <AudioPlayer
-            audioPath={cast.audio_path}
-            variant="hero"
-            style={styles.player}
-            castId={cast.id}
-            title={cast.title}
-            seed={cast.id}
-            artist={cast.shared_with_me ? cast.sharer_name || cast.creator_name : cast.creator_name}
-            durationSeconds={cast.duration}
-          />
-        ) : null}
-
-        {cast.summary || cast.description ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionHeading}>Summary</Text>
-            <Text style={styles.bodyText}>{cast.summary || cast.description}</Text>
-          </View>
-        ) : null}
-
-        {participantList.length > 0 ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionHeading}>In this cast</Text>
-            <View style={styles.tagRow}>
-              {participantList.map((name, i) => (
-                <View key={i} style={styles.tag}>
-                  <Text style={styles.tagText}>{name}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        ) : null}
-
-        {cast.can_manage ? (
-          <View style={styles.section}>
-            <View style={styles.manageHeader}>
-              <Text style={styles.sectionHeading}>
-                {recipients.length > 0
-                  ? `Shared with ${recipients.length} ${
-                      recipients.length === 1 ? 'person' : 'people'
-                    }`
-                  : 'Not shared yet'}
-              </Text>
-              <TouchableOpacity
-                onPress={() => setManaging((m) => !m)}
-                testID="manage-recipients"
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Text style={styles.manageToggle}>{managing ? 'Done' : 'Manage'}</Text>
-              </TouchableOpacity>
-            </View>
-
-            {managing ? (
-              friends.length === 0 ? (
-                <Text style={styles.commentsEmpty}>
-                  Add friends from your Profile to share with them.
-                </Text>
-              ) : (
-                friends.map((f) => {
-                  const selected = recipientIds.has(f.id);
-                  return (
-                    <TouchableOpacity
-                      key={f.id}
-                      style={styles.recipientRow}
-                      onPress={() => toggleRecipient(f)}
-                      activeOpacity={0.7}
-                      testID="recipient-row"
-                    >
-                      <Avatar
-                        name={f.name}
-                        path={f.avatar_path}
-                        size={36}
-                        style={styles.recipientAvatar}
-                      />
-                      <View style={styles.recipientInfo}>
-                        <Text style={styles.recipientName}>{f.name}</Text>
-                        {f.email ? <Text style={styles.recipientEmail}>{f.email}</Text> : null}
-                      </View>
-                      <Ionicons
-                        name={selected ? 'checkmark-circle' : 'ellipse-outline'}
-                        size={24}
-                        color={selected ? colors.ember : colors.inkFaint}
-                      />
-                    </TouchableOpacity>
-                  );
-                })
-              )
-            ) : recipients.length > 0 ? (
-              <View style={styles.tagRow}>
-                {recipients.map((r) => (
-                  <View key={r.id} style={styles.tag}>
-                    <Text style={styles.tagText}>{r.name || r.email}</Text>
-                  </View>
-                ))}
+        <View style={twoCol ? styles.columns : null}>
+          <View style={twoCol ? styles.leftCol : null}>
+            <View style={styles.hero}>
+              <Glow color={glow} strength={0.35} style={styles.halo} />
+              <View style={[styles.coverWrap, { shadowColor: glow }]}>
+                <CastCover seed={cast.id} title={cast.title} size={220} radius={radius.lg} />
               </View>
-            ) : (
-              <Text style={styles.commentsEmpty}>
-                Only you can see this. Tap Manage to choose who hears it.
-              </Text>
-            )}
-          </View>
-        ) : null}
-
-        <View style={styles.section} testID="comments">
-          <Text style={styles.sectionHeading}>Comments</Text>
-
-          {comments.length === 0 ? (
-            <Text style={styles.commentsEmpty}>No comments yet — start the conversation.</Text>
-          ) : (
-            comments.map((c) => (
-              <View key={c.id} style={styles.comment} testID="comment-row">
+              <Text style={styles.title}>{cast.title}</Text>
+              <View style={styles.bylineRow}>
                 <Avatar
-                  name={c.author_name}
-                  path={c.author_avatar}
-                  size={32}
-                  style={styles.commentAvatar}
+                  name={castBy(cast)}
+                  path={
+                    cast.shared_with_me
+                      ? cast.sharer_avatar || cast.creator_avatar
+                      : cast.creator_avatar
+                  }
+                  size={20}
+                  style={styles.bylineAvatar}
                 />
-                <View style={styles.commentMain}>
-                  <View style={styles.commentHeader}>
-                    <Text style={styles.commentAuthor}>{c.author_name}</Text>
-                    <Text style={styles.commentTime}>{timeAgo(c.created_at)}</Text>
-                    {/* Author or a cast manager may delete (matches the RLS
-                        cast_comments_delete_author_or_manager policy). */}
-                    {c.mine || cast.can_manage ? (
-                      <TouchableOpacity
-                        onPress={() => handleDeleteComment(c.id)}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        accessibilityLabel="Delete comment"
-                        testID="comment-delete"
-                        style={styles.commentDelete}
-                      >
-                        <Ionicons name="close" size={15} color={colors.inkFaint} />
-                      </TouchableOpacity>
-                    ) : null}
-                  </View>
-                  <Text style={styles.commentBody}>{c.body}</Text>
+                <Text style={styles.byline}>
+                  {byline} · {formatDate(cast.created_at)}
+                </Text>
+              </View>
+            </View>
+
+            {cast.audio_path ? (
+              <PlayerDeck cast={castTrack} notes={comments} onNote={noteAt} style={styles.player} />
+            ) : null}
+          </View>
+          <View style={twoCol ? styles.rightCol : null}>
+            {cast.summary || cast.description ? (
+              <View style={styles.section}>
+                <Text style={styles.sectionHeading}>Summary</Text>
+                <Text style={styles.bodyText}>{cast.summary || cast.description}</Text>
+              </View>
+            ) : null}
+
+            {participantList.length > 0 ? (
+              <View style={styles.section}>
+                <Text style={styles.sectionHeading}>In this cast</Text>
+                <View style={styles.tagRow}>
+                  <Faces
+                    names={participantList}
+                    size={28}
+                    ringColor={colors.bg}
+                    style={styles.faces}
+                  />
+                  {participantList.map((name, i) => (
+                    <View key={i} style={styles.tag}>
+                      <Text style={styles.tagText}>{name}</Text>
+                    </View>
+                  ))}
                 </View>
               </View>
-            ))
-          )}
+            ) : null}
 
-          <View style={styles.commentInputRow}>
-            <TextInput
-              style={styles.commentInput}
-              value={commentText}
-              onChangeText={setCommentText}
-              placeholder="Add a comment…"
-              placeholderTextColor={colors.inkFaint}
-              multiline
-              testID="comment-input"
-            />
-            <TouchableOpacity
-              style={[
-                styles.commentPost,
-                (!commentText.trim() || posting) && styles.commentPostOff,
-              ]}
-              onPress={handlePostComment}
-              disabled={!commentText.trim() || posting}
-              activeOpacity={0.7}
-              testID="comment-post"
-            >
-              {posting ? (
-                <ActivityIndicator size="small" color={colors.onEmber} />
+            {cast.can_manage ? (
+              <View style={styles.section}>
+                <View style={styles.manageHeader}>
+                  <Text style={styles.sectionHeading}>
+                    {recipients.length > 0
+                      ? `Shared with ${recipients.length} ${
+                          recipients.length === 1 ? 'person' : 'people'
+                        }`
+                      : 'Not shared yet'}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setManaging((m) => !m)}
+                    testID="manage-recipients"
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Text style={styles.manageToggle}>{managing ? 'Done' : 'Manage'}</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {managing ? (
+                  friends.length === 0 ? (
+                    <Text style={styles.commentsEmpty}>
+                      Add friends from your Profile to share with them.
+                    </Text>
+                  ) : (
+                    friends.map((f) => {
+                      const selected = recipientIds.has(f.id);
+                      return (
+                        <TouchableOpacity
+                          key={f.id}
+                          style={styles.recipientRow}
+                          onPress={() => toggleRecipient(f)}
+                          activeOpacity={0.7}
+                          testID="recipient-row"
+                        >
+                          <Avatar
+                            name={f.name}
+                            path={f.avatar_path}
+                            size={36}
+                            style={styles.recipientAvatar}
+                          />
+                          <View style={styles.recipientInfo}>
+                            <Text style={styles.recipientName}>{f.name}</Text>
+                            {f.email ? <Text style={styles.recipientEmail}>{f.email}</Text> : null}
+                          </View>
+                          <Ionicons
+                            name={selected ? 'checkmark-circle' : 'ellipse-outline'}
+                            size={24}
+                            color={selected ? colors.ember : colors.inkFaint}
+                          />
+                        </TouchableOpacity>
+                      );
+                    })
+                  )
+                ) : recipients.length > 0 ? (
+                  <View style={styles.tagRow}>
+                    {recipients.map((r) => (
+                      <View key={r.id} style={styles.tag}>
+                        <Text style={styles.tagText}>{r.name || r.email}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <View style={styles.privateNote}>
+                    <Ionicons name="lock-closed-outline" size={16} color={colors.emberInk} />
+                    <Text style={styles.privateText}>
+                      Only you can hear this. Tap Manage to choose who gathers round.
+                    </Text>
+                  </View>
+                )}
+              </View>
+            ) : null}
+
+            <View style={styles.section} testID="comments">
+              <Text style={styles.momentHeading}>Along the way</Text>
+
+              {comments.length === 0 ? (
+                <Text style={styles.commentsEmpty}>No notes yet — start the conversation.</Text>
               ) : (
-                <Ionicons name="arrow-up" size={20} color={colors.onEmber} />
+                comments.map((c) => (
+                  <View key={c.id} style={styles.comment} testID="comment-row">
+                    <Avatar
+                      name={c.author_name}
+                      path={c.author_avatar}
+                      size={32}
+                      style={styles.commentAvatar}
+                    />
+                    <View style={styles.commentMain}>
+                      <View style={styles.commentHeader}>
+                        <Text style={styles.commentAuthor}>{c.author_name}</Text>
+                        {c.at_ms != null ? (
+                          <TouchableOpacity
+                            onPress={() => jumpTo(c.at_ms)}
+                            style={styles.at}
+                            accessibilityLabel={`Jump to ${formatClock(c.at_ms)}`}
+                          >
+                            <Text style={styles.atText}>at {formatClock(c.at_ms)}</Text>
+                          </TouchableOpacity>
+                        ) : null}
+                        <Text style={styles.commentTime}>{timeAgo(c.created_at)}</Text>
+                        {/* Author or a cast manager may delete (matches the RLS
+                        cast_comments_delete_author_or_manager policy). */}
+                        {c.mine || cast.can_manage ? (
+                          <TouchableOpacity
+                            onPress={() => handleDeleteComment(c.id)}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            accessibilityLabel="Delete comment"
+                            testID="comment-delete"
+                            style={styles.commentDelete}
+                          >
+                            <Ionicons name="close" size={15} color={colors.inkFaint} />
+                          </TouchableOpacity>
+                        ) : null}
+                      </View>
+                      <Text style={styles.commentBody}>{c.body}</Text>
+                    </View>
+                  </View>
+                ))
               )}
-            </TouchableOpacity>
+
+              {cast.audio_path ? (
+                <View style={styles.pinRow}>
+                  <TouchableOpacity
+                    onPress={() =>
+                      setPinAt((p) => (p != null ? null : Math.round(isCurrent ? position : 0)))
+                    }
+                    style={[styles.pin, pinAt != null && styles.pinOn]}
+                    accessibilityLabel={
+                      pinAt != null
+                        ? `Pinned at ${formatClock(pinAt)} — tap to unpin`
+                        : 'Pin to this moment'
+                    }
+                  >
+                    <Ionicons
+                      name={pinAt != null ? 'time' : 'time-outline'}
+                      size={14}
+                      color={pinAt != null ? colors.emberInk : colors.inkMuted}
+                    />
+                    <Text style={[styles.pinText, pinAt != null && styles.pinTextOn]}>
+                      {pinAt != null
+                        ? `Pinned at ${formatClock(pinAt)}`
+                        : `Pin to ${formatClock(isCurrent ? position : 0)}`}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+
+              <View style={styles.commentInputRow}>
+                <TextInput
+                  style={styles.commentInput}
+                  value={commentText}
+                  onChangeText={setCommentText}
+                  placeholder="Add a comment…"
+                  placeholderTextColor={colors.inkFaint}
+                  multiline
+                  testID="comment-input"
+                />
+                <TouchableOpacity
+                  style={[
+                    styles.commentPost,
+                    (!commentText.trim() || posting) && styles.commentPostOff,
+                  ]}
+                  onPress={handlePostComment}
+                  disabled={!commentText.trim() || posting}
+                  activeOpacity={0.7}
+                  testID="comment-post"
+                >
+                  {posting ? (
+                    <ActivityIndicator size="small" color={colors.onEmber} />
+                  ) : (
+                    <Ionicons name="arrow-up" size={20} color={colors.onEmber} />
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {!cast.shared_with_me ? (
+              <TouchableOpacity
+                style={styles.deleteRow}
+                onPress={confirmDelete}
+                disabled={deleting}
+                activeOpacity={0.7}
+              >
+                {deleting ? (
+                  <ActivityIndicator size="small" color={colors.danger} />
+                ) : (
+                  <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                )}
+                <Text style={styles.deleteText}>Delete cast</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         </View>
-
-        {!cast.shared_with_me ? (
-          <TouchableOpacity
-            style={styles.deleteRow}
-            onPress={confirmDelete}
-            disabled={deleting}
-            activeOpacity={0.7}
-          >
-            {deleting ? (
-              <ActivityIndicator size="small" color={colors.danger} />
-            ) : (
-              <Ionicons name="trash-outline" size={18} color={colors.danger} />
-            )}
-            <Text style={styles.deleteText}>Delete cast</Text>
-          </TouchableOpacity>
-        ) : null}
       </ScrollView>
 
-      <MiniPlayer />
+      <MiniPlayer hideFor={cast.id} />
     </View>
   );
 }
@@ -435,8 +506,25 @@ const styles = StyleSheet.create({
     paddingTop: 56,
     paddingBottom: space['2xl'],
     width: '100%',
-    maxWidth: layout.column,
+    maxWidth: layout.feed - 60,
     alignSelf: 'center',
+  },
+  scrollWide: {
+    maxWidth: 1180,
+    paddingHorizontal: space['3xl'],
+  },
+  columns: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  leftCol: {
+    width: 420,
+    marginRight: space['3xl'] + 16,
+  },
+  rightCol: {
+    flex: 1,
+    minWidth: 0,
+    paddingTop: space.sm,
   },
   backButton: {
     flexDirection: 'row',
@@ -445,8 +533,21 @@ const styles = StyleSheet.create({
     marginBottom: space.md,
   },
   backText: { ...type.label, color: colors.emberInk, marginLeft: space.xs },
-  hero: { alignItems: 'center', marginTop: space.sm, marginBottom: space.xl },
-  title: { ...type.h1, color: colors.ink, textAlign: 'center', marginTop: space.lg },
+  hero: { alignItems: 'center', marginTop: space.sm, marginBottom: space.lg },
+  halo: {
+    top: -90,
+    left: '50%',
+    marginLeft: -230,
+    width: 460,
+    height: 420,
+  },
+  coverWrap: {
+    borderRadius: radius.lg,
+    shadowOpacity: 0.45,
+    shadowRadius: 50,
+    shadowOffset: { width: 0, height: 24 },
+  },
+  title: { ...type.h1, color: colors.ink, textAlign: 'center', marginTop: space.xl },
   bylineRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -457,10 +558,50 @@ const styles = StyleSheet.create({
   player: { marginBottom: space.md },
   section: { marginTop: space.xl },
   sectionHeading: { ...type.eyebrow, color: colors.inkMuted, marginBottom: space.sm },
+  momentHeading: {
+    fontFamily: type.moment.fontFamily,
+    fontSize: 21,
+    lineHeight: 26,
+    color: colors.ink,
+    marginBottom: space.md,
+  },
+  faces: { marginRight: space.sm, marginBottom: space.sm },
+  privateNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.accentSurface,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#6B3A28',
+    padding: space.md,
+  },
+  privateText: { ...type.bodySm, color: colors.ink, marginLeft: space.sm, flex: 1 },
+  at: {
+    backgroundColor: colors.accentSurface,
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 1,
+    marginLeft: space.sm,
+  },
+  atText: { ...type.time, fontSize: 12, lineHeight: 16, color: colors.emberInk },
+  pinRow: { flexDirection: 'row', marginTop: space.xs, marginBottom: space.sm },
+  pin: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.smoke,
+    paddingHorizontal: space.md,
+    paddingVertical: space.xs + 1,
+  },
+  pinOn: { borderColor: '#6B3A28', backgroundColor: colors.accentSurface },
+  pinText: { ...type.time, fontSize: 12, lineHeight: 16, color: colors.inkMuted, marginLeft: 6 },
+  pinTextOn: { color: colors.emberInk },
   bodyText: { ...type.body, fontSize: 15, color: colors.inkSoft },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap' },
   tag: {
-    backgroundColor: colors.surfaceSunk,
+    backgroundColor: colors.surface,
     borderRadius: radius.sm,
     paddingHorizontal: space.md,
     paddingVertical: space.xs + 2,
@@ -514,6 +655,7 @@ const styles = StyleSheet.create({
     ...type.bodySm,
     color: colors.ink,
     maxHeight: 120,
+    ...Platform.select({ web: { outlineStyle: 'none' }, default: {} }),
   },
   commentPost: {
     width: 40,

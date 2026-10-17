@@ -16,6 +16,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { createCast, shareCast, getFriends } from '../api/client';
 import PressableScale from '../components/PressableScale';
+import Campfire from '../components/Campfire';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { fonts } from '../theme/typography';
@@ -346,8 +347,20 @@ export default function RecordScreen() {
   function renderRecordingScreen() {
     return (
       <View style={styles.recordingContainer}>
-        <Text style={styles.recordingLabel}>recording</Text>
+        <View style={styles.recordingPill}>
+          <Animated.View
+            style={[
+              styles.recDot,
+              { opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 0.3] }) },
+            ]}
+          />
+          <Text style={styles.recordingLabel}>recording</Text>
+        </View>
         <Text style={styles.elapsed}>{formatElapsed(elapsed)}</Text>
+        <Text style={styles.recordingMoment}>Take your time. The fire’s listening.</Text>
+
+        {/* The fire stands in for a level meter: it's lit while you talk. */}
+        <Campfire width={240} style={styles.recordingFire} />
 
         <View style={styles.pulseWrap}>
           {/* The breathing halo sits *behind* the button and never intercepts
@@ -369,12 +382,17 @@ export default function RecordScreen() {
             style={styles.stopButton}
             onPress={stopRecording}
             activeOpacity={0.8}
+            accessibilityLabel="Stop"
           >
             <View style={styles.stopSquare} />
           </TouchableOpacity>
         </View>
 
         <Text style={styles.recordingHint}>Tap to stop</Text>
+        <View style={styles.privacyRow}>
+          <Ionicons name="lock-closed-outline" size={13} color={colors.inkMuted} />
+          <Text style={styles.privacyText}>Nobody hears this until you choose who.</Text>
+        </View>
       </View>
     );
   }
@@ -692,48 +710,84 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 24,
   },
+  recordingPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.accentSurface,
+    borderRadius: radius.pill,
+    paddingHorizontal: space.md,
+    paddingVertical: space.xs + 2,
+    marginBottom: space.lg,
+  },
+  recDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF5A3D',
+    marginRight: space.sm,
+  },
   recordingLabel: {
-    ...type.eyebrow,
-    fontSize: 14,
-    lineHeight: 18,
+    ...type.monoLabel,
+    fontSize: 12,
     color: colors.emberInk,
-    letterSpacing: 1,
-    marginBottom: space.md,
   },
   elapsed: {
     ...type.numeric,
     color: colors.ink,
-    marginBottom: space['3xl'],
+  },
+  recordingMoment: {
+    fontFamily: type.moment.fontFamily,
+    fontSize: 18,
+    lineHeight: 24,
+    color: colors.inkSoft,
+    marginTop: space.xs,
+  },
+  recordingFire: {
+    marginTop: space['2xl'],
+    marginBottom: space.xl,
   },
   pulseWrap: {
-    width: 96,
-    height: 96,
+    width: 104,
+    height: 104,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 24,
+    marginBottom: space.md,
   },
   halo: {
     position: 'absolute',
-    width: 96,
-    height: 96,
+    width: 104,
+    height: 104,
     borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 140, 80, 0.5)',
     // The one place ember appears as a wash: the breathing halo while you record.
-    backgroundColor: 'rgba(224, 104, 62, 0.14)',
+    backgroundColor: 'rgba(255, 122, 61, 0.12)',
   },
   stopButton: {
-    width: 72,
-    height: 72,
+    width: 84,
+    height: 84,
     borderRadius: radius.pill,
-    backgroundColor: colors.ember,
+    borderWidth: 4,
+    borderColor: colors.ink,
     alignItems: 'center',
     justifyContent: 'center',
-    ...elevation.raised,
   },
   stopSquare: {
-    width: 24,
-    height: 24,
-    borderRadius: 4,
-    backgroundColor: colors.white,
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: '#FF5A3D',
+  },
+  privacyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: space.lg,
+  },
+  privacyText: {
+    ...type.caption,
+    fontSize: 13,
+    color: colors.inkMuted,
+    marginLeft: 6,
   },
   recordingHint: {
     ...type.bodySm,
@@ -819,7 +873,7 @@ const styles = StyleSheet.create({
 
   // Person list (participants / recipients)
   personList: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: 16,
     overflow: 'hidden',
   },
@@ -840,7 +894,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   personAvatarText: {
-    color: colors.white,
+    color: colors.onEmber,
     fontSize: 15,
     fontFamily: fonts.bold,
   },

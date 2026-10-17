@@ -6,9 +6,9 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "splash": {
-      "backgroundColor": "#FBF3E9"
+      "backgroundColor": "#120F18"
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {
@@ -21,7 +21,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#FBF3E9"
+        "backgroundColor": "#120F18"
       },
       "package": "com.cozycast.app",
       "permissions": ["RECORD_AUDIO"]
@@ -29,7 +29,8 @@
     "web": {
       "bundler": "metro",
       "output": "single",
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "backgroundColor": "#120F18"
     },
     "plugins": [
       "expo-router",

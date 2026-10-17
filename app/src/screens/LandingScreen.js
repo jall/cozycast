@@ -5,6 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { type } from '../theme/type';
 import { space, radius, elevation } from '../theme/space';
 import PressableScale from '../components/PressableScale';
+import Campfire from '../components/Campfire';
+import NightSky from '../components/NightSky';
 
 const STEPS = [
   {
@@ -33,12 +35,15 @@ export default function LandingScreen({ onGetStarted, onOpenManifesto }) {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
       <View style={styles.content}>
-        <View style={styles.hero}>
-          <Text style={styles.wordmark}>cozycast</Text>
-          <Text style={styles.tagline}>
-            small, private conversations — shared only with the people you choose.
-          </Text>
-        </View>
+        <NightSky height={340} radius={radius.lg} seed="landing" style={styles.sky}>
+          <View style={styles.hero}>
+            <Text style={styles.wordmark}>cozycast</Text>
+            <Text style={styles.tagline}>
+              small, private conversations — shared only with the people you choose.
+            </Text>
+          </View>
+          <Campfire width={170} style={styles.fire} />
+        </NightSky>
 
         <View style={styles.card}>
           <Text style={styles.sectionLabel}>what is a cozy cast?</Text>
@@ -107,29 +112,40 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 56,
+    paddingHorizontal: 20,
+    paddingVertical: 32,
   },
   content: {
     width: '100%',
     maxWidth: 640,
   },
+  sky: {
+    marginBottom: 40,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+  },
   hero: {
     alignItems: 'center',
-    marginBottom: 40,
+    paddingTop: 40,
+    paddingHorizontal: space.xl,
+  },
+  fire: {
+    position: 'absolute',
+    bottom: 6,
+    alignSelf: 'center',
   },
   wordmark: {
-    ...type.display,
-    fontSize: 48,
-    lineHeight: 54,
-    color: colors.ember,
-    letterSpacing: -1,
+    ...type.moment,
+    fontSize: 54,
+    lineHeight: 60,
+    color: colors.ink,
+    letterSpacing: -1.5,
   },
   tagline: {
     ...type.body,
     fontSize: 17,
     lineHeight: 24,
-    color: colors.inkMuted,
+    color: colors.inkSoft,
     marginTop: space.md,
     textAlign: 'center',
     maxWidth: 420,
