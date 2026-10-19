@@ -162,6 +162,17 @@ export default function PersonScreen() {
                 {person.is_friend ? (
                   <TouchableOpacity
                     style={styles.ctaQuiet}
+                    onPress={() => router.push(`/notes/${person.id}`)}
+                    activeOpacity={0.85}
+                    testID="voice-note-to"
+                  >
+                    <Ionicons name="chatbubbles-outline" size={18} color={colors.ink} />
+                    <Text style={styles.ctaQuietText}>Voice note</Text>
+                  </TouchableOpacity>
+                ) : null}
+                {person.is_friend ? (
+                  <TouchableOpacity
+                    style={styles.ctaQuiet}
                     onPress={() => recordWith(true)}
                     activeOpacity={0.85}
                     testID="pass-mic-with"

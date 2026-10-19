@@ -41,14 +41,14 @@ function NavItem({ icon, label, active, onPress, count, testID }) {
 }
 
 // The laptop/tablet rail, rendered by the root layout so it stays put on every
-// route: wordmark, the places (Fireside · Notifications · You), the one loud
+// route: wordmark, the places (Fireside · Voice notes · Notifications · You), the one loud
 // action (Record a cast), and the faces around your fire. Replaces the phone's
 // bottom tab bar from `layout.wide` up.
 export default function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const { tab, setTab, friendsVersion } = useShell();
-  const { unreadCount } = useNotifications();
+  const { unreadCount, unheardNotes } = useNotifications();
   const [friends, setFriends] = useState([]);
   const [inviting, setInviting] = useState(false);
   const home = pathname === '/';
@@ -85,6 +85,14 @@ export default function Sidebar() {
           label="Fireside"
           active={home && tab === 'feed'}
           onPress={() => goTab('feed')}
+        />
+        <NavItem
+          icon="chatbubbles"
+          label="Voice notes"
+          count={unheardNotes}
+          active={pathname?.startsWith('/notes')}
+          onPress={() => router.navigate('/notes')}
+          testID="nav-notes"
         />
         <NavItem
           icon="notifications"

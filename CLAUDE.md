@@ -22,6 +22,18 @@ title/summary (`update_cast_words`) **and** choose who hears it
 (`can_manage_cast` includes participants; `sharer_id` survives only as an extra
 manager on older casts).
 
+**Voice notes** (`voice_notes`): recordings between two people only (RLS:
+sender and recipient), to someone in your address book, in threads — "just
+chat" or about a cast you can **both** hear (`cast_visible_to`), optionally at
+a moment (`at_ms`). The recipient marks them heard (`mark_notes_heard` /
+`mark_all_notes_heard`, called on play); the sender can unsend. Audio lives in
+the sender's folder, readable via `can_access_audio`; notes are transcribed
+like casts (`transcripts.note_id`). UI: `/notes` (list with All / Unheard /
+Waiting on you filters) and `/notes/<person>` (`?cast=&at=&title=` opens the
+thread about a cast, replying to a moment) — both `screens/VoiceNotesScreen`,
+side by side on a laptop; grouping logic in `utils/notes`. Like a cast page, a
+conversation is its own player, so the now-playing panel steps aside there.
+
 **Pass the mic** (casts made in turns): `casts.together`, with each take in
 `cast_turns` (`casts.audio_path` = the first take, `casts.duration` = the sum).
 `add_cast_turn` adds yours when it's your turn (`casts.turn_with`) and passes
@@ -60,7 +72,10 @@ it checks access by reading the cast as the caller, then hands Groq's Whisper
 (`whisper-large-v3-turbo`, ~$0.04/audio hour) a 10-minute signed URL and
 writes `transcripts` (one row per audio file, `[{ s, e, t }]` segments; read
 via `can_access_cast`). Needs the `GROQ_API_KEY` Edge Function secret — without
-it the function quietly does nothing. The cast page shows them as a
+it the function quietly does nothing. It runs as `service_role`, which (like
+every role here) has **no table privileges unless granted** — it has exactly
+`select` on `cast_turns` and `select, insert, update` on `transcripts`; grant
+more in a migration if the function grows. The cast page shows them as a
 read-along ("What was said"). Manual summaries ship now; AI summaries/cover art are a
 planned fast-follow behind a Supabase Edge Function (cover art is currently
 derived deterministically from the cast id in `components/CastCover.js`).

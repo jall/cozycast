@@ -1,12 +1,14 @@
 // Transcribe a cast: every recording in it that doesn't have a transcript yet
-// (one file, or each turn of a cast made in turns). Called by the app after a
-// cast or turn is saved, and when a cast without one is opened.
+// (one file, or each turn of a cast made in turns) — or a voice note. Called
+// by the app after a cast, turn or note is saved, and when a cast without one
+// is opened.
 //
-// POST { cast_id } with the caller's session. Access is checked by reading the
-// cast *as the caller* (RLS); the audio is then handed to Groq's Whisper as a
-// short-lived signed URL, so the file never passes through this function.
-// Results land in `transcripts` (service role). Responds with the cast's
-// transcripts. Without GROQ_API_KEY it does nothing and says so.
+// POST { cast_id } or { note_id } with the caller's session. Access is checked
+// by reading the cast or note *as the caller* (RLS); the audio is then handed
+// to Groq's Whisper as a short-lived signed URL, so the file never passes
+// through this function. Results land in `transcripts` (service role).
+// Responds with the transcripts. Without GROQ_API_KEY it does nothing and
+// says so.
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
@@ -38,7 +40,14 @@ async function transcribe(url: string, key: string) {
     headers: { authorization: `Bearer ${key}` },
     body: form,
   });
-  if (!res.ok) throw new Error(`transcription failed (${res.status}): ${await res.text()}`);
+  if (!res.ok) {
+    const body = await res.text();
+    // Nothing to hear (a blip, or silence): an empty transcript, not a retry.
+    if (res.status === 400 && body.includes('audio_too_short')) {
+      return { segments: [], text: '', language: null };
+    }
+    throw new Error(`transcription failed (${res.status}): ${body}`);
+  }
   const out = await res.json();
   const segments: Segment[] = (out.segments || [])
     .map((g: { start: number; end: number; text: string }) => ({
@@ -54,14 +63,46 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return reply({});
   if (req.method !== 'POST') return reply({ error: 'POST only' }, 405);
 
-  const { cast_id: castId } = await req.json().catch(() => ({}));
-  if (!castId) return reply({ error: 'cast_id required' }, 400);
+  const { cast_id: castId, note_id: noteId } = await req.json().catch(() => ({}));
+  if (!castId && !noteId) return reply({ error: 'cast_id or note_id required' }, 400);
 
   const url = Deno.env.get('SUPABASE_URL')!;
   const asCaller = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!, {
     global: { headers: { authorization: req.headers.get('authorization') || '' } },
   });
   const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+  const key = Deno.env.get('GROQ_API_KEY');
+
+  // A voice note: just its one recording.
+  if (noteId) {
+    const { data: note } = await asCaller
+      .from('voice_notes')
+      .select('id, audio_path')
+      .eq('id', noteId)
+      .maybeSingle();
+    if (!note) return reply({ error: 'not found' }, 404);
+    const { data: existing } = await admin
+      .from('transcripts')
+      .select('audio_path, segments, text, language')
+      .eq('audio_path', note.audio_path)
+      .maybeSingle();
+    if (existing) return reply({ transcripts: [existing], pending: false });
+    if (!key) return reply({ transcripts: [], pending: true });
+    try {
+      const { data: signed, error } = await admin.storage
+        .from('casts')
+        .createSignedUrl(note.audio_path, 600);
+      if (error || !signed) throw error || new Error('could not sign audio');
+      const t = await transcribe(signed.signedUrl, key);
+      const row = { audio_path: note.audio_path, note_id: note.id, ...t };
+      const { error: saveError } = await admin.from('transcripts').upsert(row);
+      if (saveError) throw saveError;
+      return reply({ transcripts: [row], pending: false });
+    } catch (err) {
+      console.error('transcribe note', noteId, (err as Error).message);
+      return reply({ transcripts: [], pending: true });
+    }
+  }
 
   // Can the caller see this cast at all? (RLS decides.)
   const { data: cast } = await asCaller
@@ -88,7 +129,6 @@ Deno.serve(async (req) => {
   const done = new Set((have || []).map((t: { audio_path: string }) => t.audio_path));
   const todo = paths.filter((p) => p && !done.has(p));
 
-  const key = Deno.env.get('GROQ_API_KEY');
   const errors: string[] = [];
   if (todo.length > 0 && !key) errors.push('transcription is not set up (no GROQ_API_KEY)');
   else {

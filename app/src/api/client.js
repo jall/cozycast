@@ -277,9 +277,19 @@ export async function markPlayed(castId) {
 // `peaks` with the waveform (or null). Hand it to createCast.
 export async function beginCastUpload({ audioUri, mimeType, onProgress }) {
   const userId = await currentUserId();
+  // A browser recording doesn't say what it is: ask the blob (WebM on most
+  // browsers, MP4 on Safari) rather than labelling everything .m4a.
+  let mime = mimeType;
+  if (!mime && Platform.OS === 'web' && audioUri) {
+    try {
+      mime = ((await (await fetch(audioUri)).blob()).type || '').split(';')[0] || null;
+    } catch {
+      mime = null;
+    }
+  }
   // Into the creator's own folder (storage RLS keys off this).
-  const contentType = mimeType || 'audio/m4a';
-  const path = `${userId}/${Date.now()}.${extFromMime(mimeType)}`;
+  const contentType = mime || 'audio/m4a';
+  const path = `${userId}/${Date.now()}.${extFromMime(mime)}`;
   // A CPU-bound decode (off the main thread) next to a network-bound upload.
   const peaks = computePeaks(audioUri).catch(() => null);
   const uploaded = uploadAudio(path, audioUri, contentType, onProgress);
@@ -351,6 +361,110 @@ export async function createCast({
 
   transcribeSoon(cast.id);
   return cast;
+}
+
+// ---- Voice notes (between two people; RLS: its sender and recipient) -------
+
+const NOTE_SELECT = `id, from_id, to_id, cast_id, at_ms, audio_path, duration, peaks,
+  created_at, heard_at, cast:casts!voice_notes_cast_id_fkey(id, title)`;
+
+function mapNote(n) {
+  return { ...n, cast_title: n.cast?.title || null };
+}
+
+// Every voice note to or from you, oldest first. Empty (not an error) on a
+// database without voice notes yet.
+export async function getVoiceNotes() {
+  const { data, error } = await supabase
+    .from('voice_notes')
+    .select(NOTE_SELECT)
+    .order('created_at', { ascending: true })
+    .limit(1000);
+  if (error) return [];
+  return (data || []).map(mapNote);
+}
+
+// Send a recorded note (an upload from beginCastUpload) to someone in your
+// address book — just chat, or about a cast (and maybe a moment in it).
+export async function sendVoiceNote({ toId, castId = null, atMs = null, upload, duration }) {
+  await upload.uploaded;
+  const { data, error } = await supabase
+    .from('voice_notes')
+    .insert({
+      to_id: toId,
+      cast_id: castId,
+      at_ms: atMs == null ? null : Math.max(0, Math.round(atMs)),
+      audio_path: upload.path,
+      duration: duration || null,
+    })
+    .select(NOTE_SELECT)
+    .single();
+  if (error) throw error;
+  upload.peaks
+    .then(
+      (peaks) =>
+        peaks &&
+        supabase
+          .from('voice_notes')
+          .update({ peaks })
+          .eq('id', data.id)
+          .then(() => {}),
+    )
+    .catch(() => {});
+  requestNoteTranscript(data.id).catch(() => {});
+  return mapNote(data);
+}
+
+// Take back a note you sent (and its audio, best-effort).
+export async function unsendVoiceNote(note) {
+  const { error } = await supabase.from('voice_notes').delete().eq('id', note.id);
+  if (error) throw error;
+  await supabase.storage
+    .from('casts')
+    .remove([note.audio_path])
+    .catch(() => {});
+}
+
+export async function markNotesHeard(ids) {
+  if (!ids || ids.length === 0) return;
+  const { error } = await supabase.rpc('mark_notes_heard', { p_ids: ids });
+  if (error) throw error;
+}
+
+export async function markAllNotesHeard() {
+  const { error } = await supabase.rpc('mark_all_notes_heard');
+  if (error) throw error;
+}
+
+// Notes waiting to be heard (for the badge). 0 when unavailable.
+export async function getUnheardNoteCount() {
+  const userId = await currentUserId();
+  const { count, error } = await supabase
+    .from('voice_notes')
+    .select('id', { count: 'exact', head: true })
+    .eq('to_id', userId)
+    .is('heard_at', null);
+  if (error) return 0;
+  return count || 0;
+}
+
+// What was said in some notes: { [noteId]: text }.
+export async function getNoteTranscripts(noteIds) {
+  if (!noteIds || noteIds.length === 0) return {};
+  const { data, error } = await supabase
+    .from('transcripts')
+    .select('note_id, text')
+    .in('note_id', noteIds);
+  if (error) return {};
+  return Object.fromEntries((data || []).map((t) => [t.note_id, t.text]));
+}
+
+export async function requestNoteTranscript(noteId) {
+  const { data, error } = await supabase.functions.invoke('transcribe', {
+    body: { note_id: noteId },
+  });
+  if (error) throw error;
+  return data?.transcripts?.[0]?.text ?? null;
 }
 
 // ---- Transcripts (written by the `transcribe` Edge Function) ---------------

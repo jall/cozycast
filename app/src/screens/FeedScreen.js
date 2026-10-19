@@ -64,7 +64,7 @@ export default function FeedScreen() {
   const { setTab, setAnswering, setTurnFor } = useShell();
   // Asks waiting on you ("Ben asked you for a cast…").
   const [asks, setAsks] = useState([]);
-  const { unreadCount, refresh: refreshNotifications } = useNotifications();
+  const { unreadCount, unheardNotes, refresh: refreshNotifications } = useNotifications();
   const { width } = useWindowDimensions();
   const wide = width >= layout.wide;
   const roomy = width >= 600;
@@ -152,6 +152,17 @@ export default function FeedScreen() {
           <Text style={styles.subline}>{subline}</Text>
         </View>
         <Campfire width={fireWidth} style={[styles.fire, !roomy && styles.fireSmall]} />
+        {!wide ? (
+          <TouchableOpacity
+            onPress={() => router.push('/notes')}
+            style={[styles.bell, styles.notesButton]}
+            accessibilityLabel="Voice notes"
+            testID="notes-button"
+          >
+            <Ionicons name="chatbubbles-outline" size={20} color={colors.ink} />
+            {unheardNotes > 0 ? <View style={styles.badge} accessibilityLabel="Unheard" /> : null}
+          </TouchableOpacity>
+        ) : null}
         {!wide ? (
           <TouchableOpacity
             onPress={() => router.push('/notifications')}
@@ -415,6 +426,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(245, 234, 219, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  notesButton: {
+    right: space.lg + 52,
   },
   badge: {
     position: 'absolute',

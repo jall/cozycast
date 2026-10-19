@@ -1,13 +1,18 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import { getUnreadNotificationCount, markNotificationsRead } from '../api/client';
+import {
+  getUnreadNotificationCount,
+  markNotificationsRead,
+  getUnheardNoteCount,
+} from '../api/client';
 
-// Holds the unread-notification count so the feed's bell badge and the
-// notifications screen stay in sync. Deliberately thin: the screen owns the
+// Holds the unread-notification count (and how many voice notes are waiting
+// to be heard) so the badges and the screens stay in sync. Deliberately thin: the screen owns the
 // list; this just tracks the badge and exposes refresh / mark-all-read.
 const NotificationsContext = createContext(null);
 
 export function NotificationsProvider({ children }) {
   const [unreadCount, setUnreadCount] = useState(0);
+  const [unheardNotes, setUnheardNotes] = useState(0);
 
   const refresh = useCallback(async () => {
     try {
@@ -15,6 +20,9 @@ export function NotificationsProvider({ children }) {
     } catch {
       // Signed out / offline — leave the last known count.
     }
+    getUnheardNoteCount()
+      .then(setUnheardNotes)
+      .catch(() => {});
   }, []);
 
   const markAllRead = useCallback(async () => {
@@ -27,7 +35,7 @@ export function NotificationsProvider({ children }) {
     }
   }, [refresh]);
 
-  const value = { unreadCount, refresh, markAllRead };
+  const value = { unreadCount, unheardNotes, setUnheardNotes, refresh, markAllRead };
   return <NotificationsContext.Provider value={value}>{children}</NotificationsContext.Provider>;
 }
 

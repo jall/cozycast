@@ -14,7 +14,8 @@ import { segmentsFor, restack, totalOf, locate } from '../utils/segments';
 // A "track" is { id, uri, audioPath, title, artist, seed, durationSeconds,
 // peaks } — id is the cast id, used to tell which card is the one currently
 // playing. A cast made in turns also has `segments` ([{ audioPath,
-// durationMs }]) — its takes, played back to back as one.
+// durationMs }]) — its takes, played back to back as one. A voice note passes
+// `onStart` (marking it heard) in place of recording a cast listen.
 // `uri` may be absent: signed URLs are minted lazily on first play (from
 // `audioPath`) so a feed of thirty casts doesn't fire thirty storage calls
 // just to render play buttons.
@@ -298,7 +299,9 @@ export function PlayerProvider({ children }) {
         setupMediaSession(next);
         // Pressing play counts as hearing it (clears "New", and lets the people
         // who made/shared it know someone listened). First play only; quiet.
-        markPlayed(next.id).catch(() => {});
+        // A track that isn't a cast (a voice note) says what hearing it means.
+        if (next.onStart) next.onStart();
+        else markPlayed(next.id).catch(() => {});
       } catch {
         // Bad/expired URL — leave the player idle rather than crashing.
         if (seq !== loadSeqRef.current) return;

@@ -80,7 +80,8 @@ function BackButton({ onPress }) {
 }
 
 export default function CastDetailScreen() {
-  const { id } = useLocalSearchParams();
+  // `at`: arrived from a voice note replying to a moment — start there.
+  const { id, at } = useLocalSearchParams();
   const router = useRouter();
   const toast = useToast();
   const { user } = useAuth();
@@ -140,13 +141,16 @@ export default function CastDetailScreen() {
       .then((c) => {
         if (!active) return;
         setCast(c);
-        // Recipients + the address book are only needed by a manager (creator
-        // or assigned sharer), who can add/remove who the cast is shared with.
-        if (c?.can_manage) {
-          getRecipients(id).then((r) => active && setRecipients(r));
+        // Your address book: who you can share this with (if it's yours to
+        // share) and send a voice note about it to.
+        if (c) {
           getFriends()
             .then((f) => active && setFriends(f))
             .catch(() => {});
+        }
+        // Who it's shared with: only needed by the people who manage that.
+        if (c?.can_manage) {
+          getRecipients(id).then((r) => active && setRecipients(r));
         }
         // Comments are visible to anyone who can access the cast.
         if (c) getComments(id).then((cs) => active && setComments(cs));
@@ -189,6 +193,14 @@ export default function CastDetailScreen() {
       active = false;
     };
   }, [id]);
+
+  // Arrived from a voice note's "at 6:02": play from that moment, once.
+  const startedAt = useRef(null);
+  useEffect(() => {
+    if (!cast?.audio_path || at == null || startedAt.current === `${id}@${at}`) return;
+    startedAt.current = `${id}@${at}`;
+    play(trackFor(cast), { startMillis: Number(at) || 0 });
+  }, [cast, id, at, play]);
 
   async function toggleRecipient(friend) {
     const has = recipientIds.has(friend.id);
@@ -392,6 +404,22 @@ export default function CastDetailScreen() {
     else play(castTrack, { startMillis: ms });
   }
 
+  // Voice notes about this cast: to the people in it (and, for its managers,
+  // the people it's shared with) who are in your address book.
+  const notePeople = [];
+  [...makersOf(cast), ...recipients.map((r) => ({ id: r.id, name: r.name || r.email }))].forEach(
+    (p) => {
+      const friend = friends.some((f) => f.id === p.id);
+      if (friend && p.id !== user?.id && !notePeople.some((x) => x.id === p.id)) notePeople.push(p);
+    },
+  );
+
+  function voiceNoteTo(p) {
+    const query = [`cast=${cast.id}`, `title=${encodeURIComponent(cast.title || '')}`];
+    if (isCurrent && position > 0) query.push(`at=${Math.round(position)}`);
+    router.push(`/notes/${p.id}?${query.join('&')}`);
+  }
+
   // The transcript, a part per recording (per turn, with who's speaking).
   const byPath = Object.fromEntries(transcripts.map((t) => [t.audio_path, t]));
   const transcriptParts = shape?.bands
@@ -481,6 +509,27 @@ export default function CastDetailScreen() {
 
             {cast.audio_path ? (
               <PlayerDeck cast={castTrack} notes={comments} onNote={noteAt} style={styles.player} />
+            ) : null}
+
+            {notePeople.length > 0 ? (
+              <View style={styles.noteTo}>
+                <Ionicons name="chatbubbles-outline" size={15} color={colors.inkMuted} />
+                <Text style={styles.noteToLabel}>
+                  {isCurrent && position > 0
+                    ? `Voice note about ${formatClock(position)} to`
+                    : 'Voice note to'}
+                </Text>
+                {notePeople.slice(0, 4).map((p) => (
+                  <TouchableOpacity
+                    key={p.id}
+                    style={styles.noteToChip}
+                    onPress={() => voiceNoteTo(p)}
+                    testID="voice-note-to"
+                  >
+                    <Text style={styles.noteToName}>{p.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             ) : null}
 
             {turns ? (
@@ -1018,6 +1067,22 @@ const styles = StyleSheet.create({
     ...Platform.select({ web: { outlineStyle: 'none' }, default: {} }),
   },
   turnsBox: { marginBottom: space.lg },
+  noteTo: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: space.sm,
+    marginBottom: space.lg,
+  },
+  noteToLabel: { ...type.label, color: colors.inkMuted },
+  noteToChip: {
+    paddingHorizontal: space.md,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.smoke,
+  },
+  noteToName: { ...type.label, color: colors.ink },
   turnsEyebrow: { ...type.monoLabel, color: colors.emberSoft, marginBottom: space.md },
   turnRow: {
     borderLeftWidth: 3,
