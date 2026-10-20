@@ -76,7 +76,19 @@ it the function quietly does nothing. It runs as `service_role`, which (like
 every role here) has **no table privileges unless granted** — it has exactly
 `select` on `cast_turns` and `select, insert, update` on `transcripts`; grant
 more in a migration if the function grows. The cast page shows them as a
-read-along ("What was said"). Manual summaries ship now; AI summaries/cover art are a
+read-along ("What was said"). Passed `audio_path` (your own fresh upload — the
+token's `sub` must own the folder) it transcribes before a cast exists, and
+with `suggest: true` it drafts `{ title, summary, question }` with Claude
+(`claude-opus-5-5` at low effort, structured JSON output, `fallbacks:
+"default"`; needs `ANTHROPIC_API_KEY`, else suggestions are just null) — the
+record forms offer them as one-tap chips, and the cast page's edit mode has
+"Suggest from what was said". **Search** is plain Postgres full-text:
+`search_everything(q)` (`20261021100000_search.sql`, SECURITY INVOKER so RLS
+limits it to what you can open) over cast titles/summaries, transcript lines
+(pinned to the moment, turn offsets included), notes along the way, and voice
+notes; `search_query` turns input into prefix matches ('simple' config, any
+language). UI: `app/search.js`, opened from the Fireside search pill or the
+rail. Manual summaries ship now; AI summaries/cover art are a
 planned fast-follow behind a Supabase Edge Function (cover art is currently
 derived deterministically from the cast id in `components/CastCover.js`).
 

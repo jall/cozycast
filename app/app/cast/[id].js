@@ -39,6 +39,7 @@ import {
   finishTogetherCast,
   getTranscripts,
   requestTranscript,
+  suggestForCast,
   getAudioUrl,
   savePeaks,
 } from '../../src/api/client';
@@ -109,6 +110,9 @@ export default function CastDetailScreen() {
   const [draftTitle, setDraftTitle] = useState('');
   const [draftSummary, setDraftSummary] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
+  // Words drafted from the transcript, on request while editing.
+  const [suggestion, setSuggestion] = useState(null);
+  const [suggesting, setSuggesting] = useState(false);
   // The moment (ms) a new comment will be pinned to, or null for a general one.
   const [pinAt, setPinAt] = useState(null);
   const [loading, setLoading] = useState(() => !cachedCast(id));
@@ -605,6 +609,55 @@ export default function CastDetailScreen() {
                   multiline
                   accessibilityLabel="Summary"
                 />
+                {transcripts.some((t) => t.text) ? (
+                  suggestion ? (
+                    <View style={styles.suggestions}>
+                      {[
+                        ['Title', suggestion.title, draftTitle, setDraftTitle],
+                        ['Summary', suggestion.summary, draftSummary, setDraftSummary],
+                      ]
+                        .filter(([, text, current]) => text && text.trim() !== current.trim())
+                        .map(([label, text, , use]) => (
+                          <TouchableOpacity
+                            key={label}
+                            style={styles.suggestion}
+                            onPress={() => use(text)}
+                            testID="use-suggestion"
+                          >
+                            <Ionicons name="sparkles-outline" size={14} color={colors.emberSoft} />
+                            <Text style={styles.suggestionText}>
+                              <Text style={styles.suggestionLabel}>{label}: </Text>
+                              {text}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.suggestButton}
+                      disabled={suggesting}
+                      onPress={() => {
+                        setSuggesting(true);
+                        suggestForCast(id)
+                          .then((sg) => {
+                            if (sg) setSuggestion(sg);
+                            else toast.info('Couldn’t come up with anything this time.');
+                          })
+                          .finally(() => setSuggesting(false));
+                      }}
+                      testID="suggest-words"
+                    >
+                      {suggesting ? (
+                        <ActivityIndicator size="small" color={colors.emberSoft} />
+                      ) : (
+                        <Ionicons name="sparkles-outline" size={14} color={colors.emberSoft} />
+                      )}
+                      <Text style={styles.suggestButtonText}>
+                        {suggesting ? 'Listening back…' : 'Suggest from what was said'}
+                      </Text>
+                    </TouchableOpacity>
+                  )
+                ) : null}
                 <View style={styles.editActions}>
                   <TouchableOpacity
                     onPress={() => setEditing(false)}
@@ -1067,6 +1120,31 @@ const styles = StyleSheet.create({
     ...Platform.select({ web: { outlineStyle: 'none' }, default: {} }),
   },
   turnsBox: { marginBottom: space.lg },
+  suggestions: { gap: space.sm, marginTop: space.sm },
+  suggestion: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: space.sm,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    borderRadius: radius.sm,
+    backgroundColor: colors.accentSurface,
+  },
+  suggestionText: { ...type.bodySm, color: colors.ink, flex: 1 },
+  suggestionLabel: { color: colors.emberSoft, fontFamily: type.h3.fontFamily },
+  suggestButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: space.sm,
+    marginTop: space.sm,
+    paddingHorizontal: space.md,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.smoke,
+  },
+  suggestButtonText: { ...type.label, color: colors.ink },
   noteTo: {
     flexDirection: 'row',
     flexWrap: 'wrap',

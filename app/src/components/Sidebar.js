@@ -87,6 +87,13 @@ export default function Sidebar() {
           onPress={() => goTab('feed')}
         />
         <NavItem
+          icon="search"
+          label="Search"
+          active={pathname === '/search'}
+          onPress={() => router.navigate('/search')}
+          testID="nav-search"
+        />
+        <NavItem
           icon="chatbubbles"
           label="Voice notes"
           count={unheardNotes}

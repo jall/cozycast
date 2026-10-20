@@ -23,6 +23,7 @@ import {
   answerCastRequest,
   startTogetherCast,
   addTurn,
+  suggestFromUpload,
 } from '../api/client';
 import { useRouter } from 'expo-router';
 import PressableScale from '../components/PressableScale';
@@ -148,6 +149,10 @@ export default function RecordScreen() {
   const [question, setQuestion] = useState('');
   // After keeping a turn: who it went to (null when you finished it).
   const [passedTo, setPassedTo] = useState(null);
+  // Words drafted from what you said ({ title, summary, question }), once the
+  // upload's in: offered, never filled in for you.
+  const [suggestion, setSuggestion] = useState(null);
+  const [suggesting, setSuggesting] = useState(false);
   // Starting one without having picked who it's with: ask on the form.
   const [askWithInForm, setAskWithInForm] = useState(false);
   const router = useRouter();
@@ -370,10 +375,48 @@ export default function RecordScreen() {
       onProgress: setUploadProgress,
     });
     uploadRef.current = pending;
+    setSuggestion(null);
     pending
-      .then((up) => up.uploaded)
-      .then(() => uploadRef.current === pending && setUploadState('done'))
+      .then((up) => up.uploaded.then(() => up))
+      .then((up) => {
+        if (uploadRef.current !== pending) return;
+        setUploadState('done');
+        setSuggesting(true);
+        suggestFromUpload(up.path)
+          .then((sg) => uploadRef.current === pending && setSuggestion(sg))
+          .finally(() => setSuggesting(false));
+      })
       .catch(() => uploadRef.current === pending && setUploadState('failed'));
+  }
+
+  // A drafted title / summary / question, one tap to use. Hidden once it's
+  // what's already there.
+  function suggested(text, current, onUse, label = 'Use') {
+    if (!text || (current || '').trim() === text.trim()) return null;
+    return (
+      <TouchableOpacity
+        style={styles.suggestion}
+        onPress={() => onUse(text)}
+        activeOpacity={0.75}
+        testID="use-suggestion"
+      >
+        <Ionicons name="sparkles-outline" size={14} color={colors.emberSoft} />
+        <Text style={styles.suggestionText} numberOfLines={3}>
+          <Text style={styles.suggestionLabel}>{label}: </Text>
+          {text}
+        </Text>
+      </TouchableOpacity>
+    );
+  }
+
+  function suggestingNote() {
+    if (!suggesting) return null;
+    return (
+      <View style={styles.suggesting}>
+        <ActivityIndicator size="small" color={colors.inkMuted} />
+        <Text style={styles.suggestingText}>Listening back for a title…</Text>
+      </View>
+    );
   }
 
   async function handleCreate() {
@@ -448,6 +491,8 @@ export default function RecordScreen() {
     setPassTo(null);
     setQuestion('');
     setPassedTo(null);
+    setSuggestion(null);
+    setSuggesting(false);
     setMode(null);
     setRecordingUri(null);
     setAudioMime(null);
@@ -833,6 +878,8 @@ export default function RecordScreen() {
               placeholderTextColor={colors.inkFaint}
               testID="together-title"
             />
+            {suggestingNote()}
+            {suggested(suggestion?.title, title, setTitle, 'Suggested')}
           </View>
         ) : null}
 
@@ -853,6 +900,7 @@ export default function RecordScreen() {
             textAlignVertical="top"
             testID="turn-question"
           />
+          {suggested(suggestion?.question, question, setQuestion, 'It sounds like you asked')}
           <Text style={styles.helpText}>
             It shows with your turn, so they know what they’re answering.
           </Text>
@@ -937,7 +985,10 @@ export default function RecordScreen() {
             onChangeText={setTitle}
             placeholder="What's this about?"
             placeholderTextColor={colors.inkFaint}
+            testID="cast-title"
           />
+          {suggestingNote()}
+          {suggested(suggestion?.title, title, setTitle, 'Suggested')}
         </View>
 
         <View style={styles.inputGroup}>
@@ -952,6 +1003,7 @@ export default function RecordScreen() {
             numberOfLines={3}
             textAlignVertical="top"
           />
+          {suggested(suggestion?.summary, summary, setSummary, 'Suggested')}
         </View>
 
         {friends.length === 0 ? (
@@ -1077,6 +1129,36 @@ export default function RecordScreen() {
 }
 
 const styles = StyleSheet.create({
+  suggestion: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: space.sm,
+    marginTop: space.sm,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    borderRadius: radius.sm,
+    backgroundColor: colors.accentSurface,
+    ...Platform.select({ web: { cursor: 'pointer' }, default: {} }),
+  },
+  suggestionText: {
+    ...type.bodySm,
+    color: colors.ink,
+    flex: 1,
+  },
+  suggestionLabel: {
+    color: colors.emberSoft,
+    fontFamily: fonts.bold,
+  },
+  suggesting: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    marginTop: space.sm,
+  },
+  suggestingText: {
+    ...type.caption,
+    color: colors.inkMuted,
+  },
   momentTitle: {
     ...type.moment,
     fontSize: 32,

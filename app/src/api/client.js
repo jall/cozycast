@@ -467,6 +467,39 @@ export async function requestNoteTranscript(noteId) {
   return data?.transcripts?.[0]?.text ?? null;
 }
 
+// ---- Suggestions (drafted from what was said; see the transcribe function) --
+
+// Words for a fresh upload of yours, before it's saved: { title, summary,
+// question } or null (nothing said, or suggestions aren't set up).
+export async function suggestFromUpload(audioPath) {
+  const { data, error } = await supabase.functions.invoke('transcribe', {
+    body: { audio_path: audioPath, suggest: true },
+  });
+  if (error) return null;
+  return data?.suggestion || null;
+}
+
+// Words for an existing cast, from its transcripts.
+export async function suggestForCast(castId) {
+  const { data, error } = await supabase.functions.invoke('transcribe', {
+    body: { cast_id: castId, suggest: true },
+  });
+  if (error) return null;
+  return data?.suggestion || null;
+}
+
+// ---- Search (search_everything: full-text, as you; RLS decides) ------------
+
+// [{ kind: 'cast'|'said'|'comment'|'note', cast_id, note_id, other_id, title,
+// at_ms, snippet (matches in [[ ]]), created_at }]
+export async function searchEverything(query) {
+  const q = (query || '').trim();
+  if (!q) return [];
+  const { data, error } = await supabase.rpc('search_everything', { p_query: q });
+  if (error) throw error;
+  return data || [];
+}
+
 // ---- Transcripts (written by the `transcribe` Edge Function) ---------------
 
 // Ask for a cast's recordings to be transcribed (those that aren't yet).

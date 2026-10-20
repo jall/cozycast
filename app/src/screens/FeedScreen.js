@@ -256,6 +256,17 @@ export default function FeedScreen() {
           </TouchableOpacity>
         ) : null}
 
+        <TouchableOpacity
+          style={styles.searchPill}
+          onPress={() => router.push('/search')}
+          activeOpacity={0.8}
+          accessibilityRole="search"
+          testID="search-open"
+        >
+          <Ionicons name="search" size={17} color={colors.inkMuted} />
+          <Text style={styles.searchText}>Search what was said…</Text>
+        </TouchableOpacity>
+
         <View style={styles.filters} accessibilityRole="tablist">
           {FILTERS.map((f) => {
             const on = filter === f.key;
@@ -486,6 +497,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     ...elevation.glow,
+  },
+  searchPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    height: 44,
+    marginHorizontal: space.lg,
+    marginBottom: space.md,
+    paddingHorizontal: space.lg,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+  },
+  searchText: {
+    ...type.bodySm,
+    color: colors.inkMuted,
   },
   filters: {
     flexDirection: 'row',
